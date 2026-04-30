@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Raubritter Escape</title>
+
+  <!-- PWA -->
+  <meta name="theme-color" content="#0d2b14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Raubritter">
+  <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/8/81/Wappen_lichtenberg-oberfranken.png">
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- PWA Install – muss von spiel.html aus installiert werden -->
+  <script>
+    let _pwaPrompt = null;
+
+    // Overlay schließen
+    function closeInstallOverlay() {
+      const overlay = document.getElementById('install-overlay');
+      if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => overlay.style.display = 'none', 300);
+      }
+      sessionStorage.setItem('install-overlay-dismissed', '1');
+    }
+
+    // Overlay nur zeigen wenn NICHT bereits als PWA installiert
+    window.addEventListener('DOMContentLoaded', () => {
+      const isStandalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true;
+      const dismissed = sessionStorage.getItem('install-overlay-dismissed');
+
+      if (isStandalone || dismissed) {
+        // Bereits installiert oder weggeklickt – Overlay sofort verstecken
+        const overlay = document.getElementById('install-overlay');
+        if (overlay) overlay.style.display = 'none';
+      }
+      // Sonst bleibt er sichtbar (display:flex vom HTML)
+    });
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      _pwaPrompt = e;
+      // Kleinen Banner einblenden (für spätere Nutzung)
+      const b = document.getElementById('spiel-install-banner');
+      if (b) b.style.display = 'flex';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      closeInstallOverlay();
+      const b = document.getElementById('spiel-install-banner');
+      if (b) b.style.display = 'none';
+    });
+
+    function installApp() {
+      if (_pwaPrompt) {
+        _pwaPrompt.prompt();
+        _pwaPrompt.userChoice.then(result => {
+          if (result.outcome === 'accepted') closeInstallOverlay();
+        });
+      } else {
+        // Kein Prompt verfügbar (iOS oder bereits installiert)
+        alert('Bitte nutze den Browser-Menüpunkt:\n\niPhone (Safari): Teilen → „Zum Home-Bildschirm"\nAndroid (Chrome): Drei-Punkte-Menü → „Zum Startbildschirm hinzufügen"');
+      }
+    }
+  </script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+  <!-- jsQR für QR-Code Erkennung -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+  <style>
+    :root {
+      --gold: #c9a84c;
+      --gold-light: #e8c96a;
+      --gold-dark: #8b6914;
+      --parchment: #f5ead0;
+      --ink: #1a120b;
+      --forest: #0d2b14;
+      --forest-mid: #1a4a24;
+      --stone: #2d2520;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%; overflow: hidden;
+      font-family: 'Crimson Text', Georgia, serif;
+      background: var(--ink); color: var(--parchment);
+      user-select: none;
+    }
+
+    /* ── APP SHELL ── */
+    #app {
+      height: 100dvh;
+      display: flex; flex-direction: column;
+      max-width: 480px; margin: 0 auto;
+      position: relative; overflow: hidden;
+    }
+
+    /* ── SCREENS ── */
+    .screen {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      transform: translateY(12px);
+      overflow-y: auto;
+    }
+    .screen.active {
+      opacity: 1; pointer-events: all;
+      transform: translateY(0);
+    }
+
+    /* ── STATUS BAR SAFE AREA ── */
+    .safe-top { padding-top: env(safe-area-inset-top, 12px); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 12px); }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      background: rgba(13,43,20,0.97);
+      border-bottom: 1px solid rgba(201,168,76,0.2);
+      padding: 0.75rem 1.25rem;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+      backdrop-filter: blur(10px);
+    }
+    .topbar-logo {
+      font-family: 'Cinzel', serif; font-size: 0.75rem;
+      color: var(--gold); letter-spacing: 0.12em;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .topbar-progress {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-family: 'Cinzel', serif; font-size: 0.65rem; color: rgba(245,234,208,0.5);
+    }
+    .progress-pip {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      transition: all 0.3s;
+    }
+    .progress-pip.done { background: var(--gold); }
+    .progress-pip.current {
+      background: var(--gold-light);
+      box-shadow: 0 0 6px rgba(201,168,76,0.6);
+    }
+
+    /* ── BOTTOM NAV ── */
+    .bottom-nav {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      background: rgba(13,43,20,0.97);
+      border-top: 1px solid rgba(201,168,76,0.18);
+      flex-shrink: 0;
+      backdrop-filter: blur(10px);
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 0.7rem 0.5rem; gap: 4px; cursor: pointer;
+      font-family: 'Cinzel', serif; font-size: 0.52rem;
+      letter-spacing: 0.08em; color: rgba(245,234,208,0.35);
+      transition: color 0.2s; border: none; background: none;
+    }
+    .nav-item i { font-size: 1.1rem; }
+    .nav-item.active { color: var(--gold); }
+
+    /* ── BUTTONS ── */
+    .btn-gold {
+      background: linear-gradient(135deg, #8b6914 0%, #c9a84c 50%, #8b6914 100%);
+      background-size: 200% 100%; background-position: right;
+      color: var(--ink); border: none; border-radius: 4px;
+      font-family: 'Cinzel', serif; font-weight: 700;
+      letter-spacing: 0.06em; cursor: pointer;
+      transition: background-position 0.4s, transform 0.15s, opacity 0.2s;
+      width: 100%; padding: 0.9rem;
+      font-size: 0.85rem;
+    }
+    .btn-gold:hover { background-position: left; }
+    .btn-gold:active { transform: scale(0.98); }
+    .btn-gold:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-outline {
+      background: transparent; color: var(--gold);
+      border: 1px solid rgba(201,168,76,0.4); border-radius: 4px;
+      font-family: 'Cinzel', serif; font-size: 0.75rem;
+      letter-spacing: 0.06em; padding: 0.7rem 1.25rem;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-outline:hover { border-color: var(--gold); background: rgba(201,168,76,0.08); }
+
+    /* ── INPUTS ── */
+    input[type=text], input[type=number] {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(201,168,76,0.3);
+      color: var(--parchment); border-radius: 4px;
+      padding: 0.85rem 1rem; font-size: 1.1rem;
+      font-family: 'Crimson Text', serif;
+      width: 100%; transition: border-color 0.2s;
+    }
+    input:focus { outline: none; border-color: var(--gold); }
+    input::placeholder { color: rgba(245,234,208,0.3); }
+
+    /* ── SCREEN: CODE EINGABE ── */
+    #screen-code {
+      background: linear-gradient(180deg, var(--forest) 0%, var(--ink) 100%);
+    }
+    .code-hero {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 2rem 1.75rem;
+      gap: 1.5rem; text-align: center;
+    }
+    .code-emblem {
+      width: 90px; height: 90px; border-radius: 50%;
+      background: rgba(201,168,76,0.1);
+      border: 2px solid rgba(201,168,76,0.3);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 0.5rem;
+      box-shadow: 0 0 40px rgba(201,168,76,0.1);
+    }
+
+    /* ── SCREEN: STATION ── */
+    #screen-station {
+      background: var(--ink);
+    }
+    .station-photo {
+      width: 100%; height: 200px; object-fit: cover;
+      flex-shrink: 0;
+    }
+    .station-photo-placeholder {
+      width: 100%; height: 160px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--forest), var(--stone));
+      display: flex; align-items: center; justify-content: center;
+    }
+    .station-body { padding: 1.25rem 1.5rem; flex: 1; }
+    .station-number-badge {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.25rem 0.75rem; border-radius: 20px;
+      font-family: 'Cinzel', serif; font-size: 0.62rem;
+      letter-spacing: 0.1em; margin-bottom: 0.75rem;
+      background: rgba(201,168,76,0.12);
+      border: 1px solid rgba(201,168,76,0.3);
+      color: var(--gold);
+    }
+    .station-name {
+      font-family: 'Cinzel', serif; font-size: 1.3rem;
+      font-weight: 700; line-height: 1.2;
+      color: var(--parchment); margin-bottom: 1rem;
+    }
+    .divider {
+      height: 1px; margin: 1rem 0;
+      background: linear-gradient(to right, transparent, rgba(201,168,76,0.2), transparent);
+    }
+    .directions-box {
+      background: rgba(13,43,20,0.5);
+      border-left: 2px solid var(--gold-dark);
+      padding: 0.75rem 1rem; border-radius: 0 4px 4px 0;
+      margin-bottom: 1rem;
+    }
+    .directions-label {
+      font-family: 'Cinzel', serif; font-size: 0.58rem;
+      letter-spacing: 0.1em; color: var(--gold); opacity: 0.7;
+      margin-bottom: 0.3rem;
+    }
+    .directions-text { font-size: 0.95rem; line-height: 1.65; opacity: 0.8; }
+    .maps-btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.4rem 0.9rem; border-radius: 20px;
+      font-family: 'Cinzel', serif; font-size: 0.6rem;
+      letter-spacing: 0.08em; text-decoration: none;
+      margin-top: 0.6rem;
+      background: rgba(201,168,76,0.1);
+      border: 1px solid rgba(201,168,76,0.25);
+      color: var(--gold);
+    }
+    .story-text {
+      font-style: italic; font-size: 1.05rem;
+      line-height: 1.75; color: rgba(245,234,208,0.85);
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── SCREEN: SCAN ── */
+    #screen-scan {
+      background: #000;
+    }
+    #qr-video-container {
+      flex: 1; position: relative; overflow: hidden;
+    }
+    #qr-video {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .scan-overlay {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .scan-frame {
+      width: 220px; height: 220px; position: relative;
+    }
+    .scan-corner {
+      position: absolute; width: 28px; height: 28px;
+    }
+    .scan-corner.tl { top: 0; left: 0; border-top: 3px solid var(--gold); border-left: 3px solid var(--gold); }
+    .scan-corner.tr { top: 0; right: 0; border-top: 3px solid var(--gold); border-right: 3px solid var(--gold); }
+    .scan-corner.bl { bottom: 0; left: 0; border-bottom: 3px solid var(--gold); border-left: 3px solid var(--gold); }
+    .scan-corner.br { bottom: 0; right: 0; border-bottom: 3px solid var(--gold); border-right: 3px solid var(--gold); }
+    .scan-line {
+      position: absolute; left: 8%; right: 8%; height: 2px;
+      background: linear-gradient(to right, transparent, rgba(201,168,76,0.8), transparent);
+      animation: scanline 2s ease-in-out infinite;
+    }
+    @keyframes scanline {
+      0%, 100% { top: 15%; opacity: 0.9; }
+      50% { top: 80%; opacity: 0.4; }
+    }
+    .scan-hint {
+      margin-top: 1.5rem; font-family: 'Cinzel', serif;
+      font-size: 0.7rem; letter-spacing: 0.1em;
+      color: rgba(245,234,208,0.6); text-align: center;
+    }
+    #scan-result-flash {
+      position: absolute; inset: 0;
+      background: rgba(201,168,76,0.15);
+      pointer-events: none; opacity: 0;
+      transition: opacity 0.15s;
+    }
+    #scan-result-flash.flash { opacity: 1; }
+    .scan-bottom {
+      padding: 1.25rem 1.5rem;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px);
+    }
+    #scan-status {
+      text-align: center; font-family: 'Cinzel', serif;
+      font-size: 0.72rem; letter-spacing: 0.08em;
+      margin-bottom: 0.75rem;
+      min-height: 1.2rem;
+    }
+    #scan-camera-off {
+      display: none;
+      flex: 1; align-items: center; justify-content: center;
+      flex-direction: column; gap: 1rem; padding: 2rem;
+      text-align: center;
+    }
+
+    /* ── SCREEN: RÄTSEL ── */
+    #screen-puzzle {
+      background: var(--ink);
+    }
+    .puzzle-body { padding: 1.5rem; flex: 1; overflow-y: auto; }
+    .puzzle-card {
+      background: rgba(201,168,76,0.06);
+      border: 1px solid rgba(201,168,76,0.22);
+      border-radius: 6px; padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .puzzle-label {
+      font-family: 'Cinzel', serif; font-size: 0.62rem;
+      letter-spacing: 0.12em; color: var(--gold);
+      margin-bottom: 0.6rem;
+    }
+    .puzzle-question {
+      font-size: 1.1rem; line-height: 1.7;
+      color: var(--parchment);
+    }
+    .attempt-dots {
+      display: flex; gap: 0.4rem; margin: 0.75rem 0;
+    }
+    .attempt-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      transition: background 0.2s;
+    }
+    .attempt-dot.wrong { background: #e05050; }
+    .attempt-dot.used { background: rgba(255,100,100,0.3); }
+    .hint-box {
+      background: rgba(139,105,20,0.15);
+      border: 1px solid rgba(201,168,76,0.25);
+      border-radius: 4px; padding: 0.75rem;
+      font-size: 0.9rem; line-height: 1.6;
+      margin-bottom: 1rem; display: none;
+    }
+    .hint-box.visible { display: block; }
+    .answer-input-row {
+      display: flex; gap: 0.6rem; margin-bottom: 0.75rem;
+    }
+    .answer-input-row input { flex: 1; }
+
+    /* ── SCREEN: ABSCHLUSS ── */
+    #screen-finale {
+      background: linear-gradient(180deg, var(--forest) 0%, var(--ink) 60%);
+    }
+    .finale-body {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 2rem 1.75rem; text-align: center; gap: 1.25rem;
+    }
+    .trophy-ring {
+      width: 100px; height: 100px; border-radius: 50%;
+      background: rgba(201,168,76,0.12);
+      border: 2px solid rgba(201,168,76,0.4);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 60px rgba(201,168,76,0.15);
+      animation: pulse-gold 3s ease-in-out infinite;
+    }
+    @keyframes pulse-gold {
+      0%, 100% { box-shadow: 0 0 30px rgba(201,168,76,0.15); }
+      50% { box-shadow: 0 0 60px rgba(201,168,76,0.3); }
+    }
+    .score-ring {
+      width: 120px; height: 120px; position: relative;
+    }
+    .score-ring svg { transform: rotate(-90deg); }
+    .score-number {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-size: 1.5rem;
+      font-weight: 700; color: var(--gold);
+      flex-direction: column;
+    }
+    .score-number small { font-size: 0.5rem; opacity: 0.5; margin-top: -2px; }
+
+    /* ── STATION SOLVED OVERLAY ── */
+    #solved-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(13,43,20,0.92);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 1rem; text-align: center;
+      padding: 2rem;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    #solved-overlay.show { opacity: 1; pointer-events: all; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: 5rem; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--forest-mid); border: 1px solid rgba(201,168,76,0.4);
+      border-radius: 20px; padding: 0.6rem 1.25rem;
+      font-family: 'Cinzel', serif; font-size: 0.7rem;
+      letter-spacing: 0.06em; color: var(--gold);
+      white-space: nowrap; z-index: 200;
+      opacity: 0; transition: all 0.3s;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── PARTICLES ── */
+    .particle {
+      position: fixed; pointer-events: none; z-index: 150;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--gold);
+      animation: particle-fall 1.2s ease-out forwards;
+    }
+    @keyframes particle-fall {
+      0% { transform: translateY(0) scale(1); opacity: 1; }
+      100% { transform: translateY(120px) scale(0); opacity: 0; }
+    }
+
+    /* ── LOADING ── */
+    .spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid rgba(201,168,76,0.2);
+      border-top-color: var(--gold);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── SHAKE ── */
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(5px); }
+    }
+    .shake { animation: shake 0.4s ease; }
+
+    /* ── TYPOGRAPHY UTILS ── */
+    .label-xs {
+      font-family: 'Cinzel', serif; font-size: 0.6rem;
+      letter-spacing: 0.12em; opacity: 0.45;
+    }
+    .gold { color: var(--gold); }
+    .text-center { text-align: center; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     INSTALL OVERLAY – überlagert die App beim ersten Start
+     Wird nicht gezeigt wenn bereits als PWA installiert
+═══════════════════════════════════════════════════ -->
+<div id="install-overlay" style="
+  position: fixed; inset: 0; z-index: 1000;
+  background: linear-gradient(180deg, #0d2b14 0%, #1a120b 100%);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+">
+  <!-- X Button oben rechts -->
+  <button onclick="closeInstallOverlay()" style="
+    position: absolute; top: 1rem; right: 1rem;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(245,234,208,0.4); font-size: 1rem;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    z-index: 10;
+  ">✕</button>
+
+  <!-- Header -->
+  <div style="text-align:center; padding: 3rem 2rem 1.5rem;">
+    <div style="width:80px; height:80px; border-radius:50%;
+      background:rgba(201,168,76,0.12); border:2px solid rgba(201,168,76,0.3);
+      display:flex; align-items:center; justify-content:center; margin:0 auto 1.25rem;">
+      <i class="fa-solid fa-shield-halved" style="font-size:2rem; color:#c9a84c;"></i>
+    </div>
+    <div style="font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.2em; color:#c9a84c; margin-bottom:0.4rem;">RAUBRITTER ESCAPE</div>
+    <h1 style="font-family:'Cinzel',serif; font-size:1.6rem; font-weight:900; color:#f5ead0; line-height:1.2; margin-bottom:0.75rem;">
+      App installieren
+    </h1>
+    <p style="font-size:0.95rem; color:rgba(245,234,208,0.6); line-height:1.7; max-width:300px; margin:0 auto;">
+      Für das beste Spielerlebnis – mit Kamera-Zugriff und Vollbild – installiere die App auf deinem Homescreen.
+    </p>
+  </div>
+
+  <!-- Karten -->
+  <div style="padding: 0 1.25rem; display:flex; flex-direction:column; gap:1rem; flex:1;">
+
+    <!-- Android -->
+    <div style="background:rgba(13,43,20,0.7); border:1px solid rgba(201,168,76,0.25); border-radius:12px; padding:1.25rem;">
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+        <div style="width:40px; height:40px; border-radius:10px; background:rgba(201,168,76,0.15);
+          border:1px solid rgba(201,168,76,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <i class="fa-brands fa-android" style="color:#c9a84c; font-size:1.1rem;"></i>
+        </div>
+        <div>
+          <div style="font-family:'Cinzel',serif; font-size:0.75rem; font-weight:700; color:#c9a84c; letter-spacing:0.08em;">ANDROID</div>
+          <div style="font-size:0.75rem; color:rgba(245,234,208,0.4);">Chrome · Edge · Samsung Internet</div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:0.6rem; margin-bottom:1.1rem;">
+        <div style="display:flex; gap:0.6rem; align-items:flex-start;">
+          <div style="width:20px; height:20px; border-radius:50%; background:#8b6914; color:#f5ead0;
+            font-family:'Cinzel',serif; font-size:0.6rem; font-weight:700;
+            display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;">1</div>
+          <div style="font-size:0.88rem; color:rgba(245,234,208,0.75); line-height:1.5;">Diese Seite in <strong style="color:#f5ead0;">Chrome</strong> öffnen</div>
+        </div>
+        <div style="display:flex; gap:0.6rem; align-items:flex-start;">
+          <div style="width:20px; height:20px; border-radius:50%; background:#8b6914; color:#f5ead0;
+            font-family:'Cinzel',serif; font-size:0.6rem; font-weight:700;
+            display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;">2</div>
+          <div style="font-size:0.88rem; color:rgba(245,234,208,0.75); line-height:1.5;">Drei-Punkte-Menü <i class="fa-solid fa-ellipsis-vertical" style="opacity:0.6;"></i> oben rechts antippen</div>
+        </div>
+        <div style="display:flex; gap:0.6rem; align-items:flex-start;">
+          <div style="width:20px; height:20px; border-radius:50%; background:#8b6914; color:#f5ead0;
+            font-family:'Cinzel',serif; font-size:0.6rem; font-weight:700;
+            display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;">3</div>
+          <div style="font-size:0.88rem; color:rgba(245,234,208,0.75); line-height:1.5;"><em>„Zum Startbildschirm hinzufügen"</em> wählen</div>
+        </div>
+      </div>
+      <button id="btn-android-install" onclick="installApp()" style="
+        width:100%; padding:0.9rem;
+        background:linear-gradient(135deg,#8b6914 0%,#c9a84c 50%,#8b6914 100%);
+        background-size:200%; background-position:right;
+        border:none; border-radius:6px; cursor:pointer;
+        font-family:'Cinzel',serif; font-size:0.82rem; font-weight:700;
+        letter-spacing:0.06em; color:#1a120b;
+        transition: background-position 0.4s, transform 0.15s;
+      " onmouseover="this.style.backgroundPosition='left'" onmouseout="this.style.backgroundPosition='right'">
+        <i class="fa-solid fa-download" style="margin-right:0.5rem;"></i> Jetzt installieren
+      </button>
+    </div>
+
+    <!-- iPhone -->
+    <div style="background:rgba(13,43,20,0.7); border:1px solid rgba(201,168,76,0.25); border-radius:12px; padding:1.25rem;">
+      <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+        <div style="width:40px; height:40px; border-radius:10px; background:rgba(201,168,76,0.15);
+          border:1px solid rgba(201,168,76,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <i class="fa-brands fa-apple" style="color:#c9a84c; font-size:1.1rem;"></i>
+        </div>
+        <div>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <div style="font-family:'Cinzel',serif; font-size:0.75rem; font-weight:700; color:#c9a84c; letter-spacing:0.08em;">iPHONE / iPAD</div>
+            <div style="background:rgba(249,115,22,0.2); border:1px solid rgba(249,115,22,0.4);
+              border-radius:20px; padding:0.1rem 0.5rem;
+              font-family:'Cinzel',serif; font-size:0.55rem; color:#f97316; letter-spacing:0.05em;">NUR SAFARI</div>
+          </div>
+          <div style="font-size:0.75rem; color:rgba(245,234,208,0.4);">Nicht Chrome oder Firefox!</div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:0.6rem;">
+        <div style="display:flex; gap:0.6rem; align-items:flex-start;">
+          <div style="width:20px; height:20px; border-radius:50%; background:#8b6914; color:#f5ead0;
+            font-family:'Cinzel',serif; font-size:0.6rem; font-weight:700;
+            display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;">1</div>
+          <div style="font-size:0.88rem; color:rgba(245,234,208,0.75); line-height:1.5;">Link in <strong style="color:#f5ead0;">Safari</strong> öffnen <span style="color:rgba(245,234,208,0.35); font-size:0.8rem;">(nicht Chrome!)</span></div>
+        </div>
+        <div style="display:flex; gap:0.6rem; align-items:flex-start;">
+          <div style="width:20px; height:20px; border-radius:50%; background:#8b6914; color:#f5ead0;
+            font-family:'Cinzel',serif; font-size:0.6rem; font-weight:700;
+            display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;">2</div>
+          <div style="font-size:0.88rem; color:rgba(245,234,208,0.75); line-height:1.5;">Teilen-Button <i class="fa-solid fa-arrow-up-from-bracket" style="color:#c9a84c;"></i> unten in der Mitte antippen</div>
+        </div>
+        <div style="display:flex; gap:0.6rem; align-items:flex-start;">
+          <div style="width:20px; height:20px; border-radius:50%; background:#8b6914; color:#f5ead0;
+            font-family:'Cinzel',serif; font-size:0.6rem; font-weight:700;
+            display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;">3</div>
+          <div style="font-size:0.88rem; color:rgba(245,234,208,0.75); line-height:1.5;"><em>„Zum Home-Bildschirm"</em> wählen und bestätigen</div>
+        </div>
+        <div style="display:flex; gap:0.6rem; align-items:flex-start;">
+          <div style="width:20px; height:20px; border-radius:50%; background:rgba(13,43,20,0.8);
+            border:1px solid #8b6914; color:#c9a84c;
+            font-family:'Cinzel',serif; font-size:0.75rem;
+            display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px;">✓</div>
+          <div style="font-size:0.88rem; color:rgba(201,168,76,0.8); line-height:1.5;">App-Icon erscheint – Kamera funktioniert sofort</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hinweis warum App nötig -->
+    <div style="background:rgba(201,168,76,0.06); border:1px solid rgba(201,168,76,0.15); border-radius:8px; padding:1rem; margin-bottom:0.5rem;">
+      <div style="display:flex; gap:0.75rem; align-items:flex-start;">
+        <i class="fa-solid fa-circle-info" style="color:#c9a84c; font-size:1rem; flex-shrink:0; margin-top:2px;"></i>
+        <p style="font-size:0.85rem; color:rgba(245,234,208,0.6); line-height:1.65;">
+          Die App benötigt Zugriff auf deine <strong style="color:#f5ead0;">Kamera</strong> für den QR-Scanner. Nach der Installation beim ersten Scan einfach „Erlauben" tippen.
+        </p>
+      </div>
+    </div>
+
+  </div><!-- /karten -->
+
+  <div style="padding:1.25rem; text-align:center;">
+    <button onclick="closeInstallOverlay()" style="
+      background:transparent; border:none;
+      font-family:'Cinzel',serif; font-size:0.7rem;
+      color:rgba(245,234,208,0.3); letter-spacing:0.08em;
+      cursor:pointer; text-decoration:underline; text-underline-offset:3px;
+    ">Überspringen – direkt zur App</button>
+  </div>
+
+</div><!-- /install-overlay -->
+<div id="spiel-install-banner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:500;
+  background:linear-gradient(135deg,#0d2b14,#1a4a24);
+  border-bottom:1px solid rgba(201,168,76,0.35);
+  padding:0.6rem 1rem;
+  align-items:center; justify-content:space-between; gap:0.75rem;
+  box-shadow:0 4px 20px rgba(0,0,0,0.5);">
+  <div style="display:flex; align-items:center; gap:0.6rem; min-width:0;">
+    <i class="fa-solid fa-shield-halved" style="color:#c9a84c; font-size:1.1rem; flex-shrink:0;"></i>
+    <div style="min-width:0;">
+      <div style="font-family:'Cinzel',serif; font-size:0.68rem; color:#c9a84c; letter-spacing:0.06em; white-space:nowrap;">Als App installieren</div>
+      <div style="font-size:0.72rem; color:rgba(245,234,208,0.55); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Zum Homescreen hinzufügen</div>
+    </div>
+  </div>
+  <div style="display:flex; gap:0.4rem; flex-shrink:0;">
+    <button onclick="document.getElementById('spiel-install-banner').style.display='none'"
+      style="background:transparent; border:1px solid rgba(245,234,208,0.15); color:rgba(245,234,208,0.4);
+             font-family:'Cinzel',serif; font-size:0.58rem; padding:0.35rem 0.6rem; border-radius:3px; cursor:pointer;">
+      ✕
+    </button>
+    <button onclick="installApp()"
+      style="background:linear-gradient(135deg,#8b6914,#c9a84c); border:none; color:#1a120b;
+             font-family:'Cinzel',serif; font-size:0.65rem; font-weight:700;
+             padding:0.35rem 0.85rem; border-radius:3px; cursor:pointer; letter-spacing:0.05em; white-space:nowrap;">
+      INSTALLIEREN
+    </button>
+  </div>
+</div>
+<div id="app">
+
+  <!-- ═══════════════════════════════════
+       SCREEN 1: CODE EINGABE
+  ═══════════════════════════════════ -->
+  <div class="screen active safe-top" id="screen-code">
+    <div class="code-hero">
+      <div>
+        <div class="code-emblem">
+          <i class="fa-solid fa-shield-halved" style="font-size:2.5rem; color:var(--gold);"></i>
+        </div>
+      </div>
+      <div>
+        <div class="label-xs" style="margin-bottom:0.5rem;">RAUBRITTER ESCAPE</div>
+        <h1 style="font-family:'Cinzel',serif; font-size:1.8rem; font-weight:900; line-height:1.15; margin-bottom:0.5rem;">
+          Das Abenteuer<br>
+          <span style="color:var(--gold);">beginnt.</span>
+        </h1>
+        <p style="font-size:1rem; opacity:0.6; line-height:1.6; max-width:280px;">
+          Gebt euren Buchungscode ein – er steht in eurer Bestätigungs-E-Mail.
+        </p>
+      </div>
+
+      <div style="width:100%;">
+        <input type="text" id="code-input" placeholder="RE-2026-XXXX"
+          style="text-align:center; font-family:'Cinzel',serif; font-size:1.2rem; letter-spacing:0.2em; text-transform:uppercase; margin-bottom:0.75rem;"
+          maxlength="16">
+        <button class="btn-gold" onclick="loadGame()" id="code-btn">
+          <i class="fa-solid fa-unlock mr-2"></i> Spiel starten
+        </button>
+        <div id="code-error" style="color:#f87171; font-family:'Cinzel',serif; font-size:0.7rem; text-align:center; margin-top:0.6rem; min-height:1rem; letter-spacing:0.05em;"></div>
+      </div>
+
+      <div style="margin-top:auto;">
+        <div class="label-xs" style="text-align:center;">Demo ohne Code</div>
+        <button class="btn-outline" style="margin-top:0.5rem; width:100%;" onclick="loadDemoGame()">
+          <i class="fa-solid fa-flask mr-2"></i> Demo starten
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════
+       SCREEN 2: STATION (Hinweis + Story)
+  ═══════════════════════════════════ -->
+  <div class="screen" id="screen-station">
+    <div class="topbar safe-top">
+      <div class="topbar-logo">
+        <i class="fa-solid fa-shield-halved"></i> Raubritter
+      </div>
+      <div class="topbar-progress" id="topbar-progress-station"></div>
+    </div>
+
+    <div style="flex:1; overflow-y:auto;" id="station-scroll">
+      <!-- Foto -->
+      <div id="station-photo-wrap"></div>
+
+      <div class="station-body">
+        <!-- Station Badge + Name -->
+        <div class="station-number-badge" id="station-badge">
+          <i class="fa-solid fa-location-dot" style="font-size:0.65rem;"></i>
+          <span id="station-badge-text">Station 1</span>
+        </div>
+        <h2 class="station-name" id="station-name-display">–</h2>
+
+        <!-- Wegbeschreibung -->
+        <div id="station-directions-wrap"></div>
+
+        <div class="divider"></div>
+
+        <!-- Story -->
+        <div class="story-text" id="station-story-display">–</div>
+
+        <!-- Weiter-Button -->
+        <button class="btn-gold" id="btn-go-scan" onclick="goToScan()" style="margin-top:0.5rem;">
+          <i class="fa-solid fa-camera mr-2"></i> QR-Code scannen
+        </button>
+        <div style="height:0.5rem;"></div>
+      </div>
+    </div>
+
+    <div class="bottom-nav safe-bottom">
+      <button class="nav-item active" onclick="showTab('station')">
+        <i class="fa-solid fa-location-dot"></i>Hinweis
+      </button>
+      <button class="nav-item" onclick="showTab('scan')" id="nav-scan">
+        <i class="fa-solid fa-camera"></i>Scan
+      </button>
+      <button class="nav-item" onclick="showTab('story')" id="nav-story-btn">
+        <i class="fa-solid fa-scroll"></i>Story
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════
+       SCREEN 3: QR SCANNER
+  ═══════════════════════════════════ -->
+  <div class="screen" id="screen-scan">
+    <div class="topbar safe-top">
+      <div class="topbar-logo">
+        <i class="fa-solid fa-camera"></i> QR-Scanner
+      </div>
+      <div class="topbar-progress" id="topbar-progress-scan"></div>
+    </div>
+
+    <div id="qr-video-container">
+      <video id="qr-video" playsinline muted autoplay></video>
+      <div class="scan-overlay">
+        <div class="scan-frame">
+          <div class="scan-corner tl"></div>
+          <div class="scan-corner tr"></div>
+          <div class="scan-corner bl"></div>
+          <div class="scan-corner br"></div>
+          <div class="scan-line"></div>
+        </div>
+        <div class="scan-hint">Haltet den QR-Code in den Rahmen</div>
+      </div>
+      <div id="scan-result-flash"></div>
+    </div>
+
+    <div id="scan-camera-off">
+      <i class="fa-solid fa-camera-slash" style="font-size:2.5rem; color:rgba(201,168,76,0.4);"></i>
+      <p style="font-family:'Cinzel',serif; font-size:0.8rem; letter-spacing:0.06em; opacity:0.6;">Kamera-Zugriff benötigt</p>
+      <button class="btn-gold" onclick="startCamera()">
+        <i class="fa-solid fa-camera mr-2"></i> Kamera aktivieren
+      </button>
+    </div>
+
+    <div class="scan-bottom safe-bottom">
+      <div id="scan-status" style="color:rgba(245,234,208,0.5);">Warte auf QR-Code …</div>
+      <button class="btn-outline" style="width:100%; font-size:0.72rem;" onclick="manualCodeEntry()">
+        <i class="fa-solid fa-keyboard mr-2"></i> Code manuell eingeben
+      </button>
+    </div>
+
+    <div class="bottom-nav safe-bottom" style="background:rgba(0,0,0,0.9);">
+      <button class="nav-item" onclick="showTab('station')">
+        <i class="fa-solid fa-location-dot"></i>Hinweis
+      </button>
+      <button class="nav-item active" onclick="showTab('scan')">
+        <i class="fa-solid fa-camera"></i>Scan
+      </button>
+      <button class="nav-item" onclick="showTab('story')">
+        <i class="fa-solid fa-scroll"></i>Story
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════
+       SCREEN 4: RÄTSEL
+  ═══════════════════════════════════ -->
+  <div class="screen" id="screen-puzzle">
+    <div class="topbar safe-top">
+      <div class="topbar-logo">
+        <i class="fa-solid fa-puzzle-piece"></i> Rätsel
+      </div>
+      <div style="font-family:'Cinzel',serif; font-size:0.65rem; color:var(--gold);" id="puzzle-points-display"></div>
+    </div>
+
+    <div class="puzzle-body" id="puzzle-scroll">
+      <div class="label-xs" style="margin-bottom:0.5rem;" id="puzzle-station-label">STATION 1</div>
+      <h2 style="font-family:'Cinzel',serif; font-size:1.2rem; font-weight:700; margin-bottom:1.25rem; color:var(--parchment); line-height:1.3;" id="puzzle-station-name"></h2>
+
+      <div class="puzzle-card">
+        <div class="puzzle-label"><i class="fa-solid fa-puzzle-piece mr-1"></i> RÄTSEL</div>
+        <div class="puzzle-question" id="puzzle-question"></div>
+      </div>
+
+      <!-- Fehlversuche -->
+      <div style="margin-bottom:0.75rem;">
+        <div class="label-xs" style="margin-bottom:0.4rem;">VERSUCHE</div>
+        <div class="attempt-dots" id="attempt-dots"></div>
+      </div>
+
+      <!-- Hinweis (nach 3 Fehlern) -->
+      <div class="hint-box" id="hint-box">
+        <span style="color:var(--gold);"><i class="fa-solid fa-lightbulb mr-1"></i> Hinweis: </span>
+        <span id="hint-text"></span>
+      </div>
+
+      <!-- Antwort -->
+      <div class="answer-input-row">
+        <input type="text" id="answer-input" placeholder="Eure Antwort …"
+          autocomplete="off" autocorrect="off" autocapitalize="off">
+        <button class="btn-outline" style="padding:0.7rem 1rem; white-space:nowrap;" onclick="checkAnswer()">
+          <i class="fa-solid fa-check"></i>
+        </button>
+      </div>
+      <button class="btn-gold" onclick="checkAnswer()" id="btn-check">
+        <i class="fa-solid fa-check mr-2"></i> Antwort prüfen
+      </button>
+
+      <div id="answer-feedback" style="min-height:1.5rem; margin-top:0.6rem; text-align:center; font-family:'Cinzel',serif; font-size:0.72rem; letter-spacing:0.06em;"></div>
+    </div>
+
+    <div class="bottom-nav safe-bottom">
+      <button class="nav-item" onclick="showTab('station')">
+        <i class="fa-solid fa-location-dot"></i>Hinweis
+      </button>
+      <button class="nav-item" onclick="showTab('scan')">
+        <i class="fa-solid fa-camera"></i>Scan
+      </button>
+      <button class="nav-item" onclick="showTab('story')">
+        <i class="fa-solid fa-scroll"></i>Story
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════
+       SCREEN 5: STORY (Vollbild-Story)
+  ═══════════════════════════════════ -->
+  <div class="screen" id="screen-story">
+    <div class="topbar safe-top">
+      <div class="topbar-logo">
+        <i class="fa-solid fa-scroll"></i> Geschichte
+      </div>
+      <div class="topbar-progress" id="topbar-progress-story"></div>
+    </div>
+    <div style="flex:1; overflow-y:auto; padding:1.5rem 1.5rem 2rem;">
+      <div class="label-xs" style="margin-bottom:0.75rem;">KAPITEL <span id="story-chapter-num">1</span></div>
+      <div id="story-full-text" style="font-size:1.05rem; line-height:1.85; color:rgba(245,234,208,0.88); font-style:italic;"></div>
+      <div style="height:1rem;"></div>
+      <button class="btn-outline" onclick="showTab('station')" style="width:100%; margin-top:1rem;">
+        <i class="fa-solid fa-arrow-left mr-2"></i> Zurück zum Hinweis
+      </button>
+    </div>
+    <div class="bottom-nav safe-bottom">
+      <button class="nav-item" onclick="showTab('station')">
+        <i class="fa-solid fa-location-dot"></i>Hinweis
+      </button>
+      <button class="nav-item" onclick="showTab('scan')">
+        <i class="fa-solid fa-camera"></i>Scan
+      </button>
+      <button class="nav-item active">
+        <i class="fa-solid fa-scroll"></i>Story
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════
+       SCREEN 6: FINALE
+  ═══════════════════════════════════ -->
+  <div class="screen" id="screen-finale">
+    <div class="topbar safe-top">
+      <div class="topbar-logo" style="margin:0 auto;">
+        <i class="fa-solid fa-shield-halved"></i> Raubritter Escape
+      </div>
+    </div>
+    <div class="finale-body">
+      <div class="trophy-ring">
+        <i class="fa-solid fa-trophy" style="font-size:2.8rem; color:var(--gold);"></i>
+      </div>
+      <div>
+        <div class="label-xs" style="margin-bottom:0.5rem;">GESCHAFFT!</div>
+        <h2 style="font-family:'Cinzel',serif; font-size:1.6rem; font-weight:900; color:var(--parchment); line-height:1.2; margin-bottom:0.75rem;">
+          Der Fluch ist<br><span style="color:var(--gold);">gebrochen.</span>
+        </h2>
+        <p style="font-size:1rem; opacity:0.7; line-height:1.7; max-width:280px;" id="finale-outro"></p>
+      </div>
+
+      <!-- Score Ring -->
+      <div class="score-ring">
+        <svg viewBox="0 0 120 120" width="120" height="120">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="rgba(201,168,76,0.15)" stroke-width="6"/>
+          <circle cx="60" cy="60" r="52" fill="none" stroke="var(--gold)" stroke-width="6"
+            stroke-linecap="round" stroke-dasharray="326.7"
+            id="score-circle" stroke-dashoffset="326.7"
+            style="transition: stroke-dashoffset 2s ease;"/>
+        </svg>
+        <div class="score-number">
+          <span id="finale-score">0</span>
+          <small>PUNKTE</small>
+        </div>
+      </div>
+
+      <!-- Statistiken -->
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.75rem; width:100%;">
+        <div style="text-align:center; padding:0.75rem; background:rgba(255,255,255,0.04); border-radius:4px; border:1px solid rgba(201,168,76,0.1);">
+          <div style="font-family:'Cinzel',serif; font-size:1.2rem; font-weight:700; color:var(--gold);" id="finale-stations">0</div>
+          <div class="label-xs">STATIONEN</div>
+        </div>
+        <div style="text-align:center; padding:0.75rem; background:rgba(255,255,255,0.04); border-radius:4px; border:1px solid rgba(201,168,76,0.1);">
+          <div style="font-family:'Cinzel',serif; font-size:1.2rem; font-weight:700; color:var(--gold);" id="finale-time">–</div>
+          <div class="label-xs">ZEIT</div>
+        </div>
+        <div style="text-align:center; padding:0.75rem; background:rgba(255,255,255,0.04); border-radius:4px; border:1px solid rgba(201,168,76,0.1);">
+          <div style="font-family:'Cinzel',serif; font-size:1.2rem; font-weight:700; color:var(--gold);" id="finale-hints">0</div>
+          <div class="label-xs">HINWEISE</div>
+        </div>
+      </div>
+
+      <a href="/" class="btn-outline" style="display:block; text-align:center; text-decoration:none; width:100%;">
+        <i class="fa-solid fa-home mr-2"></i> Zur Buchungsseite
+      </a>
+      <div style="margin-top:1rem; display:flex; gap:1.5rem; justify-content:center;">
+        <a href="/#impressum" style="color:rgba(245,234,208,0.3); font-family:'Cinzel',serif; font-size:0.58rem; letter-spacing:0.08em; text-decoration:none;">Impressum</a>
+        <a href="/#datenschutz" style="color:rgba(245,234,208,0.3); font-family:'Cinzel',serif; font-size:0.58rem; letter-spacing:0.08em; text-decoration:none;">Datenschutz</a>
+        <a href="/#agb" style="color:rgba(245,234,208,0.3); font-family:'Cinzel',serif; font-size:0.58rem; letter-spacing:0.08em; text-decoration:none;">AGB</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════
+       STATION GELÖST OVERLAY
+  ═══════════════════════════════════ -->
+  <div id="solved-overlay">
+    <div style="width:70px; height:70px; border-radius:50%; background:rgba(201,168,76,0.15); border:2px solid rgba(201,168,76,0.4); display:flex; align-items:center; justify-content:center;">
+      <i class="fa-solid fa-check" style="font-size:1.8rem; color:var(--gold);"></i>
+    </div>
+    <div>
+      <div class="label-xs" style="text-align:center; margin-bottom:0.4rem;">RICHTIG!</div>
+      <div style="font-family:'Cinzel',serif; font-size:1.1rem; font-weight:700; text-align:center; color:var(--parchment);" id="solved-station-name"></div>
+    </div>
+    <div style="font-family:'Cinzel',serif; font-size:1.5rem; font-weight:900; color:var(--gold);" id="solved-points">+100</div>
+    <p style="opacity:0.6; font-size:0.9rem; line-height:1.6; text-align:center; max-width:260px;" id="solved-next-hint"></p>
+    <button class="btn-gold" style="width:100%; max-width:280px;" onclick="nextStation()">
+      <i class="fa-solid fa-arrow-right mr-2"></i> Weiter
+    </button>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+</div><!-- /app -->
+
+<!-- ═══════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════ -->
+<script>
+// ─── SUPABASE CONFIG ─────────────────────────────────────
+const SUPABASE_URL  = 'https://uulpxvyjevnvggvamhha.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1bHB4dnlqZXZudmdndmFtaGhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODA5MjIsImV4cCI6MjA5Mjk1NjkyMn0.XJWbivvaWU4WVD-48_-Pnlr5XfKkjSHuIvVqdpq-bH4';
+
+// ─── SPIEL-ZUSTAND ───────────────────────────────────────
+let game = null;         // geladenes Spiel-Objekt
+let state = {
+  currentStation: 0,
+  solvedStations: [],
+  totalScore: 0,
+  hintsUsed: 0,
+  attempts: 0,           // Fehlversuche aktuelle Station
+  startTime: null,
+  activeScreen: 'code',  // code | station | scan | puzzle | story | finale
+  activeTab: 'station',  // station | scan | story
+  scanning: false,
+  stream: null,
+  scanInterval: null,
+};
+
+// ─── DEMO-SPIEL ──────────────────────────────────────────
+const DEMO_GAME = {
+  title: 'Raubritter Escape',
+  intro: 'Das Jahr ist 1347. Graf Heinrich von Lichtenberg hat einen Fluch über die Burg gelegt – niemand, der das Tor passiert, findet mehr den Weg ins Licht. Nur wer alle sieben Rätsel löst, kann den Bann brechen.',
+  outro: 'Der Fluch ist gebrochen. Das Licht kehrt zurück auf Burg Lichtenberg. Ihr seid die Ersten seit Jahrhunderten, denen es gelungen ist. Die Legende wird noch lange in Franken erzählt werden.',
+  order: 'linear',
+  maxattempts: 5,
+  stations: [
+    {
+      name: 'Der Outdoor-Schrank',
+      story: 'Ein schweres Schloss. Ein alter Code. Das Abenteuer beginnt nicht mit Lärm – sondern mit dem leisen Klicken einer Kombination. Ihr öffnet den Schrank und findet den Rucksack des Raubritters.',
+      puzzle: 'Welche Zahl steht auf dem Holzschlüssel, der ganz oben im Rucksack liegt?',
+      answer: '3',
+      hint: 'Schaut ganz nach oben in die linke Ecke des Rucksacks.',
+      points: 100,
+      photo: 'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=800&q=80',
+      directions: 'Ihr startet am Parkplatz Burgstraße. Den Wanderweg Richtung Burg nehmen. Nach ca. 200m seht ihr rechts den grünen Outdoor-Schrank.',
+      lat: '50.3456', lng: '11.6789',
+      qrCode: 'raubritter-station-1',
+    },
+    {
+      name: 'Das alte Burgtor',
+      story: 'Die Torbögen aus dem 12. Jahrhundert haben schon tausend Geschichten gesehen. In den Fugen zwischen den Steinen haben Generationen ihre Zeichen hinterlassen. Einer davon ist der Raubritter.',
+      puzzle: 'Über dem Burgtor ist ein Wappenstein eingemauert. Welches Tier zeigt das Wappen?',
+      answer: 'Adler',
+      hint: 'Schaut hoch über den Torbogen, ca. 3 Meter über dem Durchgang.',
+      points: 150,
+      photo: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?w=800&q=80',
+      directions: 'Vom Outdoor-Schrank geradeaus Richtung Burg. Das Tor ist von weitem sichtbar.',
+      lat: '', lng: '',
+      qrCode: 'raubritter-station-2',
+    },
+    {
+      name: 'Der Bergfried',
+      story: 'Ihr steht am Fuß des Bergfrieds – dem letzten Zufluchtsort der Burgbewohner. Die Mauern sind einen Meter dick. Hier oben, sagt man, hat der Raubritter seinen Schatz versteckt. Nur wer die Chiffren-Scheibe richtig dreht, findet den nächsten Hinweis.',
+      puzzle: 'Dreht die Chiffren-Scheibe aus eurem Rucksack auf den Buchstaben H. Welches Zeichen liegt dann auf dem Pfeil?',
+      answer: '✦',
+      hint: 'Die Scheibe im Rucksack: Außenring auf H drehen, dann den Pfeil ablesen.',
+      points: 200,
+      photo: 'https://images.unsplash.com/photo-1564507592333-c60657eea523?w=800&q=80',
+      directions: 'Durch das Burgtor hindurch, dann links den Pfad zum Bergfried hochgehen. Ca. 3 Minuten Gehweg.',
+      lat: '', lng: '',
+      qrCode: 'raubritter-station-3',
+    },
+  ],
+  qrMappings: {
+    'raubritter-station-1': 0,
+    'raubritter-station-2': 1,
+    'raubritter-station-3': 2,
+  }
+};
+
+// ─── SPIEL LADEN ─────────────────────────────────────────
+async function loadGame() {
+  const code = document.getElementById('code-input').value.trim().toUpperCase();
+  if (!code) { showCodeError('Bitte Buchungscode eingeben'); return; }
+
+  const btn = document.getElementById('code-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="margin:0 auto; width:20px; height:20px;"></div>';
+
+  try {
+    if (SUPABASE_KEY === 'DEIN-ANON-KEY') {
+      // Demo-Modus
+      await sleep(800);
+      startGame(DEMO_GAME);
+      return;
+    }
+
+    // Echte Supabase-Abfrage
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/bookings?booking_code=eq.${code}&status=neq.cancelled&select=game_data`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+    );
+    const data = await res.json();
+    if (!data.length || !data[0].game_data) {
+      showCodeError('Code nicht gefunden. Prüft eure Buchungs-E-Mail.');
+      btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-unlock mr-2"></i> Spiel starten';
+      return;
+    }
+    startGame(data[0].game_data);
+  } catch(e) {
+    showCodeError('Verbindungsfehler – versucht es erneut.');
+    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-unlock mr-2"></i> Spiel starten';
+  }
+}
+
+function loadDemoGame() {
+  startGame(DEMO_GAME);
+}
+
+function startGame(g) {
+  game = g;
+  state.currentStation = 0;
+  state.solvedStations = [];
+  state.totalScore = 0;
+  state.hintsUsed = 0;
+  state.attempts = 0;
+  state.startTime = Date.now();
+
+  showScreen('station');
+  renderStation(0);
+  toast(game.title + ' gestartet!');
+}
+
+function showCodeError(msg) {
+  document.getElementById('code-error').textContent = msg;
+  document.getElementById('code-input').classList.add('shake');
+  setTimeout(() => document.getElementById('code-input').classList.remove('shake'), 500);
+  const btn = document.getElementById('code-btn');
+  btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-unlock mr-2"></i> Spiel starten';
+}
+
+// ─── SCREEN-NAVIGATION ───────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  state.activeScreen = name;
+
+  // Kamera management
+  if (name === 'scan') startCamera();
+  else stopCamera();
+}
+
+function showTab(tab) {
+  state.activeTab = tab;
+
+  // Kamera stoppen wenn weg von scan
+  if (tab !== 'scan') stopCamera();
+
+  // Screens wechseln
+  if (tab === 'station') {
+    showScreen('station');
+  } else if (tab === 'scan') {
+    if (state.activeScreen === 'station' || state.activeScreen === 'scan' || state.activeScreen === 'story') {
+      showScreen('scan');
+      startCamera();
+    }
+  } else if (tab === 'story') {
+    renderStoryScreen();
+    showScreen('story');
+  }
+
+  // Nav-Buttons updaten (alle screens die eine bottom-nav haben)
+  ['screen-station','screen-scan','screen-story','screen-puzzle'].forEach(sid => {
+    const btns = document.querySelectorAll(`#${sid} .nav-item`);
+    btns.forEach((b, i) => {
+      const tabs = ['station','scan','story'];
+      b.classList.toggle('active', tabs[i] === tab);
+    });
+  });
+}
+
+// ─── STATION RENDERN ─────────────────────────────────────
+function renderStation(i) {
+  if (!game || i >= game.stations.length) return;
+  const s = game.stations[i];
+
+  // Photo
+  const photoWrap = document.getElementById('station-photo-wrap');
+  if (s.photo) {
+    photoWrap.innerHTML = `<img class="station-photo" src="${s.photo}" alt="${s.name}" loading="lazy">`;
+  } else {
+    photoWrap.innerHTML = `<div class="station-photo-placeholder"><i class="fa-solid fa-dungeon" style="font-size:3rem; color:rgba(201,168,76,0.25);"></i></div>`;
+  }
+
+  // Badge + Name
+  document.getElementById('station-badge-text').textContent = `Station ${i+1} von ${game.stations.length}`;
+  document.getElementById('station-name-display').textContent = s.name || 'Station ' + (i+1);
+
+  // Wegbeschreibung
+  const dirWrap = document.getElementById('station-directions-wrap');
+  if (s.directions) {
+    const mapsLink = (s.lat && s.lng)
+      ? `<a class="maps-btn" href="https://maps.google.com/?q=${s.lat},${s.lng}" target="_blank"><i class="fa-solid fa-diamond-turn-right"></i> In Maps öffnen</a>`
+      : '';
+    dirWrap.innerHTML = `
+      <div class="directions-box">
+        <div class="directions-label"><i class="fa-solid fa-signs-post mr-1"></i> WEG ZUR STATION</div>
+        <div class="directions-text">${s.directions}</div>
+        ${mapsLink}
+      </div>`;
+  } else {
+    dirWrap.innerHTML = '';
+  }
+
+  // Story
+  document.getElementById('station-story-display').textContent = s.story || '';
+
+  // Progress in topbar
+  renderProgress('topbar-progress-station', i);
+  renderProgress('topbar-progress-scan', i);
+  renderProgress('topbar-progress-story', i);
+
+  // Story-Tab
+  document.getElementById('story-chapter-num').textContent = i + 1;
+
+  // Scan-Status zurücksetzen
+  document.getElementById('scan-status').textContent = 'Warte auf QR-Code …';
+  document.getElementById('scan-status').style.color = 'rgba(245,234,208,0.5)';
+
+  // Scroll nach oben
+  const scroll = document.getElementById('station-scroll');
+  if (scroll) scroll.scrollTop = 0;
+}
+
+function renderStoryScreen() {
+  if (!game) return;
+  const i = state.currentStation;
+  const s = game.stations[Math.min(i, game.stations.length - 1)];
+  document.getElementById('story-full-text').innerHTML =
+    (i === 0 && game.intro ? `<p style="margin-bottom:1.5rem; opacity:0.9;">${game.intro}</p><hr style="border:none; border-top:1px solid rgba(201,168,76,0.15); margin:1rem 0;">` : '') +
+    `<p>${s.story || ''}</p>`;
+  document.getElementById('story-chapter-num').textContent = i + 1;
+}
+
+function renderProgress(containerId, currentIdx) {
+  const el = document.getElementById(containerId);
+  if (!el || !game) return;
+  const n = game.stations.length;
+  const dots = Array.from({length: n}, (_, i) => {
+    let cls = 'progress-pip';
+    if (state.solvedStations.includes(i)) cls += ' done';
+    else if (i === currentIdx) cls += ' current';
+    return `<div class="${cls}"></div>`;
+  }).join('');
+  el.innerHTML = dots + `<span style="margin-left:0.3rem;">${currentIdx+1}/${n}</span>`;
+}
+
+// ─── QR SCANNER ──────────────────────────────────────────
+async function startCamera() {
+  if (state.stream) return; // schon aktiv
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    state.stream = stream;
+    const video = document.getElementById('qr-video');
+    video.srcObject = stream;
+    document.getElementById('scan-camera-off').style.display = 'none';
+    document.getElementById('qr-video-container').style.display = 'block';
+
+    // QR-Code scanning loop
+    state.scanning = true;
+    requestAnimationFrame(scanFrame);
+  } catch(err) {
+    document.getElementById('scan-camera-off').style.display = 'flex';
+    document.getElementById('qr-video-container').style.display = 'none';
+  }
+}
+
+function stopCamera() {
+  state.scanning = false;
+  if (state.stream) {
+    state.stream.getTracks().forEach(t => t.stop());
+    state.stream = null;
+    const video = document.getElementById('qr-video');
+    if (video) video.srcObject = null;
+  }
+}
+
+const scanCanvas = document.createElement('canvas');
+const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+let lastScannedCode = null;
+let lastScanTime = 0;
+
+function scanFrame() {
+  if (!state.scanning) return;
+  const video = document.getElementById('qr-video');
+  if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) {
+    requestAnimationFrame(scanFrame);
+    return;
+  }
+
+  scanCanvas.width = video.videoWidth;
+  scanCanvas.height = video.videoHeight;
+  scanCtx.drawImage(video, 0, 0);
+
+  try {
+    const imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'dontInvert'
+    });
+
+    if (code) {
+      const now = Date.now();
+      // Gleichen Code nicht innerhalb von 3 Sekunden nochmal auslösen
+      if (code.data !== lastScannedCode || now - lastScanTime > 3000) {
+        lastScannedCode = code.data;
+        lastScanTime = now;
+        handleQRScan(code.data);
+      }
+    }
+  } catch(e) {}
+
+  if (state.scanning) requestAnimationFrame(scanFrame);
+}
+
+function handleQRScan(rawValue) {
+  if (!game) return;
+
+  // Flash-Effekt
+  const flash = document.getElementById('scan-result-flash');
+  flash.classList.add('flash');
+  setTimeout(() => flash.classList.remove('flash'), 200);
+
+  // ── KERN-LOGIK: Inhalt ignorieren, nur als Station-ID nutzen ──
+  // Wir suchen den rawValue in game.qrMappings
+  const stationIndex = game.qrMappings[rawValue];
+
+  if (stationIndex === undefined) {
+    // Code existiert nicht im Spiel
+    setScanStatus('Dieser Code gehört nicht zum Spiel', '#f87171');
+    return;
+  }
+
+  const expectedStation = state.currentStation;
+
+  if (stationIndex < expectedStation && game.order === 'linear') {
+    setScanStatus('Station ' + (stationIndex+1) + ' bereits gelöst ✓', 'var(--gold)');
+    return;
+  }
+
+  if (stationIndex > expectedStation && game.order === 'linear') {
+    setScanStatus('Erst Station ' + (expectedStation+1) + ' lösen!', '#f87171');
+    return;
+  }
+
+  if (stationIndex !== expectedStation && game.order === 'linear') return;
+
+  // Richtige Station gefunden! → Rätsel anzeigen
+  setScanStatus('Station ' + (stationIndex+1) + ' gefunden! ✦', 'var(--gold-light)');
+  setTimeout(() => openPuzzle(stationIndex), 600);
+}
+
+function setScanStatus(msg, color) {
+  const el = document.getElementById('scan-status');
+  el.textContent = msg;
+  el.style.color = color || 'rgba(245,234,208,0.5)';
+}
+
+function manualCodeEntry() {
+  const code = prompt('QR-Code-Inhalt manuell eingeben:');
+  if (code) handleQRScan(code.trim());
+}
+
+// ─── RÄTSEL ──────────────────────────────────────────────
+function openPuzzle(stationIndex) {
+  stopCamera();
+  const s = game.stations[stationIndex];
+  state.attempts = 0;
+
+  document.getElementById('puzzle-station-label').textContent = 'STATION ' + (stationIndex+1);
+  document.getElementById('puzzle-station-name').textContent = s.name || '';
+  document.getElementById('puzzle-question').textContent = s.puzzle || '(Kein Rätsel)';
+  document.getElementById('puzzle-points-display').textContent = (s.points || 100) + ' Punkte';
+  document.getElementById('answer-input').value = '';
+  document.getElementById('answer-feedback').textContent = '';
+  document.getElementById('hint-box').classList.remove('visible');
+  document.getElementById('hint-text').textContent = s.hint || '';
+
+  renderAttemptDots();
+  showScreen('puzzle');
+  setTimeout(() => document.getElementById('answer-input').focus(), 300);
+
+  // Enter-Key
+  document.getElementById('answer-input').onkeydown = (e) => {
+    if (e.key === 'Enter') checkAnswer();
+  };
+}
+
+function renderAttemptDots() {
+  const maxA = game.maxattempts || 5;
+  const dots = document.getElementById('attempt-dots');
+  dots.innerHTML = Array.from({length: maxA}, (_, i) => {
+    let cls = 'attempt-dot';
+    if (i < state.attempts) cls += ' wrong';
+    return `<div class="${cls}"></div>`;
+  }).join('');
+}
+
+function checkAnswer() {
+  if (!game) return;
+  const s = game.stations[state.currentStation];
+  const input = document.getElementById('answer-input');
+  const given = input.value.trim().toLowerCase();
+  const correct = (s.answer || '').trim().toLowerCase();
+
+  // Zahl-Toleranz: "sieben" === "7" etc.
+  const numberWords = ['null','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn'];
+  const isCorrect = given === correct
+    || (numberWords.indexOf(given) === parseInt(correct))
+    || (numberWords.indexOf(correct) === parseInt(given));
+
+  if (isCorrect) {
+    // Punkte berechnen (Abzug für Fehlversuche)
+    const basePoints = s.points || 100;
+    const earned = Math.max(Math.floor(basePoints * (1 - state.attempts * 0.15)), Math.floor(basePoints * 0.4));
+    state.totalScore += earned;
+    state.solvedStations.push(state.currentStation);
+
+    showSolvedOverlay(state.currentStation, earned);
+  } else {
+    state.attempts++;
+    renderAttemptDots();
+
+    const maxA = game.maxattempts || 5;
+    const remaining = maxA - state.attempts;
+
+    if (state.attempts >= 3 && s.hint) {
+      state.hintsUsed++;
+      document.getElementById('hint-box').classList.add('visible');
+    }
+
+    if (state.attempts >= maxA) {
+      // Max Versuche erreicht – Station trotzdem fortsetzen (mit 0 Punkten)
+      document.getElementById('answer-feedback').textContent = `Lösung: ${s.answer}`;
+      document.getElementById('answer-feedback').style.color = 'var(--gold)';
+      state.solvedStations.push(state.currentStation);
+      setTimeout(() => showSolvedOverlay(state.currentStation, 0), 1200);
+      return;
+    }
+
+    // Shake + Fehlermeldung
+    input.classList.add('shake');
+    setTimeout(() => input.classList.remove('shake'), 500);
+    input.value = '';
+
+    document.getElementById('answer-feedback').textContent =
+      remaining === 1 ? 'Falsch – noch 1 Versuch!' : `Falsch – noch ${remaining} Versuche`;
+    document.getElementById('answer-feedback').style.color = '#f87171';
+  }
+}
+
+// ─── STATION GELÖST ──────────────────────────────────────
+function showSolvedOverlay(stationIdx, earned) {
+  const s = game.stations[stationIdx];
+  const nextIdx = stationIdx + 1;
+  const hasNext = nextIdx < game.stations.length;
+
+  document.getElementById('solved-station-name').textContent = s.name || '';
+  document.getElementById('solved-points').textContent = earned > 0 ? `+${earned} Punkte` : 'Station gelöst';
+  document.getElementById('solved-next-hint').textContent = hasNext
+    ? `Weiter zu Station ${nextIdx+1}: ${game.stations[nextIdx].name || ''}`
+    : 'Das war die letzte Station!';
+
+  // Partikel
+  spawnParticles();
+
+  document.getElementById('solved-overlay').classList.add('show');
+}
+
+function nextStation() {
+  document.getElementById('solved-overlay').classList.remove('show');
+  const next = state.currentStation + 1;
+
+  if (next >= game.stations.length) {
+    showFinale();
+    return;
+  }
+
+  state.currentStation = next;
+  state.attempts = 0;
+  renderStation(next);
+  showScreen('station');
+  renderProgress('topbar-progress-station', next);
+}
+
+// ─── FINALE ──────────────────────────────────────────────
+function showFinale() {
+  stopCamera();
+  const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+
+  document.getElementById('finale-outro').textContent = game.outro || 'Ihr habt alle Rätsel gelöst!';
+  document.getElementById('finale-score').textContent = state.totalScore;
+  document.getElementById('finale-stations').textContent = game.stations.length;
+  document.getElementById('finale-time').textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
+  document.getElementById('finale-hints').textContent = state.hintsUsed;
+
+  showScreen('finale');
+
+  // Score-Ring animieren
+  setTimeout(() => {
+    const maxScore = game.stations.reduce((s, st) => s + (st.points || 100), 0);
+    const pct = Math.min(state.totalScore / maxScore, 1);
+    const circumference = 326.7;
+    document.getElementById('score-circle').style.strokeDashoffset = circumference * (1 - pct);
+  }, 300);
+
+  // Score hochzählen
+  animateNumber('finale-score', 0, state.totalScore, 2000);
+}
+
+function animateNumber(id, from, to, duration) {
+  const el = document.getElementById(id);
+  const start = performance.now();
+  function update(now) {
+    const t = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(from + (to - from) * ease);
+    if (t < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+}
+
+// ─── PARTIKEL ────────────────────────────────────────────
+function spawnParticles() {
+  for (let i = 0; i < 18; i++) {
+    setTimeout(() => {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = (20 + Math.random() * 60) + '%';
+      p.style.top = (30 + Math.random() * 40) + '%';
+      p.style.background = Math.random() > 0.5 ? 'var(--gold)' : 'var(--gold-light)';
+      p.style.animationDuration = (0.8 + Math.random() * 0.8) + 's';
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 2000);
+    }, i * 60);
+  }
+}
+
+// ─── UTILS ───────────────────────────────────────────────
+function goToScan() { showTab('scan'); }
+
+function toast(msg, duration = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─── INIT ────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // Code-Input auto-uppercase
+  document.getElementById('code-input').addEventListener('input', function() {
+    this.value = this.value.toUpperCase();
+  });
+});
+</script>
+</body>
+</html>

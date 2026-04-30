@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buchung stornieren – Raubritter Escape</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    :root {
+      --gold: #c9a84c;
+      --gold-dark: #8b6914;
+      --parchment: #f5ead0;
+      --ink: #1a120b;
+      --forest: #0d2b14;
+      --stone: #2d2520;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Crimson Text', Georgia, serif;
+      background: var(--ink);
+      color: var(--parchment);
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
+    .topbar {
+      background: rgba(13,43,20,0.97);
+      border-bottom: 1px solid rgba(201,168,76,0.2);
+      padding: 1rem 1.5rem;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .topbar-title {
+      font-family: 'Cinzel', serif; font-size: 0.85rem;
+      color: var(--gold); letter-spacing: 0.1em;
+    }
+    .main {
+      flex: 1; display: flex; align-items: center;
+      justify-content: center; padding: 2rem 1rem;
+    }
+    .card {
+      background: var(--stone);
+      border: 1px solid rgba(201,168,76,0.25);
+      border-radius: 8px;
+      max-width: 480px; width: 100%;
+      overflow: hidden;
+    }
+    .card-header {
+      background: linear-gradient(135deg, var(--forest), #1a4a24);
+      padding: 2rem; text-align: center;
+      border-bottom: 1px solid rgba(201,168,76,0.2);
+    }
+    .card-body { padding: 2rem; }
+    h1 {
+      font-family: 'Cinzel', serif; font-size: 1.4rem;
+      font-weight: 700; color: var(--parchment);
+      margin-bottom: 0.25rem;
+    }
+    .subtitle {
+      font-size: 0.9rem; opacity: 0.6; font-style: italic;
+    }
+    .booking-info {
+      background: rgba(13,43,20,0.4);
+      border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 6px; padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .info-label {
+      font-family: 'Cinzel', serif; font-size: 0.6rem;
+      letter-spacing: 0.12em; color: var(--gold);
+      opacity: 0.7; margin-bottom: 0.75rem;
+    }
+    .info-row {
+      display: flex; justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(201,168,76,0.08);
+      font-size: 0.95rem;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-row .label { opacity: 0.6; }
+    .info-row .value { font-weight: 600; }
+    .info-row .value.gold { color: var(--gold); font-size: 1.1rem; }
+    .deadline-box {
+      background: rgba(201,168,76,0.08);
+      border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 6px; padding: 1rem;
+      margin-bottom: 1.5rem; text-align: center;
+    }
+    .deadline-box .hours {
+      font-family: 'Cinzel', serif; font-size: 1.8rem;
+      font-weight: 700; color: var(--gold);
+    }
+    .deadline-box .hours-label {
+      font-size: 0.8rem; opacity: 0.5;
+      font-family: 'Cinzel', serif; letter-spacing: 0.08em;
+    }
+    .warning-box {
+      background: rgba(139,20,20,0.2);
+      border: 1px solid rgba(220,60,60,0.3);
+      border-radius: 6px; padding: 1rem;
+      margin-bottom: 1.5rem; font-size: 0.9rem;
+      line-height: 1.6; color: rgba(245,234,208,0.8);
+    }
+    .btn-cancel {
+      width: 100%; padding: 1rem;
+      background: linear-gradient(135deg, #8b1a1a, #c0392b);
+      border: none; border-radius: 4px; cursor: pointer;
+      font-family: 'Cinzel', serif; font-size: 0.85rem;
+      font-weight: 700; letter-spacing: 0.06em;
+      color: #fff; transition: opacity 0.2s;
+      margin-bottom: 0.75rem;
+    }
+    .btn-cancel:hover { opacity: 0.9; }
+    .btn-cancel:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-back {
+      width: 100%; padding: 0.85rem;
+      background: transparent; color: var(--gold);
+      border: 1px solid rgba(201,168,76,0.35);
+      border-radius: 4px; cursor: pointer;
+      font-family: 'Cinzel', serif; font-size: 0.8rem;
+      letter-spacing: 0.06em; text-decoration: none;
+      display: block; text-align: center;
+      transition: all 0.2s;
+    }
+    .btn-back:hover { border-color: var(--gold); background: rgba(201,168,76,0.08); }
+
+    /* States */
+    #state-loading, #state-info, #state-success,
+    #state-error, #state-expired { display: none; }
+    #state-loading.active, #state-info.active, #state-success.active,
+    #state-error.active, #state-expired.active { display: block; }
+
+    .spinner {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 3px solid rgba(201,168,76,0.2);
+      border-top-color: var(--gold);
+      animation: spin 0.8s linear infinite;
+      margin: 2rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .success-icon {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(13,43,20,0.6);
+      border: 2px solid rgba(74,222,128,0.4);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.5rem;
+    }
+    .error-icon {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(120,20,20,0.4);
+      border: 2px solid rgba(220,60,60,0.4);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.5rem;
+    }
+    .text-center { text-align: center; }
+    .mt-1 { margin-top: 0.5rem; }
+    .mt-2 { margin-top: 1rem; }
+    .opacity-60 { opacity: 0.6; }
+    .text-sm { font-size: 0.9rem; line-height: 1.7; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <i class="fa-solid fa-shield-halved" style="color:var(--gold);"></i>
+  <span class="topbar-title">Raubritter Escape</span>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="card-header">
+      <div style="font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.2em; color:var(--gold); margin-bottom:0.5rem;">BUCHUNGSVERWALTUNG</div>
+      <h1>Buchung stornieren</h1>
+      <p class="subtitle">Burg Lichtenberg · Frankenwald</p>
+    </div>
+
+    <div class="card-body">
+
+      <!-- LADEN -->
+      <div id="state-loading" class="active text-center">
+        <div class="spinner"></div>
+        <p class="opacity-60 text-sm">Buchung wird geladen …</p>
+      </div>
+
+      <!-- BUCHUNGSINFO + BESTÄTIGUNG -->
+      <div id="state-info">
+        <div class="booking-info">
+          <div class="info-label">DEINE BUCHUNG</div>
+          <div class="info-row">
+            <span class="label">Name</span>
+            <span class="value" id="info-name">–</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Datum</span>
+            <span class="value" id="info-date">–</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Uhrzeit</span>
+            <span class="value" id="info-time">–</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Personen</span>
+            <span class="value" id="info-persons">–</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Erstattung</span>
+            <span class="value gold" id="info-price">–</span>
+          </div>
+        </div>
+
+        <div class="deadline-box">
+          <div class="hours" id="info-hours">–</div>
+          <div class="hours-label">STUNDEN BIS SPIELBEGINN</div>
+          <div style="font-size:0.8rem; opacity:0.5; margin-top:0.25rem;">Stornierung möglich bis 72 Stunden vorher</div>
+        </div>
+
+        <div class="warning-box">
+          <i class="fa-solid fa-triangle-exclamation" style="color:var(--gold); margin-right:0.5rem;"></i>
+          Nach der Stornierung wird der Betrag innerhalb von <strong>3–5 Werktagen</strong> auf dein PayPal-Konto zurückgebucht. Diese Aktion kann nicht rückgängig gemacht werden.
+        </div>
+
+        <button class="btn-cancel" id="btn-confirm-cancel" onclick="confirmCancel()">
+          <i class="fa-solid fa-xmark" style="margin-right:0.5rem;"></i>
+          Buchung jetzt stornieren & Geld zurückfordern
+        </button>
+        <a href="https://raubritter.netlify.app" class="btn-back">
+          <i class="fa-solid fa-arrow-left" style="margin-right:0.5rem;"></i>
+          Abbrechen – zur Website
+        </a>
+      </div>
+
+      <!-- ERFOLG -->
+      <div id="state-success" class="text-center">
+        <div class="success-icon">
+          <i class="fa-solid fa-check" style="font-size:1.8rem; color:#4ade80;"></i>
+        </div>
+        <h2 style="font-family:'Cinzel',serif; font-size:1.2rem; margin-bottom:0.75rem;">Stornierung bestätigt</h2>
+        <p class="text-sm opacity-60 mt-1">
+          Deine Buchung wurde storniert. Die Erstattung von <strong id="success-price" style="color:var(--gold);"></strong> wird innerhalb von 3–5 Werktagen auf dein PayPal-Konto zurückgebucht.
+        </p>
+        <p class="text-sm opacity-60 mt-2">
+          Du erhältst gleich eine Bestätigungs-E-Mail.
+        </p>
+        <a href="https://raubritter.netlify.app/#kalender" class="btn-back mt-2" style="display:block; margin-top:1.5rem;">
+          Neuen Termin buchen →
+        </a>
+      </div>
+
+      <!-- FRIST ABGELAUFEN -->
+      <div id="state-expired" class="text-center">
+        <div class="error-icon">
+          <i class="fa-solid fa-clock" style="font-size:1.8rem; color:#f87171;"></i>
+        </div>
+        <h2 style="font-family:'Cinzel',serif; font-size:1.2rem; margin-bottom:0.75rem; color:#f87171;">Stornierungsfrist abgelaufen</h2>
+        <p class="text-sm opacity-60 mt-1">
+          Eine kostenlose Stornierung ist nur bis <strong>72 Stunden</strong> vor dem Spielbeginn möglich.
+        </p>
+        <p class="text-sm opacity-60 mt-2">
+          Bei Fragen wende dich bitte direkt an uns:
+          <a href="mailto:kontakt@raubritter-escape.de" style="color:var(--gold);">kontakt@raubritter-escape.de</a>
+        </p>
+        <a href="https://raubritter.netlify.app" class="btn-back" style="margin-top:1.5rem; display:block;">
+          Zur Website
+        </a>
+      </div>
+
+      <!-- FEHLER -->
+      <div id="state-error" class="text-center">
+        <div class="error-icon">
+          <i class="fa-solid fa-xmark" style="font-size:1.8rem; color:#f87171;"></i>
+        </div>
+        <h2 style="font-family:'Cinzel',serif; font-size:1.2rem; margin-bottom:0.75rem; color:#f87171;">Link ungültig</h2>
+        <p class="text-sm opacity-60 mt-1" id="error-msg">
+          Dieser Stornierungslink ist nicht mehr gültig oder wurde bereits verwendet.
+        </p>
+        <a href="mailto:kontakt@raubritter-escape.de" class="btn-back" style="margin-top:1.5rem; display:block;">
+          Kontakt aufnehmen
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_FUNCTION_URL = 'https://uulpxvyjevnvggvamhha.supabase.co/functions/v1/cancel-booking'
+  let currentToken = null
+  let bookingPrice = 0
+
+  function showState(name) {
+    ['loading','info','success','error','expired'].forEach(s => {
+      document.getElementById('state-' + s).classList.remove('active')
+    })
+    document.getElementById('state-' + name).classList.add('active')
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('de-DE', {
+      weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+    })
+  }
+
+  async function loadBooking() {
+    const params = new URLSearchParams(window.location.search)
+    const token = params.get('token')
+
+    if (!token) {
+      showState('error')
+      document.getElementById('error-msg').textContent = 'Kein Stornierungstoken gefunden. Bitte nutze den Link aus deiner Buchungsbestätigung.'
+      return
+    }
+
+    currentToken = token
+
+    try {
+      const res = await fetch(`${SUPABASE_FUNCTION_URL}?token=${token}`)
+      const data = await res.json()
+
+      if (!res.ok) {
+        if (data.error === 'deadline_passed') {
+          showState('expired')
+        } else if (data.error === 'already_cancelled') {
+          showState('error')
+          document.getElementById('error-msg').textContent = 'Diese Buchung wurde bereits storniert.'
+        } else {
+          showState('error')
+        }
+        return
+      }
+
+      // Buchungsinfos anzeigen
+      bookingPrice = data.total_price
+      document.getElementById('info-name').textContent = data.name
+      document.getElementById('info-date').textContent = formatDate(data.slot_date)
+      document.getElementById('info-time').textContent = data.slot_time?.substring(0,5) + ' Uhr'
+      document.getElementById('info-persons').textContent = data.persons + ' Person' + (data.persons > 1 ? 'en' : '')
+      document.getElementById('info-price').textContent = data.total_price + ' €'
+      document.getElementById('info-hours').textContent = data.hours_remaining
+
+      showState('info')
+    } catch(e) {
+      console.error(e)
+      showState('error')
+    }
+  }
+
+  async function confirmCancel() {
+    const btn = document.getElementById('btn-confirm-cancel')
+    btn.disabled = true
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:0.5rem;"></i> Wird storniert …'
+
+    try {
+      const res = await fetch(`${SUPABASE_FUNCTION_URL}?token=${currentToken}`, {
+        method: 'POST'
+      })
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        document.getElementById('success-price').textContent = bookingPrice + ' €'
+        showState('success')
+      } else if (data.error === 'deadline_passed') {
+        showState('expired')
+      } else {
+        btn.disabled = false
+        btn.innerHTML = '<i class="fa-solid fa-xmark" style="margin-right:0.5rem;"></i> Buchung jetzt stornieren & Geld zurückfordern'
+        alert('Fehler: ' + (data.message || 'Bitte kontaktiere uns direkt.'))
+      }
+    } catch(e) {
+      btn.disabled = false
+      btn.innerHTML = '<i class="fa-solid fa-xmark" style="margin-right:0.5rem;"></i> Buchung jetzt stornieren & Geld zurückfordern'
+      alert('Verbindungsfehler – bitte versuche es erneut.')
+    }
+  }
+
+  // Beim Laden
+  window.addEventListener('DOMContentLoaded', loadBooking)
+</script>
+</body>
+</html>
