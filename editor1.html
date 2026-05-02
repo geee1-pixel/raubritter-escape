@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raubritter Escape – Spiel Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --parchment: #f5ead6;
+    --parchment-dark: #e8d5b0;
+    --ink: #2a1a08;
+    --ink-light: #5c3d1e;
+    --blood: #8b1a1a;
+    --gold: #c9922a;
+    --gold-light: #e8b84b;
+    --stone: #6b6055;
+    --stone-light: #9e8f82;
+    --shadow: rgba(42,26,8,0.18);
+    --bg: #1a1208;
+    --panel: #231810;
+    --panel-border: #4a3020;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--parchment);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 16px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+  /* --- HEADER --- */
+  .header {
+    background: var(--panel);
+    border-bottom: 2px solid var(--gold);
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'Cinzel', serif;
+    font-size: 1.4rem;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+  }
+  .logo span { color: var(--blood); }
+  .header-badge {
+    font-size: 0.75rem;
+    color: var(--stone-light);
+    font-style: italic;
+    letter-spacing: 0.05em;
+  }
+  /* --- NAV TABS --- */
+  .nav-tabs {
+    display: flex;
+    gap: 0;
+    background: var(--panel);
+    border-bottom: 1px solid var(--panel-border);
+    padding: 0 2rem;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--stone-light);
+    font-family: 'Cinzel', serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    padding: 0.9rem 1.2rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { color: var(--parchment); }
+  .tab-btn.active {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+  }
+  /* --- MAIN LAYOUT --- */
+  .main { display: flex; height: calc(100vh - 110px); overflow: hidden; }
+  .sidebar {
+    width: 280px;
+    min-width: 220px;
+    background: var(--panel);
+    border-right: 1px solid var(--panel-border);
+    overflow-y: auto;
+    padding: 1rem;
+    flex-shrink: 0;
+  }
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+  }
+  /* --- STATION ITEMS --- */
+  .station-list { display: flex; flex-direction: column; gap: 6px; }
+  .station-item {
+    background: rgba(201,146,42,0.07);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 0.7rem 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .station-item:hover { border-color: var(--gold); background: rgba(201,146,42,0.13); }
+  .station-item.active { border-color: var(--gold); background: rgba(201,146,42,0.18); }
+  .station-num {
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    color: var(--gold);
+    font-weight: 600;
+    min-width: 24px;
+  }
+  .station-name { font-size: 0.82rem; color: var(--parchment-dark); line-height: 1.3; }
+  .station-symbol {
+    margin-left: auto;
+    font-size: 1.1rem;
+  }
+  /* --- SECTION HEADERS --- */
+  .section-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--stone-light);
+    text-transform: uppercase;
+    margin: 1.2rem 0 0.5rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  /* --- CARDS --- */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .card-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    color: var(--gold);
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-subtitle {
+    font-size: 0.82rem;
+    color: var(--stone-light);
+    font-style: italic;
+    margin-bottom: 1rem;
+  }
+  /* --- STORY HERO --- */
+  .story-hero {
+    background: linear-gradient(135deg, #231810 0%, #0f0a05 100%);
+    border: 1px solid var(--gold);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .story-hero::before {
+    content: '⚔';
+    position: absolute;
+    right: 1.5rem;
+    top: 1rem;
+    font-size: 4rem;
+    opacity: 0.07;
+  }
+  .story-year {
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    margin-bottom: 0.5rem;
+  }
+  .story-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1.8rem;
+    color: var(--parchment);
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+  }
+  .story-tagline {
+    font-style: italic;
+    color: var(--stone-light);
+    font-size: 1rem;
+  }
+  /* --- STATION DETAIL --- */
+  .station-detail-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .station-symbol-big {
+    font-size: 3rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .station-meta { flex: 1; }
+  .station-meta h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 1.4rem;
+    color: var(--gold);
+    margin-bottom: 0.2rem;
+  }
+  .station-meta p { color: var(--stone-light); font-style: italic; font-size: 0.9rem; }
+  /* --- TAGS --- */
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0.8rem 0; }
+  .tag {
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.04em;
+  }
+  .tag-haptic { background: rgba(139,26,26,0.2); color: #e88; border: 1px solid rgba(139,26,26,0.4); }
+  .tag-chiffre { background: rgba(201,146,42,0.15); color: var(--gold-light); border: 1px solid rgba(201,146,42,0.3); }
+  .tag-digital { background: rgba(30,80,120,0.2); color: #7ab; border: 1px solid rgba(30,80,120,0.4); }
+  .tag-gps { background: rgba(40,100,60,0.2); color: #8c8; border: 1px solid rgba(40,100,60,0.4); }
+  .tag-qr { background: rgba(80,40,120,0.2); color: #b8a; border: 1px solid rgba(80,40,120,0.4); }
+  /* --- GRID --- */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+  /* --- FORM ELEMENTS --- */
+  label {
+    display: block;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    color: var(--stone-light);
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+    font-family: 'Cinzel', serif;
+  }
+  input[type="text"], input[type="number"], textarea, select {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    color: var(--parchment);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 0.95rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s;
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--gold);
+  }
+  textarea { min-height: 100px; resize: vertical; }
+  select { cursor: pointer; }
+  select option { background: #231810; }
+  /* --- BUTTONS --- */
+  .btn {
+    font-family: 'Cinzel', serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.07em;
+    padding: 0.6rem 1.4rem;
+    border-radius: 6px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-gold {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--ink);
+  }
+  .btn-gold:hover { background: var(--gold-light); border-color: var(--gold-light); }
+  .btn-outline {
+    background: transparent;
+    border-color: var(--panel-border);
+    color: var(--stone-light);
+  }
+  .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-danger {
+    background: transparent;
+    border-color: rgba(139,26,26,0.4);
+    color: #e88;
+  }
+  .btn-danger:hover { background: rgba(139,26,26,0.15); }
+  .btn-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.5rem; }
+  /* --- INFO BOXES --- */
+  .info-box {
+    border-left: 3px solid var(--gold);
+    background: rgba(201,146,42,0.07);
+    padding: 0.8rem 1rem;
+    border-radius: 0 6px 6px 0;
+    margin: 0.8rem 0;
+    font-size: 0.9rem;
+  }
+  .info-box.lore {
+    border-left-color: var(--blood);
+    background: rgba(139,26,26,0.07);
+    font-style: italic;
+  }
+  .info-box.puzzle {
+    border-left-color: #5a8;
+    background: rgba(40,100,60,0.08);
+  }
+  .info-box.result {
+    border-left-color: #78a;
+    background: rgba(80,40,120,0.08);
+  }
+  /* --- CIPHER WHEEL VIZ --- */
+  .cipher-wheel-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1.5rem 0;
+  }
+  /* --- PROGRESS BAR --- */
+  .progress-bar {
+    height: 6px;
+    background: var(--panel-border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 0.5rem 0;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 3px;
+    transition: width 0.4s;
+  }
+  /* --- BADGE --- */
+  .badge {
+    display: inline-block;
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(201,146,42,0.15);
+    color: var(--gold-light);
+    border: 1px solid rgba(201,146,42,0.25);
+  }
+  /* --- DIVIDER --- */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--panel-border);
+    margin: 1.2rem 0;
+  }
+  /* --- LOCK ROW --- */
+  .lock-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 0.88rem;
+  }
+  .lock-icon { font-size: 1.1rem; }
+  .lock-name { flex: 1; }
+  .lock-status {
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .lock-open { background: rgba(40,100,60,0.2); color: #8c8; }
+  .lock-closed { background: rgba(139,26,26,0.2); color: #e88; }
+  /* --- SCROLL STYLES --- */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 3px; }
+  /* --- OVERVIEW GRID --- */
+  .overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+  }
+  .overview-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .overview-card:hover { border-color: var(--gold); transform: translateY(-2px); }
+  .ov-num {
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    color: var(--stone-light);
+    letter-spacing: 0.12em;
+    margin-bottom: 0.3rem;
+  }
+  .ov-symbol { font-size: 1.8rem; margin-bottom: 0.5rem; }
+  .ov-name {
+    font-family: 'Cinzel', serif;
+    font-size: 0.95rem;
+    color: var(--parchment);
+    margin-bottom: 0.3rem;
+  }
+  .ov-type { font-size: 0.78rem; color: var(--stone-light); font-style: italic; }
+  /* --- PRINT STYLES --- */
+  @media print {
+    .sidebar, .nav-tabs, .header, .btn-row { display: none; }
+    .main { height: auto; }
+    .content { padding: 0; }
+  }
+  /* --- HIDDEN --- */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  /* --- RUINE DECO --- */
+  .ruine-deco {
+    text-align: center;
+    font-size: 1.5rem;
+    opacity: 0.3;
+    letter-spacing: 0.5rem;
+    margin: 1rem 0;
+  }
+  /* --- STAT ROW --- */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.8rem;
+    margin-bottom: 1.5rem;
+  }
+  .stat-box {
+    background: rgba(201,146,42,0.06);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 0.8rem;
+    text-align: center;
+  }
+  .stat-val {
+    font-family: 'Cinzel', serif;
+    font-size: 1.5rem;
+    color: var(--gold);
+    display: block;
+  }
+  .stat-lbl {
+    font-size: 0.7rem;
+    color: var(--stone-light);
+    letter-spacing: 0.08em;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Raubritter <span>Escape</span> — Spiel 1</div>
+  <div class="header-badge">Lichtenberg · Anno Domini 1337 · Editor v1.0</div>
+</div>
+
+<div class="nav-tabs" id="navTabs">
+  <button class="tab-btn active" onclick="showTab('overview')">Übersicht</button>
+  <button class="tab-btn" onclick="showTab('story')">Geschichte</button>
+  <button class="tab-btn" onclick="showTab('stations')">Stationen</button>
+  <button class="tab-btn" onclick="showTab('rucksack')">Rucksack & Schlösser</button>
+  <button class="tab-btn" onclick="showTab('cipher')">Chiffrenscheibe</button>
+  <button class="tab-btn" onclick="showTab('hinweise')">Hinweiskarte</button>
+  <button class="tab-btn" onclick="showTab('export')">Export</button>
+</div>
+
+<div class="main">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="section-title">Stationen</div>
+  <div class="station-list" id="stationList"></div>
+
+  <div class="section-title" style="margin-top:1.5rem;">Spielstatus</div>
+  <div style="font-size:0.82rem; color:var(--stone-light); margin-bottom:0.5rem;">Rätsel gelöst</div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  <div style="font-size:0.78rem; color:var(--stone-light);" id="progressText">0 / 8 Stationen</div>
+
+  <div class="section-title" style="margin-top:1rem;">Schlösser</div>
+  <div id="lockOverview"></div>
+
+  <div class="section-title" style="margin-top:1rem;">Info</div>
+  <div style="font-size:0.78rem; color:var(--stone-light); line-height:1.6;">
+    Dauer: ~2 Stunden<br>
+    Stationen: 8<br>
+    Schlösser: 7<br>
+    Rucksack: 1<br>
+    Flasche: Raubritter Dunkel
+  </div>
+</div>
+
+<!-- CONTENT -->
+<div class="content" id="mainContent">
+
+  <!-- TAB: ÜBERSICHT -->
+  <div class="tab-panel active" id="tab-overview">
+    <div class="story-hero">
+      <div class="story-year">◆ ANNO DOMINI 1337 ◆ LICHTENBERG, FRANKENWALD ◆</div>
+      <div class="story-title">Das Vermächtnis des Raubritters</div>
+      <div class="story-tagline">Ein Geheimnis, sieben Schlösser, eine Wahrheit – die 688 Jahre verborgen blieb.</div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-box"><span class="stat-val">8</span><span class="stat-lbl">Stationen</span></div>
+      <div class="stat-box"><span class="stat-val">~2h</span><span class="stat-lbl">Spielzeit</span></div>
+      <div class="stat-box"><span class="stat-val">7</span><span class="stat-lbl">Schlösser</span></div>
+      <div class="stat-box"><span class="stat-val">1337</span><span class="stat-lbl">Startcode</span></div>
+    </div>
+
+    <div class="overview-grid" id="overviewGrid"></div>
+  </div>
+
+  <!-- TAB: GESCHICHTE -->
+  <div class="tab-panel" id="tab-story">
+    <div class="card">
+      <div class="card-title">📜 Die große Geschichte</div>
+      <div class="card-subtitle">Historischer Hintergrund & Rahmenhandlung</div>
+
+      <div class="info-box lore">
+        Im Jahre des Herrn 1337 verleiht Friedrich II. von Orlamünde dem Bergstädtchen Lichtenberg seine Stadtrechte – und mit ihnen das Recht auf Brau, Markt und Handelsweg. Doch was die Urkunde verschweigt: Noch in derselben Nacht stirbt der alte Vogt Gernot von Waldeck unter mysteriösen Umständen in den Kellern der Burg.
+      </div>
+
+      <div id="storyEditable">
+        <div id="storyText" style="font-size:0.95rem; line-height:1.85; color:var(--parchment-dark);"></div>
+      </div>
+
+      <hr class="divider">
+      <div class="card-title" style="font-size:0.9rem; margin-bottom:0.8rem;">✏️ Geschichte bearbeiten</div>
+      <label>Einleitungstext (wird auf der Hinweiskarte abgedruckt)</label>
+      <textarea id="storyIntro" style="min-height:160px;"></textarea>
+      <label>Geheimnis / Auflösung (nur für Spielleiter)</label>
+      <textarea id="storySecret" style="min-height:100px;"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-gold" onclick="saveStory()">Speichern</button>
+        <button class="btn btn-outline" onclick="resetStory()">Zurücksetzen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: STATIONEN -->
+  <div class="tab-panel" id="tab-stations">
+    <div id="stationDetail"></div>
+  </div>
+
+  <!-- TAB: RUCKSACK -->
+  <div class="tab-panel" id="tab-rucksack">
+    <div class="card">
+      <div class="card-title">🎒 Der Rucksack</div>
+      <div class="card-subtitle">Startcode: 1337 · Schließfach am Ausgangspunkt</div>
+
+      <div class="info-box">
+        Der Rucksack hat <strong>7 verschlossene Fächer</strong>. Jedes Schloss trägt ein Symbol, das auf der Routenkarte wiederzufinden ist. Spieler wissen durch das Symbol, welche Station welches Schloss öffnet – aber den Code müssen sie vor Ort finden.
+      </div>
+
+      <div class="section-title">Inhalt (sofort zugänglich)</div>
+      <div id="rucksackContent"></div>
+
+      <div class="section-title" style="margin-top:1.2rem;">Verschlossene Fächer</div>
+      <div id="lockList"></div>
+
+      <hr class="divider">
+      <div class="section-title">Schloss-Status verwalten</div>
+      <div style="font-size:0.85rem; color:var(--stone-light); margin-bottom:0.8rem; font-style:italic;">
+        (Für Spielleiter: Schlösser hier als "geöffnet" markieren, wenn Spieler den Code gefunden haben)
+      </div>
+      <div id="lockManage"></div>
+    </div>
+  </div>
+
+  <!-- TAB: CHIFFRENSCHEIBE -->
+  <div class="tab-panel" id="tab-cipher">
+    <div class="card">
+      <div class="card-title">☯ Die Chiffrenscheibe</div>
+      <div class="card-subtitle">Herzstück des Finales · Holz oder Schiefer, graviert</div>
+
+      <div class="info-box">
+        <strong>Reihenfolge:</strong> 4 – 3 – 6 – 8 – 2 – 7 – 1 – 5<br>
+        Erst wenn alle 8 Symbole aus den Stationen in dieser Reihenfolge auf der Scheibe ausgerichtet werden, erscheint das Lösungswort. Dieses öffnet das Schloss der Raubritter-Dunkel-Flasche.
+      </div>
+
+      <div class="cipher-wheel-container">
+        <canvas id="cipherCanvas" width="320" height="320"></canvas>
+      </div>
+
+      <div class="section-title">Lösungswort konfigurieren</div>
+      <div class="grid-2" style="gap:1rem;">
+        <div>
+          <label>Lösungswort (geheim)</label>
+          <input type="text" id="solutionWord" value="WALDENFELS" maxlength="8">
+        </div>
+        <div>
+          <label>Reihenfolge der Symbole</label>
+          <input type="text" id="symbolOrder" value="4-3-6-8-2-7-1-5" readonly>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-gold" onclick="updateCipherWheel()">Scheibe aktualisieren</button>
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">Symbole der Stationen</div>
+      <div id="cipherSymbolList"></div>
+    </div>
+  </div>
+
+  <!-- TAB: HINWEISKARTE -->
+  <div class="tab-panel" id="tab-hinweise">
+    <div class="card">
+      <div class="card-title">🗺 Hinweiskarte</div>
+      <div class="card-subtitle">Vorschau der physischen Karte · wird zu Beginn ausgegeben</div>
+
+      <div style="background:#f5ead6; color:#2a1a08; border-radius:10px; padding:2rem; font-family:'EB Garamond',Georgia,serif;">
+        <div style="text-align:center; margin-bottom:1.5rem;">
+          <div style="font-family:'Cinzel',serif; font-size:1.3rem; color:#8b1a1a; letter-spacing:0.1em;">RAUBRITTER ESCAPE</div>
+          <div style="font-family:'Cinzel',serif; font-size:0.75rem; color:#5c3d1e; letter-spacing:0.15em; margin-top:0.3rem;">SPIEL 1 · LICHTENBERG · ANNO 1337</div>
+          <div style="border-top:2px solid #8b1a1a; border-bottom:1px solid #8b1a1a; padding:0.4rem 0; margin:0.8rem 0; font-style:italic; font-size:0.88rem; color:#5c3d1e;">
+            „Das Licht auf dem Berg erlischt nie ganz."
+          </div>
+        </div>
+
+        <div style="font-size:0.88rem; color:#2a1a08; margin-bottom:1.2rem;" id="hinweiskarteIntro"></div>
+
+        <div style="font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.12em; color:#8b1a1a; margin-bottom:0.5rem; border-bottom:1px solid #c9922a; padding-bottom:0.3rem;">STATIONEN & SYMBOLE</div>
+        <table style="width:100%; font-size:0.82rem; border-collapse:collapse;">
+          <tr style="color:#5c3d1e; font-family:'Cinzel',serif; font-size:0.68rem; letter-spacing:0.06em;">
+            <td style="padding:4px 6px;">NR</td>
+            <td style="padding:4px 6px;">SYMBOL</td>
+            <td style="padding:4px 6px;">ORT</td>
+            <td style="padding:4px 6px;">SCHLOSS</td>
+            <td style="padding:4px 6px; text-align:center;">CODE</td>
+          </tr>
+          <tbody id="hinweiskarteTable"></tbody>
+        </table>
+
+        <div style="margin-top:1.2rem; font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.12em; color:#8b1a1a; border-top:1px solid #c9922a; padding-top:0.5rem;">
+          CHIFFRENSCHEIBE · REIHENFOLGE: 4 – 3 – 6 – 8 – 2 – 7 – 1 – 5
+        </div>
+        <div style="font-size:0.78rem; color:#5c3d1e; margin-top:0.3rem; font-style:italic;">
+          Bringe alle Symbole in dieser Reihenfolge auf der Scheibe zum Leuchten. Was erscheint, öffnet das letzte Siegel.
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="btn-row">
+        <button class="btn btn-gold" onclick="window.print()">Drucken / PDF</button>
+        <button class="btn btn-outline" onclick="copyHinweiskarte()">Als Text kopieren</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: EXPORT -->
+  <div class="tab-panel" id="tab-export">
+    <div class="card">
+      <div class="card-title">📦 Export & Materialien</div>
+      <div class="card-subtitle">Alle Spielmaterialien auf einen Blick</div>
+
+      <div class="grid-2">
+        <div>
+          <div class="section-title">Physische Materialien</div>
+          <div style="font-size:0.88rem; color:var(--parchment-dark); line-height:2.1;">
+            ☐ Holz-Chiffrenscheibe (graviert, 2 Ringe)<br>
+            ☐ 7 Schlösser mit eingravierten Symbolen<br>
+            ☐ Rucksack mit beschrifteten Fächern<br>
+            ☐ Raubritter-Dunkel-Flasche (verschlossen)<br>
+            ☐ Holztafel – Puzzlestücke (Station 3)<br>
+            ☐ 3 Schriftstücke – Wortkombi (Station 2)<br>
+            ☐ Schieferplatte – Falsch-Koordinaten (Station 5)<br>
+            ☐ Hinweiskarte (laminiert, 1× pro Gruppe)<br>
+            ☐ Lupe (im Rucksack)<br>
+            ☐ Schreibblock + Stift
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Digitale Materialien</div>
+          <div style="font-size:0.88rem; color:var(--parchment-dark); line-height:2.1;">
+            ☐ QR-Code Station 6 (generieren & drucken)<br>
+            ☐ Landingpage Station 6 (URL einrichten)<br>
+            ☐ App-Konfiguration (Teilergebnisse)<br>
+            ☐ GPS-Koordinaten einmessen (heute)<br>
+            ☐ Schließfach-Code hinterlegen<br>
+            ☐ Notfall-Hinweise (versteckt im Gelände)
+          </div>
+
+          <div class="section-title" style="margin-top:1rem;">Aufgaben heute</div>
+          <div style="font-size:0.88rem; color:var(--parchment-dark); line-height:2.1;">
+            ☐ Alle 8 Stationen ablaufen<br>
+            ☐ GPS-Koordinaten speichern<br>
+            ☐ QR-Codes fotografieren / platzieren<br>
+            ☐ Schlösser auf Symbolkarte einzeichnen<br>
+            ☐ Verstecke für Objekte festlegen
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">Gesamte Geschichte exportieren</div>
+      <div class="btn-row">
+        <button class="btn btn-gold" onclick="exportJSON()">Als JSON speichern</button>
+        <button class="btn btn-outline" onclick="exportText()">Als Text exportieren</button>
+        <button class="btn btn-outline" onclick="copyAll()">Alles kopieren</button>
+      </div>
+      <div id="exportOutput" style="margin-top:1rem; display:none;">
+        <textarea id="exportText" style="min-height:200px; font-family:monospace; font-size:0.78rem;"></textarea>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const GAME_DATA = {
+  title: "Das Vermächtnis des Raubritters",
+  subtitle: "Raubritter Escape – Spiel 1",
+  location: "Lichtenberg, Frankenwald",
+  year: "1337",
+  startCode: "1337",
+  solutionWord: "WALDENFELS",
+  symbolOrder: [4,3,6,8,2,7,1,5],
+
+  storyIntro: `Das Jahr 1337. Friedrich II. von Orlamünde verleiht dem Bergstädtchen Lichtenberg seine Stadtrechte. Doch noch in der Nacht der Beurkundung verschwindet der alte Burgvogt Gernot von Waldeck spurlos aus den Kasematten der Burg – und mit ihm ein Geheimnis, das die Waldenfels-Familie 688 Jahre lang um jeden Preis hüten wollte.
+
+In seinem letzten Brief, verborgen in sieben Teilen, soll Gernot die Wahrheit über den wirklichen Gründer Lichtenbergs niedergeschrieben haben. Man sagt, wer alle sieben Teile zusammenfügt, erfährt, warum die Lichtenberger im Winter 1444 ihre eigene Stadt anzündeten – und was wirklich in jenen Kellern unter der Burg vergraben liegt.
+
+Euer Auftrag: Findet alle sieben Fragmente. Öffnet alle Schlösser. Und lüftet das Geheimnis des Raubritters.`,
+
+  storySecret: `Das Lösungswort ist WALDENFELS. Die Familie von Waldenfels hat Lichtenberg 1427 durch fragwürdige Mittel erworben. Gernot von Waldeck war ein Zeuge, der beseitigt wurde. Im letzten Fach der Flasche liegt eine gefaltete "historische Urkunde" mit der Auflösung und einem persönlichen Zertifikat für die Spieler.`,
+
+  stations: [
+    {
+      id: 1,
+      name: "Das Schließfach des Vogts",
+      location: "Marktplatz / Startpunkt",
+      symbol: "🔑",
+      symbolName: "Schlüssel",
+      type: ["haptic"],
+      atmosphere: "Der Marktplatz Lichtenbergs – hier, wo seit 1337 Händler, Ritter und Bauern zusammenkamen, beginnt eure Reise. An einem alten Schließfach wartet der erste Schritt ins Mittelalter.",
+      lore: "Im Jahre 1337 teilte Gernot von Waldeck, der letzte Vogt der Orlamünde, seinen Besitz in sieben Teile auf. Er verschloss jeden Teil in einem anderen Versteck der Stadt. Sein letzter Wille: 'Nur wer versteht, was 1337 wirklich bedeutet, verdient die Wahrheit.'",
+      puzzle: "Das Schließfach trägt vier Ziffern. Die Lösung liegt auf der Hand – sie ist das Gründungsjahr Lichtenbergs, das auf einer Tafel am Marktplatz eingraviert ist. Code: 1337\n\nIm Rucksack: Chiffrenscheibe, Hinweiskarte, 3 Schriftstücke, Holzpuzzle (versiegelt), Schieferplatte, Lupe, Raubritter-Dunkel-Flasche (verschlossen), 7 verschlossene Fächer.",
+      result: "Rucksack erhalten. Symbol ⚔ (Schwert) auf Fach 1 sichtbar.",
+      lockOpens: "Kein Schloss – Start",
+      cipherContrib: "Position 1 (Symbol: Schlüssel 🔑)",
+      hinweis: "ANNO DOMINI 1337 – am Stein steht was ihr sucht."
+    },
+    {
+      id: 2,
+      name: "Die drei Schriftrollen",
+      location: "Alte Zunfttafel / Rathaus",
+      symbol: "📜",
+      symbolName: "Schriftrolle",
+      type: ["haptic", "text"],
+      atmosphere: "Das alte Rathaus mit seiner Zunfttafel von 1560. Die Mauern flüstern von Kaufleuten und Handwerkern, die hier ihre Streitigkeiten beizulegen versuchten.",
+      lore: "Drei Zeugen schrieben damals ihre Version der Ereignisse nieder. Jeder wusste nur einen Teil. Keiner sprach die ganze Wahrheit. Erst wer alle drei Berichte zusammenliest – Wort für Wort – versteht, was wirklich geschah.",
+      puzzle: "Im Rucksack befinden sich 3 Schriftstücke (unterschiedliche Schriften, leicht vergilbt). Jedes Schriftstück hat nummerierte Zeilen. Die Spieler müssen abwechselnd Wort für Wort aus den Texten lesen:\n\nText A, Wort 1 → Text B, Wort 1 → Text C, Wort 1 → Text A, Wort 2 usw.\n\nDie entstehende Botschaft: 'DER STEIN AN DER NORD-MAUER TRÄGT DAS ZEICHEN' → führt zu Station 3.\n\nZusätzlich: Im letzten Absatz von Text B ist ein AKROSTICHON versteckt – die Anfangsbuchstaben ergeben: BURG",
+      result: "Code-Wort: BURG. Schloss 🗡 (Dolch) auf Fach A öffnet sich. Symbol 📜 für Chiffrenscheibe.",
+      lockOpens: "Fach A – enthält: Holzpuzzle-Teil 1 & Hinweis auf Station 3",
+      cipherContrib: "Position 2 (Reihenfolge: 3. in Abfolge 4-3-6-8-2-7-1-5)",
+      hinweis: "Drei Stimmen, eine Wahrheit. Lest abwechselnd, Wort für Wort."
+    },
+    {
+      id: 3,
+      name: "Das Nordtor-Rätsel",
+      location: "Nordmauer / Stadtbefestigung",
+      symbol: "🏰",
+      symbolName: "Turm",
+      type: ["haptic", "puzzle"],
+      atmosphere: "Die mittelalterliche Stadtbefestigung Lichtenbergs. Mächtige Steine, die Belagerungen und Brände überstanden. Hier stand einst das Nordtor – das Tor, durch das die Hussiten 1430 vergeblich versuchten einzudringen.",
+      lore: "1430 hielt Lichtenberg dem Ansturm der Hussiten stand. Caspar von Waldenfels persönlich soll ein geheimes Zeichen in den Nordmauerstein eingraviert haben – als Schutzzeichen, wie manche sagen. Als Warnung, wie andere munkeln.",
+      puzzle: "An der Nordmauer ist ein Holzpuzzle versteckt (in Fach A gefunden). Das Puzzle zeigt bei richtiger Zusammensetzung einen mittelalterlichen Stadtplan Lichtenbergs mit 8 markierten Punkten.\n\nDie 8 Punkte sind die 8 Stationen. Jeder Punkt trägt eine kleine Zahl. Die Zahlen in der richtigen Reihenfolge (von Nord nach Süd gelesen) ergeben: 4-7-2 → das 3-stellige Schloss-Combo.\n\nExtra-Rätsel: An der Mauer selbst ist (per QR-Aufkleber oder graviert) ein kleines Symbol angebracht. Dieses Symbol ist identisch mit dem Symbol auf Schloss B.",
+      result: "Code 472. Schloss 🏰 (Turm) auf Fach B öffnet sich. Symbol 🏰 für Chiffrenscheibe.",
+      lockOpens: "Fach B – enthält: Schieferplatte mit 'Koordinaten' & Lupe",
+      cipherContrib: "Position 4 (erste in Abfolge 4-3-6-8-2-7-1-5)",
+      hinweis: "Der Plan zeigt mehr als Mauern – er zeigt den Weg."
+    },
+    {
+      id: 4,
+      name: "Der Galgenberg",
+      location: "Weg zum Galgenberg / Freizeitsee",
+      symbol: "⚖",
+      symbolName: "Waage",
+      type: ["haptic", "gps"],
+      atmosphere: "Unweit des heutigen Freizeitsees erinnert der Name Galgenberg daran, dass hier einst Recht gesprochen und vollstreckt wurde. Ein Ort, der Schauer über den Rücken jagt – und trotzdem malerisch schön ist.",
+      lore: "Hans von Waldenfels ließ hier 1441 drei Kaufleute hängen, die angeblich gestohlen hatten. Doch der wahre Grund war ein anderer: Sie hatten Dokumente gesehen, die nie hätten existieren dürfen. Einer von ihnen hatte vorher etwas vergraben...",
+      puzzle: "GPS-Navigation: Die Spieler erhalten auf der Hinweiskarte echte GPS-Koordinaten (heute einmessen!) eines bestimmten Baums oder Steins am Galgenbergweg. Dort ist ein wetterfester Behälter versteckt (Magnetbox o.ä.) mit einem kleinen Holzplättchen.\n\nDas Holzplättchen zeigt auf einer Seite ein Symbol (⚖) und auf der anderen eine 4-stellige Zahl, die aber scheinbar falsch ist – sie ergibt nur Sinn, wenn man sie auf der Chiffrenscheibe mit dem ⚖-Symbol abgleicht.\n\nMini-Rätsel: Am Behälter ist eine Rätselkarte: 'Drei Kaufleute. Drei Vergehen. Keines davon war wahr. Die Summe ihrer angeblichen Schulden' → Rechnung aus Schriftstück C ergibt Code.",
+      result: "Code 1441. Schloss ⚖ (Waage) auf Fach C öffnet sich. Symbol ⚖ für Chiffrenscheibe.",
+      lockOpens: "Fach C – enthält: Holzmedaillon mit Geheimtext",
+      cipherContrib: "Position 6 (in Abfolge 4-3-6-8-2-7-1-5)",
+      hinweis: "Wo Recht vollstreckt wurde, liegt auch Unrecht begraben. N 50°18.XXX / E 011°28.XXX"
+    },
+    {
+      id: 5,
+      name: "Die falschen Koordinaten",
+      location: "Burgruine / Schlossberg",
+      symbol: "🧭",
+      symbolName: "Kompass",
+      type: ["chiffre", "haptic"],
+      atmosphere: "Die Burgruine Lichtenbergs – Herzstück der Stadt, im Dreißigjährigen Krieg 1634 niedergebrannt. Die gewaltigen Kasemattten und Kelleranlagen sind erhalten. Hier regierte einst Caspar von Waldenfels.",
+      lore: "In der Burg hingen jahrhundertelang verschlüsselte Karten. Caspar von Waldenfels war besessen von Geheimschriften. Er entwickelte ein System, das wie Koordinaten aussah – aber keines war.",
+      puzzle: "Die Schieferplatte (aus Fach B) trägt folgenden Text:\n\nN 50° 18.472 / E 011° 28.163\nN 50° 18.115 / E 011° 28.944\nN 50° 18.338 / E 011° 28.227\n\nDiese sehen aus wie GPS-Koordinaten, sind aber ein Chiffriercode:\n• Die Nachkommastellen der N-Koordinaten: 472, 115, 338\n• Mit der Chiffrenscheibe (Symbol 🧭 = Position auf Scheibe) dekodiert: W-A-L\n• Die E-Koordinaten dekodiert: D-E-N\n• Ergibt: WALDEN → Hinweis auf WALDENFELS\n\nMit der Lupe ist auf der Schieferplatte noch ein versteckter Mikro-Text sichtbar: die 3-stellige Kombo für Schloss D.",
+      result: "Code 382. Schloss 🧭 (Kompass) auf Fach D öffnet sich. Symbol 🧭 für Chiffrenscheibe.",
+      lockOpens: "Fach D – enthält: Rollenkarte (gerolltes Pergament) mit der Zeichnung des letzten Rätsels",
+      cipherContrib: "Position 3 (in Abfolge 4-3-6-8-2-7-1-5)",
+      hinweis: "Nicht alles was wie ein Weg aussieht, führt ans Ziel. Manche Zahlen lügen."
+    },
+    {
+      id: 6,
+      name: "Der QR-Code des Mönchs",
+      location: "Kirche / historisches Gebäude",
+      symbol: "✝",
+      symbolName: "Kreuz",
+      type: ["qr", "digital", "haptic"],
+      atmosphere: "Lichtenberg hatte seit dem Mittelalter eine enge Verbindung zur Kirche. In den Kirchenmauern sollen Mönche Geheimnisse verborgen haben – nicht in Beichte, sondern in Stein.",
+      lore: "Bruder Konrad, ein fahrender Mönch, der 1337 zur Stadtgründung in Lichtenberg weilte, hinterließ eine Botschaft. Er wusste, was er gesehen hatte. Er wusste auch, dass er sie nur verschlüsselt weitergeben konnte.",
+      puzzle: "Am/an der Kirche ist ein QR-Code platziert (wetterfester Aufkleber, heute fotografieren und Position einmessen). Das Scannen öffnet eine einfache Webseite (z.B. per QR-Code-Generator auf eine gestalltete URL gemünzt).\n\nAuf der Seite: Ein Schwarz-Weiß-Bild einer alten Handschrift. Im Bild sind 5 Wörter rot hervorgehoben. Diese Wörter ergeben – in richtiger Reihenfolge gelesen – einen Hinweis auf Station 7.\n\nZusätzlich: Auf der Webseite erscheint nach 30 Sekunden eine versteckte Zahl (klein, am Rand), die als Code für Schloss E dient: 1634 (Jahr der Zerstörung der Burg).",
+      result: "Code 1634. Schloss ✝ (Kreuz) auf Fach E öffnet sich. Symbol ✝ für Chiffrenscheibe.",
+      lockOpens: "Fach E – enthält: Holzwürfel mit gravierten Symbolen auf allen 6 Seiten",
+      cipherContrib: "Position 8 (letzte in Abfolge 4-3-6-8-2-7-1-5)",
+      hinweis: "Bruder Konrads Zeichen wartet auf euren Kamerablick. Schaut genau hin – und wartet."
+    },
+    {
+      id: 7,
+      name: "Der Sonnenbräu-Keller",
+      location: "Brauerei Sonnenbräu / Nailaer Straße",
+      symbol: "🍺",
+      symbolName: "Bierkrug",
+      type: ["haptic", "chiffre"],
+      atmosphere: "Die Lichtenberger Sonnenbräu – seit 1904 am gleichen Ort, aber die Braurechte gehen zurück bis ins Gründungsjahr 1337. Hier, wo es nach Malz und Hopfen duftet, liegt ein Geheimnis verborgen, das flüssig und dunkel ist wie das Raubritter-Bier selbst.",
+      lore: "Die Brauer von Lichtenberg wussten immer mehr als sie sagten. In ihren Gärkellern flüsterte man von verborgenen Dokumenten, die mit Bier getränkt und so für die Ewigkeit konserviert wurden. Die letzte Braumeisterin sagte: 'Was im Keller lagert, reift – und wird zur Wahrheit.'",
+      puzzle: "Am Brauerei-Gebäude (Außenwand oder öffentlich zugänglicher Bereich) ist ein Holzmedaillon (aus Fach C) zu verwenden. Das Medaillon passt exakt in eine markante Aussparung an einem Stein oder einer Halterung.\n\nIm Medaillon ist eine Caesarverschiebung eingraviert: Jeder Buchstabe ist um 7 verschoben (W = P, A = T usw. rückwärts). Der Text lautet verschlüsselt: 'WLK ZRSK NHLSK' → entschlüsselt: 'DER ALTE MEISTER'\n\nUnter einem markierten Stein/Blumenkübel o.ä. liegt ein kleines Schiefer-Täfelchen mit der Zahl 1904 (Gründungsjahr der Brauerei).",
+      result: "Code 1904. Schloss 🍺 (Bierkrug) auf Fach F öffnet sich. Symbol 🍺 für Chiffrenscheibe.",
+      lockOpens: "Fach F – enthält: Zweiseitiger Brief 'Gernots Geständnis' (Teil 1 und 2)",
+      cipherContrib: "Position 5 (in Abfolge 4-3-6-8-2-7-1-5)",
+      hinweis: "Was dunkel ist und bitter schmeckt, trägt oft die süßeste Wahrheit."
+    },
+    {
+      id: 8,
+      name: "Das letzte Siegel",
+      location: "Burgruine – Schlossbergturm / Aussichtspunkt",
+      symbol: "👁",
+      symbolName: "Auge",
+      type: ["haptic", "chiffre"],
+      atmosphere: "Oben auf dem Schlossbergturm – 558 Meter über dem Meer, Blick über den Frankenwald bis nach Thüringen. Hier, wo Caspar von Waldenfels auf sein Herrschaftsgebiet blickte, endet die Reise.",
+      lore: "Der Turm wurde 1936 auf den Resten des mittelalterlichen Bergfrieds errichtet. Doch tief im Fundament, so sagt man, liegt noch der Stein, den Gernot von Waldeck persönlich legte. Wer genau hinschaut, findet das letzte Siegel.",
+      puzzle: "Die Rollenkarte (aus Fach D) zeigt eine Zeichnung des Turms mit einem markierten Stein. Vor Ort finden die Spieler an diesem Stein (oder einer Halterung am Turmeingang) einen Holzwürfel (aus Fach E).\n\nDer Holzwürfel hat auf 6 Seiten je ein Symbol. Welches Symbol oben zeigt, wenn man ihn so hält, dass Burg + Turm + Sonne auf einer Linie sind (laut Rollenkarte) → das Auge-Symbol 👁.\n\nDaneben liegt ein letzter Hinweis: Die Chiffrenscheibe. Spieler stellen alle 8 Symbole in Reihenfolge 4-3-6-8-2-7-1-5 ein.\n\nDas Lösungswort erscheint: W-A-L-D-E-N-F-E-L-S → öffnet das Schloss der Raubritter-Dunkel-Flasche.\n\nIn der Flasche: Lösungsurkunde, persönliche Glückwünsche, kleines Erinnerungsgeschenk.",
+      result: "WALDENFELS. Raubritter-Dunkel-Flasche öffnet sich. SPIEL GELÖST!",
+      lockOpens: "Raubritter-Dunkel-Flasche – das finale Geheimnis",
+      cipherContrib: "Position 7 (in Abfolge 4-3-6-8-2-7-1-5)",
+      hinweis: "Das Auge sieht alles. Auch das, was 688 Jahre verborgen lag."
+    }
+  ],
+
+  locks: [
+    { id: "A", symbol: "🗡", name: "Dolch-Schloss", openedBy: 2, code: "BURG", open: false },
+    { id: "B", symbol: "🧱", name: "Stein-Schloss", openedBy: 3, code: "472", open: false },
+    { id: "C", symbol: "⚖", name: "Waagen-Schloss", openedBy: 4, code: "1441", open: false },
+    { id: "D", symbol: "🗺", name: "Karten-Schloss", openedBy: 5, code: "382", open: false },
+    { id: "E", symbol: "✝", name: "Kreuz-Schloss", openedBy: 6, code: "1634", open: false },
+    { id: "F", symbol: "🍺", name: "Krug-Schloss", openedBy: 7, code: "1904", open: false },
+    { id: "G", symbol: "👁", name: "Auge-Schloss (Flasche)", openedBy: 8, code: "WALDENFELS", open: false }
+  ],
+
+  rucksackContents: [
+    "Chiffrenscheibe (Holz, graviert, 2 Ringe)",
+    "Routenkarte / Hinweiskarte (laminiert)",
+    "3 Schriftstücke (Pergament, vergilbt)",
+    "Holzpuzzle (versiegelt – Schloss A)",
+    "Schieferplatte (versiegelt – Schloss B)",
+    "Lupe (kleine Messing-Lupe)",
+    "Raubritter-Dunkel-Flasche (verschlossen – Schloss G)",
+    "7 verschlossene Fächer A bis G"
+  ]
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let currentStation = 1;
+let gameData = JSON.parse(JSON.stringify(GAME_DATA));
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  renderSidebar();
+  renderOverview();
+  renderStationDetail(currentStation);
+  renderStory();
+  renderRucksack();
+  renderCipherWheel();
+  renderHinweiskarte();
+});
+
+// ============================================================
+// TAB NAVIGATION
+// ============================================================
+function showTab(tab) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.target.classList.add('active');
+
+  if (tab === 'stations') renderStationDetail(currentStation);
+  if (tab === 'cipher') renderCipherWheel();
+  if (tab === 'hinweise') renderHinweiskarte();
+}
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+function renderSidebar() {
+  const list = document.getElementById('stationList');
+  list.innerHTML = gameData.stations.map(s => `
+    <div class="station-item ${s.id === currentStation ? 'active' : ''}" onclick="selectStation(${s.id})">
+      <span class="station-num">${s.id}</span>
+      <span class="station-name">${s.name}</span>
+      <span class="station-symbol">${s.symbol}</span>
+    </div>
+  `).join('');
+
+  // Lock overview
+  const lo = document.getElementById('lockOverview');
+  lo.innerHTML = gameData.locks.map(l => `
+    <div class="lock-row">
+      <span class="lock-icon">${l.symbol}</span>
+      <span class="lock-name" style="font-size:0.78rem;">Fach ${l.id}</span>
+      <span class="lock-status ${l.open ? 'lock-open' : 'lock-closed'}">${l.open ? 'Offen' : 'Zu'}</span>
+    </div>
+  `).join('');
+
+  // Progress
+  const opened = gameData.locks.filter(l => l.open).length;
+  const pct = Math.round((opened / 8) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = opened + ' / 8 Stationen';
+}
+
+function selectStation(id) {
+  currentStation = id;
+  renderSidebar();
+  // Switch to stations tab
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-stations').classList.add('active');
+  document.querySelectorAll('.tab-btn')[2].classList.add('active');
+  renderStationDetail(id);
+}
+
+// ============================================================
+// OVERVIEW
+// ============================================================
+function renderOverview() {
+  const grid = document.getElementById('overviewGrid');
+  grid.innerHTML = gameData.stations.map(s => `
+    <div class="overview-card" onclick="selectStation(${s.id})">
+      <div class="ov-num">STATION ${s.id}</div>
+      <div class="ov-symbol">${s.symbol}</div>
+      <div class="ov-name">${s.name}</div>
+      <div class="ov-type">${s.type.map(t => tagLabel(t)).join(' · ')}</div>
+      <div class="tags" style="margin-top:0.5rem;">${s.type.map(t => `<span class="tag tag-${t}">${tagLabel(t)}</span>`).join('')}</div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// STATION DETAIL
+// ============================================================
+function renderStationDetail(id) {
+  const s = gameData.stations.find(x => x.id === id);
+  if (!s) return;
+  const lock = gameData.locks.find(l => l.openedBy === id);
+
+  document.getElementById('stationDetail').innerHTML = `
+    <div class="card">
+      <div class="station-detail-header">
+        <div class="station-symbol-big">${s.symbol}</div>
+        <div class="station-meta">
+          <h2>Station ${s.id}: ${s.name}</h2>
+          <p>${s.location}</p>
+          <div class="tags">${s.type.map(t => `<span class="tag tag-${t}">${tagLabel(t)}</span>`).join('')}</div>
+        </div>
+      </div>
+
+      <div class="info-box lore">
+        <strong style="font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.08em; color:var(--gold);">ATMOSPHÄRE</strong><br>
+        ${s.atmosphere}
+      </div>
+
+      <div class="info-box lore" style="margin-top:0.5rem;">
+        <strong style="font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.08em; color:var(--gold);">LEGENDE</strong><br>
+        ${s.lore}
+      </div>
+
+      <hr class="divider">
+
+      <div class="info-box puzzle">
+        <strong style="font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.08em; color:#8c8;">RÄTSEL & MECHANIK</strong><br>
+        <pre style="white-space:pre-wrap; font-family:inherit; font-size:0.88rem; margin-top:0.5rem; line-height:1.7;">${s.puzzle}</pre>
+      </div>
+
+      <div class="grid-2" style="margin-top:1rem;">
+        <div class="info-box result">
+          <strong style="font-family:'Cinzel',serif; font-size:0.72rem; letter-spacing:0.08em; color:#b8a;">TEILERGEBNIS</strong><br>
+          ${s.result}
+        </div>
+        <div class="info-box result">
+          <strong style="font-family:'Cinzel',serif; font-size:0.72rem; letter-spacing:0.08em; color:#b8a;">ÖFFNET SCHLOSS</strong><br>
+          ${s.lockOpens}
+        </div>
+      </div>
+
+      <div class="info-box" style="margin-top:0.8rem;">
+        <strong style="font-family:'Cinzel',serif; font-size:0.72rem; letter-spacing:0.08em; color:var(--gold-light);">CHIFFRENSCHEIBE</strong><br>
+        ${s.cipherContrib}
+      </div>
+
+      <div class="info-box" style="margin-top:0.5rem; background:rgba(201,146,42,0.04); border-left-color:var(--stone);">
+        <strong style="font-family:'Cinzel',serif; font-size:0.72rem; letter-spacing:0.08em; color:var(--stone-light);">HINWEIS FÜR KARTE</strong><br>
+        <em>"${s.hinweis}"</em>
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">Station bearbeiten</div>
+      <div class="grid-2">
+        <div>
+          <label>Name der Station</label>
+          <input type="text" id="edit-name-${id}" value="${s.name}">
+          <label>Ort / Beschreibung</label>
+          <input type="text" id="edit-loc-${id}" value="${s.location}">
+          <label>Symbol</label>
+          <input type="text" id="edit-sym-${id}" value="${s.symbol}" maxlength="2">
+        </div>
+        <div>
+          <label>Code für Schloss</label>
+          <input type="text" id="edit-code-${id}" value="${lock ? lock.code : 'Start'}">
+          <label>GPS-Koordinaten (heute einmessen)</label>
+          <input type="text" id="edit-gps-${id}" value="${s.gps || 'N 50°18.XXX / E 011°28.XXX'}" placeholder="N 50°18.XXX / E 011°28.XXX">
+        </div>
+      </div>
+      <label>Atmosphäre</label>
+      <textarea id="edit-atm-${id}">${s.atmosphere}</textarea>
+      <label>Rätsel & Mechanik</label>
+      <textarea id="edit-puz-${id}" style="min-height:130px;">${s.puzzle}</textarea>
+
+      ${lock ? `
+      <div style="display:flex; align-items:center; gap:1rem; margin-top:0.5rem;">
+        <label style="margin:0; display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="lock-toggle-${id}" ${lock.open ? 'checked' : ''} onchange="toggleLock('${lock.id}')">
+          <span style="font-size:0.82rem; color:var(--stone-light);">Schloss ${lock.symbol} als geöffnet markieren</span>
+        </label>
+      </div>` : ''}
+
+      <div class="btn-row">
+        <button class="btn btn-gold" onclick="saveStation(${id})">Speichern</button>
+        <button class="btn btn-outline" onclick="navigateStation(${id - 1})">◀ Zurück</button>
+        <button class="btn btn-outline" onclick="navigateStation(${id + 1})">Weiter ▶</button>
+      </div>
+    </div>
+  `;
+}
+
+function navigateStation(id) {
+  if (id < 1 || id > 8) return;
+  currentStation = id;
+  renderSidebar();
+  renderStationDetail(id);
+}
+
+function saveStation(id) {
+  const s = gameData.stations.find(x => x.id === id);
+  s.name = document.getElementById('edit-name-' + id).value;
+  s.location = document.getElementById('edit-loc-' + id).value;
+  s.symbol = document.getElementById('edit-sym-' + id).value;
+  s.atmosphere = document.getElementById('edit-atm-' + id).value;
+  s.puzzle = document.getElementById('edit-puz-' + id).value;
+  s.gps = document.getElementById('edit-gps-' + id).value;
+  const lock = gameData.locks.find(l => l.openedBy === id);
+  if (lock) lock.code = document.getElementById('edit-code-' + id).value;
+  renderSidebar();
+  renderOverview();
+  renderCipherSymbols();
+  alert('Station ' + id + ' gespeichert!');
+}
+
+function toggleLock(lockId) {
+  const lock = gameData.locks.find(l => l.id === lockId);
+  if (lock) {
+    lock.open = !lock.open;
+    renderSidebar();
+  }
+}
+
+// ============================================================
+// STORY
+// ============================================================
+function renderStory() {
+  document.getElementById('storyIntro').value = gameData.storyIntro;
+  document.getElementById('storySecret').value = gameData.storySecret;
+  document.getElementById('storyText').innerHTML = gameData.storyIntro.replace(/\n\n/g, '</p><p style="margin-bottom:0.8rem;">').replace(/^/, '<p style="margin-bottom:0.8rem;">').replace(/$/, '</p>');
+}
+
+function saveStory() {
+  gameData.storyIntro = document.getElementById('storyIntro').value;
+  gameData.storySecret = document.getElementById('storySecret').value;
+  document.getElementById('storyText').innerHTML = gameData.storyIntro.replace(/\n\n/g, '</p><p style="margin-bottom:0.8rem;">').replace(/^/, '<p style="margin-bottom:0.8rem;">').replace(/$/, '</p>');
+  renderHinweiskarte();
+  alert('Geschichte gespeichert!');
+}
+
+function resetStory() {
+  gameData.storyIntro = GAME_DATA.storyIntro;
+  gameData.storySecret = GAME_DATA.storySecret;
+  renderStory();
+}
+
+// ============================================================
+// RUCKSACK
+// ============================================================
+function renderRucksack() {
+  const content = document.getElementById('rucksackContent');
+  content.innerHTML = gameData.rucksackContents.map((item, i) => `
+    <div class="lock-row">
+      <span style="color:var(--gold); font-size:0.85rem; font-family:'Cinzel',serif;">${i+1}.</span>
+      <span class="lock-name">${item}</span>
+    </div>
+  `).join('');
+
+  const lockList = document.getElementById('lockList');
+  lockList.innerHTML = gameData.locks.map(l => `
+    <div class="lock-row">
+      <span class="lock-icon">${l.symbol}</span>
+      <div style="flex:1;">
+        <div style="font-size:0.85rem;">${l.name} (Fach ${l.id})</div>
+        <div style="font-size:0.75rem; color:var(--stone-light);">Öffnet bei Station ${l.openedBy} · Code: <code style="background:rgba(255,255,255,0.05); padding:1px 5px; border-radius:3px;">${l.code}</code></div>
+      </div>
+      <span class="lock-status ${l.open ? 'lock-open' : 'lock-closed'}">${l.open ? 'Offen' : 'Gesperrt'}</span>
+    </div>
+  `).join('');
+
+  const lockManage = document.getElementById('lockManage');
+  lockManage.innerHTML = gameData.locks.map(l => `
+    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:0.5rem; font-size:0.85rem; text-transform:none; letter-spacing:0; color:var(--parchment-dark);">
+      <input type="checkbox" ${l.open ? 'checked' : ''} onchange="toggleLock('${l.id}')">
+      ${l.symbol} ${l.name} – Code: ${l.code}
+    </label>
+  `).join('');
+}
+
+// ============================================================
+// CIPHER WHEEL
+// ============================================================
+function renderCipherWheel() {
+  const canvas = document.getElementById('cipherCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx = 160, cy = 160, outerR = 140, innerR = 95, coreR = 55;
+  ctx.clearRect(0, 0, 320, 320);
+
+  const symbols = gameData.stations.map(s => s.symbol);
+  const order = gameData.symbolOrder;
+  const word = (document.getElementById('solutionWord')?.value || gameData.solutionWord).split('');
+
+  // Outer ring - symbols in order 4-3-6-8-2-7-1-5
+  const orderedSymbols = order.map(i => symbols[i-1]);
+
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+    const nextAngle = ((i + 1) / 8) * Math.PI * 2 - Math.PI / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, outerR, angle, nextAngle);
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(201,146,42,0.12)' : 'rgba(201,146,42,0.06)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(201,146,42,0.4)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Symbol
+    const midAngle = angle + (Math.PI / 8);
+    const sx = cx + Math.cos(midAngle) * (outerR * 0.72);
+    const sy = cy + Math.sin(midAngle) * (outerR * 0.72);
+    ctx.font = '18px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(orderedSymbols[i], sx, sy);
+  }
+
+  // Inner ring - letters
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2 - Math.PI / 2;
+    const nextAngle = ((i + 1) / 8) * Math.PI * 2 - Math.PI / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, innerR, angle, nextAngle);
+    ctx.closePath();
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(139,26,26,0.15)' : 'rgba(139,26,26,0.08)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(139,26,26,0.4)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+
+    // Letter
+    const midAngle = angle + (Math.PI / 8);
+    const lx = cx + Math.cos(midAngle) * (innerR * 0.67);
+    const ly = cy + Math.sin(midAngle) * (innerR * 0.67);
+    ctx.font = '500 14px Cinzel, serif';
+    ctx.fillStyle = '#e8d5b0';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(word[i] || '?', lx, ly);
+  }
+
+  // Core
+  ctx.beginPath();
+  ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a1208';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(201,146,42,0.6)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.font = '500 11px Cinzel, serif';
+  ctx.fillStyle = '#c9922a';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('RAUBRITTER', cx, cy - 8);
+  ctx.fillText('ESCAPE', cx, cy + 8);
+
+  renderCipherSymbols();
+}
+
+function updateCipherWheel() {
+  gameData.solutionWord = document.getElementById('solutionWord').value;
+  renderCipherWheel();
+}
+
+function renderCipherSymbols() {
+  const el = document.getElementById('cipherSymbolList');
+  if (!el) return;
+  const order = gameData.symbolOrder;
+  el.innerHTML = `
+    <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
+      <tr style="color:var(--stone-light); font-family:'Cinzel',serif; font-size:0.68rem; letter-spacing:0.08em;">
+        <td style="padding:6px 8px;">POS</td>
+        <td style="padding:6px 8px;">STATION</td>
+        <td style="padding:6px 8px;">SYMBOL</td>
+        <td style="padding:6px 8px;">BUCHSTABE</td>
+      </tr>
+      ${order.map((stationId, i) => {
+        const s = gameData.stations.find(x => x.id === stationId);
+        const word = document.getElementById('solutionWord')?.value || gameData.solutionWord;
+        return `<tr style="border-top:1px solid var(--panel-border);">
+          <td style="padding:6px 8px; font-family:'Cinzel',serif; color:var(--gold);">${i+1}</td>
+          <td style="padding:6px 8px;">${s.id}: ${s.name}</td>
+          <td style="padding:6px 8px; font-size:1.1rem;">${s.symbol}</td>
+          <td style="padding:6px 8px; font-family:'Cinzel',serif; color:var(--gold-light); font-size:1.1rem;">${word[i] || '?'}</td>
+        </tr>`;
+      }).join('')}
+    </table>
+  `;
+}
+
+// ============================================================
+// HINWEISKARTE
+// ============================================================
+function renderHinweiskarte() {
+  const intro = document.getElementById('hinweiskarteIntro');
+  if (intro) {
+    const shortIntro = gameData.storyIntro.split('\n\n')[0];
+    intro.innerHTML = '<em>' + shortIntro.substring(0, 300) + '...</em>';
+  }
+
+  const table = document.getElementById('hinweiskarteTable');
+  if (!table) return;
+  table.innerHTML = gameData.stations.map(s => {
+    const lock = gameData.locks.find(l => l.openedBy === s.id);
+    return `<tr style="border-top:1px solid #c9922a33;">
+      <td style="padding:4px 6px; font-family:'Cinzel',serif; color:#8b1a1a;">${s.id}</td>
+      <td style="padding:4px 6px; font-size:1.1rem;">${s.symbol}</td>
+      <td style="padding:4px 6px; color:#2a1a08;">${s.location}</td>
+      <td style="padding:4px 6px; color:#5c3d1e;">${lock ? lock.symbol + ' Fach ' + lock.id : '–'}</td>
+      <td style="padding:4px 6px; text-align:center;"><span style="display:inline-block; width:40px; height:16px; border:1px solid #c9922a; border-radius:3px;"></span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportJSON() {
+  const json = JSON.stringify(gameData, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'raubritter_escape_spiel1.json';
+  a.click();
+}
+
+function exportText() {
+  let text = `RAUBRITTER ESCAPE – SPIEL 1\n`;
+  text += `${'='.repeat(50)}\n\n`;
+  text += `GESCHICHTE:\n${gameData.storyIntro}\n\n`;
+  text += `LÖSUNGSWORT (GEHEIM): ${gameData.solutionWord}\n\n`;
+  text += `STATIONEN:\n${'='.repeat(50)}\n\n`;
+  gameData.stations.forEach(s => {
+    text += `STATION ${s.id}: ${s.name}\n`;
+    text += `Ort: ${s.location}\n`;
+    text += `Symbol: ${s.symbol} (${s.symbolName})\n`;
+    text += `Atmosphäre: ${s.atmosphere}\n`;
+    text += `Legende: ${s.lore}\n`;
+    text += `Rätsel: ${s.puzzle}\n`;
+    text += `Ergebnis: ${s.result}\n`;
+    text += `Öffnet: ${s.lockOpens}\n`;
+    text += `Hinweis: "${s.hinweis}"\n`;
+    text += `\n${'-'.repeat(40)}\n\n`;
+  });
+
+  document.getElementById('exportOutput').style.display = 'block';
+  document.getElementById('exportText').value = text;
+}
+
+function copyAll() {
+  exportText();
+  const ta = document.getElementById('exportText');
+  ta.select();
+  document.execCommand('copy');
+  alert('In die Zwischenablage kopiert!');
+}
+
+function copyHinweiskarte() {
+  let text = 'RAUBRITTER ESCAPE – SPIEL 1 | HINWEISKARTE\n\n';
+  text += gameData.storyIntro.split('\n\n')[0] + '\n\n';
+  text += 'STATIONEN:\n';
+  gameData.stations.forEach(s => {
+    const lock = gameData.locks.find(l => l.openedBy === s.id);
+    text += `${s.id}. ${s.symbol} ${s.name} (${s.location}) – ${lock ? 'Schloss ' + lock.symbol : '–'}\n`;
+  });
+  text += '\nReihenfolge Chiffrenscheibe: 4 – 3 – 6 – 8 – 2 – 7 – 1 – 5\n';
+
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  alert('Hinweiskarte in die Zwischenablage kopiert!');
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function tagLabel(t) {
+  const map = { haptic: 'Haptisch', chiffre: 'Chiffre', digital: 'Digital', gps: 'GPS', qr: 'QR-Code', text: 'Text', puzzle: 'Puzzle' };
+  return map[t] || t;
+}
+</script>
+</body>
+</html>
