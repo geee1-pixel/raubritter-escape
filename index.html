@@ -277,12 +277,18 @@
 
     /* Notification */
     #notification {
-      position: fixed; bottom: 2rem; right: 2rem;
-      z-index: 200; max-width: 360px;
-      transform: translateX(120%);
-      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -60%) scale(0.9);
+      z-index: 999; max-width: 360px;
+      width: calc(100% - 2rem);
+      opacity: 0; pointer-events: none;
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    #notification.show { transform: translateX(0); }
+    #notification.show {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1; pointer-events: auto;
+    }
 
     /* Calendar responsive */
     @media (max-width: 640px) {
@@ -1341,16 +1347,40 @@
   const DAYS_LONG = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
 
   // Startdaten der Wochen (Montag je Woche)
-  const WEEKS = [
-    new Date(2026, 4, 18), // 18. Mai 2026
-    new Date(2026, 4, 25), // 25. Mai 2026
-    new Date(2026, 5,  1), // 1. Juni 2026
-  ];
+  // ── WOCHEN DYNAMISCH GENERIEREN ──────────────────────
+  // Ab heute bis Ende des Jahres, vergangene Tage nicht buchbar
+  function generateWeeks() {
+    const weeks = [];
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    // Montag dieser oder nächster Woche als Start
+    const startDay = new Date(today);
+    const dayOfWeek = startDay.getDay() || 7; // Mo=1 ... So=7
+    startDay.setDate(startDay.getDate() - dayOfWeek + 1); // Montag dieser Woche
+
+    // Bis Ende des Jahres
+    const endOfYear = new Date(today.getFullYear(), 11, 31);
+
+    let current = new Date(startDay);
+    while (current <= endOfYear) {
+      weeks.push(new Date(current));
+      current.setDate(current.getDate() + 7);
+    }
+    return weeks;
+  }
+
+  const ALL_WEEKS = generateWeeks();
+  let weekOffset = 0; // Index des ersten angezeigten Blocks von 4 Wochen
+
+  function getVisibleWeeks() {
+    return ALL_WEEKS.slice(weekOffset, weekOffset + 4);
+  }
 
   // Demo-Buchungen nur als Fallback wenn Supabase nicht erreichbar
   const DEMO_BOOKED = [];
 
-  let currentWeek = 0;
+  let currentWeek = 0; // Index innerhalb der sichtbaren 4 Wochen
   let bookedSlots = [];
   let selectedSlot = null;
 
@@ -1375,9 +1405,12 @@
 
   function calcPrice(persons) {
     if (!persons || persons < 1) return 0;
-    if (persons === 1) return 25;
-    if (persons >= 10) return 99;
-    return Math.round(25 + (persons - 1) * 8.222);
+    // TEST-MODUS: 1€ pro Buchung
+    return 1;
+    // LIVE-PREISE (auskommentiert für Tests):
+    // if (persons === 1) return 25;
+    // if (persons >= 10) return 99;
+    // return Math.round(25 + (persons - 1) * 8.222);
   }
 
   function formatWeekLabel(monday) {
@@ -1392,20 +1425,50 @@
   // ─────────────────────────────────────────────
   function renderWeekNav() {
     const nav = document.getElementById('weekNav');
-    nav.innerHTML = WEEKS.map((w, i) => `
-      <button onclick="switchWeek(${i})" id="weekBtn${i}"
-        class="btn-secondary font-display text-xs tracking-wider px-5 py-2.5 ${i === 0 ? 'week-btn-active' : ''}">
-        ${formatWeekLabel(w)}
-      </button>
-    `).join('');
+    const visible = getVisibleWeeks();
+    const canGoBack = weekOffset > 0;
+    const canGoForward = weekOffset + 4 < ALL_WEEKS.length;
+
+    nav.innerHTML = `
+      <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; justify-content:center;">
+        <button onclick="shiftWeeks(-4)" ${!canGoBack ? 'disabled' : ''}
+          style="background:transparent; border:1px solid rgba(201,168,76,${canGoBack ? '0.3' : '0.1'});
+          color:${canGoBack ? 'var(--gold)' : 'rgba(201,168,76,0.2)'}; border-radius:4px;
+          padding:0.4rem 0.6rem; cursor:${canGoBack ? 'pointer' : 'not-allowed'}; font-size:0.85rem;">
+          ‹
+        </button>
+        ${visible.map((w, i) => `
+          <button onclick="switchWeek(${i})" id="weekBtn${i}"
+            class="btn-secondary font-display text-xs tracking-wider px-4 py-2 ${i === currentWeek ? 'week-btn-active' : ''}">
+            ${formatWeekLabel(w)}
+          </button>
+        `).join('')}
+        <button onclick="shiftWeeks(4)" ${!canGoForward ? 'disabled' : ''}
+          style="background:transparent; border:1px solid rgba(201,168,76,${canGoForward ? '0.3' : '0.1'});
+          color:${canGoForward ? 'var(--gold)' : 'rgba(201,168,76,0.2)'}; border-radius:4px;
+          padding:0.4rem 0.6rem; cursor:${canGoForward ? 'pointer' : 'not-allowed'}; font-size:0.85rem;">
+          ›
+        </button>
+      </div>
+    `;
+  }
+
+  async function shiftWeeks(delta) {
+    const newOffset = weekOffset + delta;
+    if (newOffset < 0 || newOffset >= ALL_WEEKS.length) return;
+    weekOffset = Math.max(0, Math.min(newOffset, ALL_WEEKS.length - 4));
+    currentWeek = 0;
+    renderWeekNav();
+    bookedSlots = await loadBookedSlots(getVisibleWeeks()[0]);
+    renderCalendar();
   }
 
   async function switchWeek(i) {
     currentWeek = i;
-    document.querySelectorAll('#weekNav button').forEach((btn, j) => {
+    document.querySelectorAll('#weekNav button[id^="weekBtn"]').forEach((btn, j) => {
       btn.classList.toggle('week-btn-active', j === i);
     });
-    bookedSlots = await loadBookedSlots(WEEKS[i]);
+    bookedSlots = await loadBookedSlots(getVisibleWeeks()[i]);
     renderCalendar();
   }
 
@@ -1413,7 +1476,9 @@
   // KALENDER
   // ─────────────────────────────────────────────
   function renderCalendar() {
-    const monday = WEEKS[currentWeek];
+    const monday = getVisibleWeeks()[currentWeek];
+    if (!monday) return;
+    const now = new Date();
     let html = '<div class="grid grid-cols-7" style="gap: 1px; background: rgba(201,168,76,0.1);">';
 
     // Header
@@ -1421,10 +1486,12 @@
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
       const isWeekend = i >= 5;
+      const isPastDay = date < new Date(now.getFullYear(), now.getMonth(), now.getDate());
       html += `
-        <div class="p-2 sm:p-3 text-center font-display text-xs tracking-wider" style="background: rgba(13,43,20,0.9); color: ${isWeekend ? 'var(--gold)' : 'rgba(245,234,208,0.6)'};">
+        <div class="p-2 sm:p-3 text-center font-display text-xs tracking-wider"
+          style="background: rgba(13,43,20,0.9); color: ${isPastDay ? 'rgba(245,234,208,0.2)' : isWeekend ? 'var(--gold)' : 'rgba(245,234,208,0.6)'};">
           <div>${d}</div>
-          <div class="text-lg font-bold mt-0.5" style="color: ${isWeekend ? 'var(--gold)' : 'var(--parchment)'}; font-family: 'Cinzel', serif;">${date.getDate()}</div>
+          <div class="text-lg font-bold mt-0.5" style="color: ${isPastDay ? 'rgba(245,234,208,0.2)' : isWeekend ? 'var(--gold)' : 'var(--parchment)'}; font-family: 'Cinzel', serif;">${date.getDate()}</div>
         </div>`;
     });
 
@@ -1436,13 +1503,14 @@
         const key = slotKey(date, time);
         const booked = bookedSlots.includes(key);
         const selected = selectedSlot && selectedSlot.key === key;
-        const isPast = date < new Date();
+
+        // Vergangene Slots: Datum + Uhrzeit prüfen
+        const [h, m] = time.split(':').map(Number);
+        const slotTime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, m);
+        const isPast = slotTime < now;
 
         let cls, onclick;
-        if (booked) {
-          cls = 'slot-booked';
-          onclick = '';
-        } else if (isPast) {
+        if (booked || isPast) {
           cls = 'slot-booked';
           onclick = '';
         } else if (selected) {
@@ -1455,8 +1523,8 @@
 
         html += `
           <div class="${cls} p-2 sm:p-3 text-center" onclick="${onclick}">
-            ${booked
-              ? `<span class="text-xs sm:text-sm" style="color: rgba(255,100,100,0.5); text-decoration: line-through;">${time}</span>`
+            ${(booked || isPast)
+              ? `<span class="text-xs sm:text-sm" style="color: rgba(255,100,100,${isPast && !booked ? '0.25' : '0.5'}); ${isPast && !booked ? '' : 'text-decoration: line-through;'}">${time}</span>`
               : `<span class="text-xs sm:text-sm font-semibold" style="color: ${selected ? 'var(--gold)' : 'rgba(245,234,208,0.85)'}; font-family: 'Cinzel', serif;">${time}</span>`
             }
           </div>`;
@@ -1906,8 +1974,7 @@
   // ─────────────────────────────────────────────
   window.addEventListener('DOMContentLoaded', async () => {
     renderWeekNav();
-    // Erst gebuchte Slots von Supabase laden, dann Kalender rendern
-    bookedSlots = await loadBookedSlots(WEEKS[0]);
+    bookedSlots = await loadBookedSlots(getVisibleWeeks()[0]);
     renderCalendar();
   });
   </script>

@@ -688,19 +688,20 @@
   background:linear-gradient(135deg,#0d2b14,#1a4a24);
   border-bottom:1px solid rgba(201,168,76,0.35);
   padding:0.6rem 1rem;
+  padding-top: max(0.6rem, env(safe-area-inset-top));
   align-items:center; justify-content:space-between; gap:0.75rem;
   box-shadow:0 4px 20px rgba(0,0,0,0.5);">
-  <div style="display:flex; align-items:center; gap:0.6rem; min-width:0;">
-    <i class="fa-solid fa-shield-halved" style="color:#c9a84c; font-size:1.1rem; flex-shrink:0;"></i>
-    <div style="min-width:0;">
-      <div style="font-family:'Cinzel',serif; font-size:0.68rem; color:#c9a84c; letter-spacing:0.06em; white-space:nowrap;">Als App installieren</div>
-      <div style="font-size:0.72rem; color:rgba(245,234,208,0.55); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Zum Homescreen hinzufügen</div>
+  <div style="display:flex; align-items:center; gap:0.6rem; min-width:0; flex:1;">
+    <i class="fa-solid fa-shield-halved" style="color:#c9a84c; font-size:1rem; flex-shrink:0;"></i>
+    <div style="min-width:0; flex:1;">
+      <div style="font-family:'Cinzel',serif; font-size:0.68rem; color:#c9a84c; letter-spacing:0.06em;">Als App installieren</div>
+      <div style="font-size:0.7rem; color:rgba(245,234,208,0.5);">Zum Homescreen hinzufügen</div>
     </div>
   </div>
   <div style="display:flex; gap:0.4rem; flex-shrink:0;">
     <button onclick="document.getElementById('spiel-install-banner').style.display='none'"
       style="background:transparent; border:1px solid rgba(245,234,208,0.15); color:rgba(245,234,208,0.4);
-             font-family:'Cinzel',serif; font-size:0.58rem; padding:0.35rem 0.6rem; border-radius:3px; cursor:pointer;">
+             font-family:'Cinzel',serif; font-size:0.58rem; padding:0.35rem 0.6rem; border-radius:3px; cursor:pointer; white-space:nowrap;">
       ✕
     </button>
     <button onclick="installApp()"
