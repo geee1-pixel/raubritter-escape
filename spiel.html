@@ -481,6 +481,44 @@
     }
     .shake { animation: shake 0.4s ease; }
 
+    @keyframes sealPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.15); }
+      50% { box-shadow: 0 0 0 24px rgba(201,168,76,0); }
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+
+    /* Timer spacing */
+    body.timer-active .screen { padding-top: 2.8rem; }
+
+    /* Geheimtext */
+    .secret-trigger { cursor: pointer; user-select: none; -webkit-user-select: none; }
+    .secret-text {
+      display: none; margin-top: 0.6rem; padding: 0.6rem 0.8rem;
+      background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 4px; font-size: 0.82rem; color: var(--gold);
+      font-style: italic; line-height: 1.6; text-align: left;
+    }
+    .secret-text.visible { display: block; animation: fadeIn 0.4s ease; }
+
+    /* Gestufte Hinweise */
+    .hint-level-btns { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .hint-level-btn {
+      flex: 1; padding: 0.5rem 0.5rem; border-radius: 4px; cursor: pointer;
+      font-family: 'Cinzel', serif; font-size: 0.62rem; font-weight: 700;
+      letter-spacing: 0.05em; border: none; transition: opacity 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 0.3rem;
+    }
+    .hint-level-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .hint-level-1 { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+    .hint-level-2 { background: rgba(249,115,22,0.12); color: #f97316; border: 1px solid rgba(249,115,22,0.3); }
+    .hint-level-3 { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+    .hint-content-box {
+      margin-top: 0.6rem; padding: 0.75rem; border-radius: 4px;
+      background: rgba(0,0,0,0.2); font-size: 0.9rem; line-height: 1.65;
+      display: none; animation: fadeIn 0.3s ease;
+    }
+    .hint-content-box.visible { display: block; }
+
     /* ── TYPOGRAPHY UTILS ── */
     .label-xs {
       font-family: 'Cinzel', serif; font-size: 0.6rem;
@@ -675,6 +713,67 @@
 </div>
 <div id="app">
 
+  <!-- ═══ APP-CODE SPERRSCREEN ═══ -->
+  <div id="screen-applock" class="screen safe-top" style="
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100vh; padding:2rem; text-align:center;">
+    <div style="width:110px; height:110px; border-radius:50%;
+      background:rgba(201,168,76,0.08); border:2px solid rgba(201,168,76,0.3);
+      display:flex; align-items:center; justify-content:center; margin-bottom:1.5rem;
+      animation: sealPulse 3s ease-in-out infinite;">
+      <i class="fa-solid fa-shield-halved" style="font-size:2.8rem; color:rgba(201,168,76,0.6);"></i>
+    </div>
+    <div style="font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.25em; color:rgba(201,168,76,0.7); margin-bottom:0.5rem;">RAUBRITTER ESCAPE</div>
+    <h2 style="font-family:'Cinzel',serif; font-size:1.5rem; font-weight:900; color:#f5ead0; margin-bottom:0.5rem; line-height:1.2;">App versiegelt</h2>
+    <p style="font-size:0.9rem; color:rgba(245,234,208,0.55); line-height:1.7; max-width:280px; margin-bottom:2rem;">
+      Den <strong style="color:rgba(201,168,76,0.8);">App-Code</strong> findet ihr auf dem Zettel im Schrank.
+    </p>
+    <div style="width:100%; max-width:300px;">
+      <input id="applock-input" type="text" inputmode="numeric" placeholder="App-Code"
+        maxlength="8" autocomplete="off"
+        style="width:100%; background:rgba(0,0,0,0.3); border:1px solid rgba(201,168,76,0.3);
+          color:#f5ead0; border-radius:6px; padding:1rem; font-family:'Cinzel',serif;
+          font-size:1.6rem; letter-spacing:0.4em; text-align:center; outline:none; margin-bottom:0.6rem;">
+      <div id="applock-error" style="color:#f87171; font-family:'Cinzel',serif; font-size:0.7rem;
+        letter-spacing:0.06em; min-height:1.2rem; margin-bottom:0.6rem;"></div>
+      <button onclick="checkAppCode()" style="width:100%; padding:1rem;
+        background:linear-gradient(135deg,#8b6914,#c9a84c); border:none; border-radius:6px;
+        cursor:pointer; font-family:'Cinzel',serif; font-size:0.85rem; font-weight:700;
+        letter-spacing:0.06em; color:#1a120b; margin-bottom:0.75rem;">
+        <i class="fa-solid fa-unlock mr-2"></i> Siegel brechen
+      </button>
+      <button onclick="startApplockScan()" style="width:100%; padding:0.75rem;
+        background:transparent; border:1px solid rgba(201,168,76,0.25); border-radius:6px;
+        cursor:pointer; font-family:'Cinzel',serif; font-size:0.75rem; color:rgba(201,168,76,0.6);">
+        <i class="fa-solid fa-qrcode mr-2"></i> QR-Code scannen
+      </button>
+      <div id="applock-scanner" style="display:none; margin-top:1rem;">
+        <video id="applock-video" autoplay playsinline muted
+          style="width:100%; border-radius:8px; border:2px solid rgba(201,168,76,0.3);"></video>
+        <button onclick="stopApplockScan()" style="margin-top:0.5rem; background:transparent;
+          border:none; color:rgba(245,234,208,0.4); font-size:0.8rem; cursor:pointer;">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TIMER LEISTE ═══ -->
+  <div id="game-timer-bar" style="display:none; position:fixed; top:0; left:0; right:0; z-index:200;
+    background:rgba(13,43,20,0.97); border-bottom:1px solid rgba(201,168,76,0.2);
+    padding:0.4rem 1rem; align-items:center; justify-content:space-between;">
+    <div style="display:flex; align-items:center; gap:0.5rem;">
+      <i class="fa-solid fa-hourglass-half" style="color:var(--gold); font-size:0.8rem;"></i>
+      <span id="timer-display" style="font-family:'Cinzel',serif; font-size:0.9rem; font-weight:700; color:#f5ead0;">00:00</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:1rem;">
+      <span style="font-family:'Cinzel',serif; font-size:0.7rem; color:rgba(201,168,76,0.8);">
+        <i class="fa-solid fa-star mr-1"></i><span id="timer-score">0</span>
+      </span>
+      <span style="font-family:'Cinzel',serif; font-size:0.7rem; color:rgba(245,234,208,0.4);">
+        St. <span id="timer-station">1</span>/<span id="timer-total">?</span>
+      </span>
+    </div>
+  </div>
+
   <!-- ═══════════════════════════════════
        SCREEN 1: CODE EINGABE
   ═══════════════════════════════════ -->
@@ -847,11 +946,8 @@
         <div class="attempt-dots" id="attempt-dots"></div>
       </div>
 
-      <!-- Hinweis (nach 3 Fehlern) -->
-      <div class="hint-box" id="hint-box">
-        <span style="color:var(--gold);"><i class="fa-solid fa-lightbulb mr-1"></i> Hinweis: </span>
-        <span id="hint-text"></span>
-      </div>
+      <!-- Hinweis (3 Stufen) -->
+      <div id="hint-wrap" style="margin-bottom:0.75rem;"></div>
 
       <!-- Antwort -->
       <div class="answer-input-row">
@@ -1013,13 +1109,16 @@ let state = {
   solvedStations: [],
   totalScore: 0,
   hintsUsed: 0,
-  attempts: 0,           // Fehlversuche aktuelle Station
+  hintsLevel: 0,        // 0=kein, 1=H1, 2=H2, 3=H3
+  attempts: 0,
   startTime: null,
-  activeScreen: 'code',  // code | station | scan | puzzle | story | finale
-  activeTab: 'station',  // station | scan | story
+  timerInterval: null,
+  activeScreen: 'code',
+  activeTab: 'station',
   scanning: false,
   stream: null,
   scanInterval: null,
+  appUnlocked: false,   // App-Code Sperre
 };
 
 // ─── DEMO-SPIEL ──────────────────────────────────────────
@@ -1110,7 +1209,192 @@ async function loadGame() {
 }
 
 function loadDemoGame() {
+  // Demo direkt ohne App-Code starten
+  state.appUnlocked = true;
   startGame(DEMO_GAME);
+}
+
+// ─── APP-CODE SYSTEM ─────────────────────────────────────
+const APP_CODE_KEY = 'rb_app_code'; // localStorage key
+
+function checkAppCode() {
+  const input = document.getElementById('applock-input');
+  const code = input.value.trim().toUpperCase();
+  const err = document.getElementById('applock-error');
+
+  if (!code) { err.textContent = 'Bitte Code eingeben'; return; }
+
+  // Code gegen Supabase/localStorage prüfen
+  // Format: XXXX-YYYY oder 8-stellig numerisch
+  const savedCode = localStorage.getItem(APP_CODE_KEY);
+
+  if (savedCode && code === savedCode.toUpperCase()) {
+    unlockApp();
+  } else {
+    // Supabase prüfen
+    verifyAppCodeFromSupabase(code, err);
+  }
+}
+
+async function verifyAppCodeFromSupabase(code, errEl) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/bookings?select=booking_code,slot_date,slot_time,name&booking_code=eq.${code}&status=eq.paid`,
+      { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+    );
+    const data = await res.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      errEl.textContent = 'Ungültiger Code – bitte nochmal prüfen';
+      document.getElementById('applock-input').classList.add('shake');
+      setTimeout(() => document.getElementById('applock-input').classList.remove('shake'), 500);
+      return;
+    }
+
+    const booking = data[0];
+
+    // Prüfen ob Code heute gültig ist
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+    if (booking.slot_date !== todayStr) {
+      const slotDate = new Date(booking.slot_date);
+      const dateStr = slotDate.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
+      errEl.textContent = `Code gültig am ${dateStr} – heute nicht nutzbar`;
+      document.getElementById('applock-input').classList.add('shake');
+      setTimeout(() => document.getElementById('applock-input').classList.remove('shake'), 500);
+      return;
+    }
+
+    // Alles ok – App freischalten
+    localStorage.setItem(APP_CODE_KEY, code);
+    unlockApp();
+
+  } catch(e) {
+    console.error('Supabase Fehler:', e);
+    errEl.textContent = 'Verbindungsfehler – bitte Internetverbindung prüfen';
+  }
+}
+
+function unlockApp() {
+  state.appUnlocked = true;
+  stopApplockScan();
+  // Buchungscode-Screen zeigen (normaler Spielstart)
+  document.getElementById('screen-applock').classList.remove('active');
+  document.getElementById('screen-code').classList.add('active');
+  state.activeScreen = 'code';
+  toast('App freigeschaltet! ✦ Viel Erfolg!');
+}
+
+// App-Code QR Scanner
+let applockStream = null;
+function startApplockScan() {
+  const container = document.getElementById('applock-scanner');
+  container.style.display = 'block';
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      applockStream = stream;
+      document.getElementById('applock-video').srcObject = stream;
+      scanApplockFrame();
+    })
+    .catch(() => { container.style.display = 'none'; alert('Kamerazugriff nicht möglich'); });
+}
+function stopApplockScan() {
+  if (applockStream) { applockStream.getTracks().forEach(t => t.stop()); applockStream = null; }
+  document.getElementById('applock-scanner').style.display = 'none';
+}
+function scanApplockFrame() {
+  if (!applockStream) return;
+  const video = document.getElementById('applock-video');
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    const c = document.createElement('canvas');
+    c.width = video.videoWidth; c.height = video.videoHeight;
+    c.getContext('2d').drawImage(video, 0, 0);
+    const img = c.getContext('2d').getImageData(0, 0, c.width, c.height);
+    try {
+      const qr = jsQR(img.data, img.width, img.height);
+      if (qr && qr.data) {
+        document.getElementById('applock-input').value = qr.data;
+        stopApplockScan();
+        checkAppCode();
+        return;
+      }
+    } catch(e) {}
+  }
+  if (applockStream) requestAnimationFrame(scanApplockFrame);
+}
+
+// ─── TIMER ───────────────────────────────────────────────
+function startTimer() {
+  const bar = document.getElementById('game-timer-bar');
+  bar.style.display = 'flex';
+  document.body.classList.add('timer-active');
+
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  state.timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+    const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const s = String(elapsed % 60).padStart(2, '0');
+    document.getElementById('timer-display').textContent = `${m}:${s}`;
+    document.getElementById('timer-score').textContent = state.totalScore;
+    if (game) {
+      document.getElementById('timer-station').textContent = state.currentStation + 1;
+      document.getElementById('timer-total').textContent = game.stations.length;
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (state.timerInterval) { clearInterval(state.timerInterval); state.timerInterval = null; }
+}
+
+// ─── GEHEIMTEXT (langes Drücken) ─────────────────────────
+function initSecretTexts() {
+  document.querySelectorAll('.secret-trigger').forEach(el => {
+    let pressTimer = null;
+    el.addEventListener('touchstart', () => {
+      pressTimer = setTimeout(() => {
+        const target = document.getElementById(el.dataset.secret);
+        if (target) target.classList.toggle('visible');
+      }, 1500);
+    });
+    el.addEventListener('touchend', () => { if (pressTimer) clearTimeout(pressTimer); });
+    el.addEventListener('mousedown', () => {
+      pressTimer = setTimeout(() => {
+        const target = document.getElementById(el.dataset.secret);
+        if (target) target.classList.toggle('visible');
+      }, 1500);
+    });
+    el.addEventListener('mouseup', () => { if (pressTimer) clearTimeout(pressTimer); });
+  });
+}
+
+// ─── GESTUFTE HINWEISE ───────────────────────────────────
+function showHintLevel(level) {
+  if (!game) return;
+  const s = game.stations[state.currentStation];
+  const hints = [s.hint, s.hint2 || s.hint, s.hint3 || s.answer ? `Die Antwort beginnt mit: ${(s.answer||'')[0]}` : s.hint];
+  const hint = hints[level - 1] || hints[0];
+
+  state.hintsUsed++;
+  state.hintsLevel = level;
+
+  // Punkte-Abzug anzeigen
+  const penalty = level === 1 ? 10 : level === 2 ? 25 : 50;
+  toast(`Hinweis ${level} genutzt – ${penalty} Punkte Abzug`);
+
+  // Hinweis anzeigen
+  const box = document.getElementById('hint-content-box');
+  const icon = ['💡','🔍','🔑'][level-1];
+  if (box) {
+    box.innerHTML = `<span style="opacity:0.6; font-size:0.75rem; font-family:'Cinzel',serif;">
+      ${icon} HINWEIS ${level}</span><br>${hint}`;
+    box.classList.add('visible');
+  }
+
+  // Button deaktivieren
+  const btn = document.getElementById(`hint-btn-${level}`);
+  if (btn) btn.disabled = true;
 }
 
 function startGame(g) {
@@ -1119,11 +1403,14 @@ function startGame(g) {
   state.solvedStations = [];
   state.totalScore = 0;
   state.hintsUsed = 0;
+  state.hintsLevel = 0;
   state.attempts = 0;
   state.startTime = Date.now();
 
+  startTimer();
   showScreen('station');
   renderStation(0);
+  setTimeout(initSecretTexts, 500);
   toast(game.title + ' gestartet!');
 }
 
@@ -1373,6 +1660,7 @@ function openPuzzle(stationIndex) {
   stopCamera();
   const s = game.stations[stationIndex];
   state.attempts = 0;
+  state.hintsLevel = 0;
 
   document.getElementById('puzzle-station-label').textContent = 'STATION ' + (stationIndex+1);
   document.getElementById('puzzle-station-name').textContent = s.name || '';
@@ -1380,14 +1668,30 @@ function openPuzzle(stationIndex) {
   document.getElementById('puzzle-points-display').textContent = (s.points || 100) + ' Punkte';
   document.getElementById('answer-input').value = '';
   document.getElementById('answer-feedback').textContent = '';
-  document.getElementById('hint-box').classList.remove('visible');
-  document.getElementById('hint-text').textContent = s.hint || '';
+
+  // 3-stufige Hinweis-Buttons
+  const hintWrap = document.getElementById('hint-wrap');
+  if (hintWrap) {
+    hintWrap.innerHTML = `
+      <div class="hint-level-btns">
+        <button id="hint-btn-1" class="hint-level-btn hint-level-1" onclick="showHintLevel(1)">
+          <i class="fa-solid fa-lightbulb"></i> H1 <span style="opacity:0.6; font-size:0.58rem;">−10</span>
+        </button>
+        <button id="hint-btn-2" class="hint-level-btn hint-level-2" onclick="showHintLevel(2)">
+          <i class="fa-solid fa-magnifying-glass"></i> H2 <span style="opacity:0.6; font-size:0.58rem;">−25</span>
+        </button>
+        <button id="hint-btn-3" class="hint-level-btn hint-level-3" onclick="showHintLevel(3)">
+          <i class="fa-solid fa-key"></i> H3 <span style="opacity:0.6; font-size:0.58rem;">−50</span>
+        </button>
+      </div>
+      <div id="hint-content-box" class="hint-content-box"></div>
+    `;
+  }
 
   renderAttemptDots();
   showScreen('puzzle');
   setTimeout(() => document.getElementById('answer-input').focus(), 300);
 
-  // Enter-Key
   document.getElementById('answer-input').onkeydown = (e) => {
     if (e.key === 'Enter') checkAnswer();
   };
@@ -1562,6 +1866,22 @@ document.addEventListener('DOMContentLoaded', () => {
   // Code-Input auto-uppercase
   document.getElementById('code-input').addEventListener('input', function() {
     this.value = this.value.toUpperCase();
+  });
+
+  // App-Code Screen beim Start anzeigen
+  const urlParams = new URLSearchParams(window.location.search);
+  const isDemo = urlParams.get('demo') === '1';
+
+  if (!isDemo) {
+    // Alle Screens deaktivieren, App-Lock aktivieren
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-applock').classList.add('active');
+    state.activeScreen = 'applock';
+  }
+
+  // Enter-Key für App-Code
+  document.getElementById('applock-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkAppCode();
   });
 });
 </script>

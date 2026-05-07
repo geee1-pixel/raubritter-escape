@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Raubritter Escape – Spiel-Editor</title>
+  <style>
+    #editor-lock {
+      position: fixed; inset: 0; z-index: 9999;
+      background: linear-gradient(180deg, #0d2b14 0%, #1a120b 100%);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 1.5rem; padding: 2rem;
+    }
+    #editor-lock.unlocked { display: none; }
+    #lock-input {
+      background: rgba(0,0,0,0.4); border: 1px solid rgba(201,168,76,0.35);
+      color: #f5ead0; border-radius: 4px; padding: 0.85rem 1.25rem;
+      font-size: 1.1rem; width: 100%; max-width: 300px; text-align: center;
+      letter-spacing: 0.2em; font-family: 'Cinzel', serif;
+    }
+    #lock-input:focus { outline: none; border-color: #c9a84c; }
+    #lock-btn {
+      background: linear-gradient(135deg, #8b6914, #c9a84c);
+      border: none; border-radius: 4px; color: #1a120b;
+      font-family: 'Cinzel', serif; font-weight: 700; font-size: 0.85rem;
+      letter-spacing: 0.08em; padding: 0.85rem 2.5rem; cursor: pointer;
+      width: 100%; max-width: 300px;
+    }
+    #lock-error { color: #f87171; font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.06em; min-height: 1rem; }
+  </style>
+  <script>
+    // ── EDITOR PASSWORT ──────────────────────────────────
+    // Hier dein gewünschtes Passwort eintragen:
+    const EDITOR_PASSWORD = 'raubritter2026';
+    // ────────────────────────────────────────────────────
+
+    // ── SUPABASE ─────────────────────────────────────────
+    const SUPABASE_URL = 'https://uulpxvyjevnvggvamhha.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1bHB4dnlqZXZudmdndmFtaGhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODA5MjIsImV4cCI6MjA5Mjk1NjkyMn0.XJWbivvaWU4WVD-48_-Pnlr5XfKkjSHuIvVqdpq-bH4';
+
+    // ── WOCHENCODE SYSTEM ────────────────────────────────
+    // Salt: geheimer Zusatz damit der Code nicht erratbar ist
+    const WEEK_CODE_SALT = 'RB2026LICHTENBERG';
+
+    function getWeekNumber(date) {
+      const d = new Date(date);
+      d.setHours(0,0,0,0);
+      d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+      const week1 = new Date(d.getFullYear(), 0, 4);
+      return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    }
+
+    function generateWeekCode(date) {
+      // Deterministischer 4-stelliger Code aus KW + Jahr + Salt
+      const kw = getWeekNumber(date);
+      const year = date.getFullYear();
+      const seed = `${WEEK_CODE_SALT}-${year}-${kw}`;
+      // Einfacher Hash → 4-stellige Zahl zwischen 1000-9999
+      let hash = 0;
+      for (let i = 0; i < seed.length; i++) {
+        hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+        hash |= 0;
+      }
+      const code = String(Math.abs(hash) % 9000 + 1000);
+      return code;
+    }
+
+    function getWeekRange(date) {
+      const d = new Date(date);
+      const day = d.getDay() || 7;
+      const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      const fmt = (x) => x.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
+      return `${fmt(mon)} – ${fmt(sun)}`;
+    }
+    function unlockEditor() {
+      const val = document.getElementById('lock-input').value;
+      if (val === EDITOR_PASSWORD) {
+        document.getElementById('editor-lock').classList.add('unlocked');
+        sessionStorage.setItem('editor-unlocked', '1');
+      } else {
+        const err = document.getElementById('lock-error');
+        err.textContent = 'Falsches Passwort';
+        document.getElementById('lock-input').value = '';
+        document.getElementById('lock-input').focus();
+        setTimeout(() => err.textContent = '', 2500);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('editor-unlocked') === '1') {
+        document.getElementById('editor-lock').classList.add('unlocked');
+      }
+      document.getElementById('lock-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') unlockEditor();
+      });
+    });
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    :root {
+      --gold: #c9a84c;
+      --gold-dark: #8b6914;
+      --parchment: #f5ead0;
+      --ink: #1a120b;
+      --forest: #0d2b14;
+      --forest-mid: #1a4a24;
+      --stone: #2d2520;
+      --stone-mid: #3d342e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Crimson Text', Georgia, serif;
+      background: var(--ink);
+      color: var(--parchment);
+      min-height: 100vh;
+    }
+    .font-display { font-family: 'Cinzel', serif; }
+
+    /* ── LAYOUT ── */
+    .app-shell {
+      display: grid;
+      grid-template-columns: 260px 1fr 320px;
+      grid-template-rows: 56px 1fr;
+      height: 100vh;
+      overflow: hidden;
+    }
+    @media (max-width: 900px) {
+      .app-shell { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; overflow: auto; }
+      .sidebar-left, .sidebar-right { display: none; }
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      grid-column: 1 / -1;
+      background: var(--forest);
+      border-bottom: 1px solid rgba(201,168,76,0.25);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 1.5rem; gap: 1rem;
+    }
+    .topbar-title { font-family: 'Cinzel', serif; font-size: 0.9rem; color: var(--gold); letter-spacing: 0.1em; }
+    .topbar-actions { display: flex; gap: 0.75rem; align-items: center; }
+
+    /* ── SIDEBARS ── */
+    .sidebar-left {
+      background: var(--stone);
+      border-right: 1px solid rgba(201,168,76,0.15);
+      overflow-y: auto;
+      padding: 1rem 0;
+    }
+    .sidebar-right {
+      background: var(--stone);
+      border-left: 1px solid rgba(201,168,76,0.15);
+      overflow-y: auto;
+      padding: 1.25rem;
+    }
+
+    /* ── MAIN ── */
+    .main-content {
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      background: #211810;
+    }
+
+    /* ── STATION LIST (left sidebar) ── */
+    .station-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.7rem 1rem; cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .station-item:hover { background: rgba(201,168,76,0.06); }
+    .station-item.active {
+      background: rgba(201,168,76,0.1);
+      border-left-color: var(--gold);
+    }
+    .station-num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--gold-dark); color: var(--parchment);
+      font-family: 'Cinzel', serif; font-size: 0.65rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .station-num.solved { background: var(--forest-mid); color: var(--gold); }
+    .station-name-label { font-size: 0.88rem; line-height: 1.3; flex: 1; min-width: 0; }
+    .station-name-label span { display: block; font-size: 0.7rem; opacity: 0.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .drag-handle { color: rgba(201,168,76,0.25); font-size: 0.75rem; cursor: grab; }
+    .drag-handle:active { cursor: grabbing; }
+
+    /* ── SIDEBAR META ── */
+    .meta-section { margin-bottom: 1.25rem; }
+    .meta-label { font-family: 'Cinzel', serif; font-size: 0.62rem; letter-spacing: 0.1em; opacity: 0.45; margin-bottom: 0.4rem; }
+    .meta-value { font-size: 0.92rem; line-height: 1.5; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.72rem;
+      font-family: 'Cinzel', serif; letter-spacing: 0.05em;
+    }
+    .badge-ok { background: rgba(13,43,20,0.8); border: 1px solid rgba(74,222,128,0.3); color: #4ade80; }
+    .badge-warn { background: rgba(120,60,0,0.4); border: 1px solid rgba(201,168,76,0.3); color: var(--gold); }
+    .badge-err { background: rgba(120,30,30,0.5); border: 1px solid rgba(220,60,60,0.3); color: #f87171; }
+
+    /* ── FORM ELEMENTS ── */
+    label.field-label {
+      display: block; font-family: 'Cinzel', serif;
+      font-size: 0.62rem; letter-spacing: 0.1em; opacity: 0.5;
+      margin-bottom: 0.35rem; margin-top: 1rem;
+    }
+    label.field-label:first-child { margin-top: 0; }
+    input[type=text], input[type=url], textarea, select {
+      width: 100%; background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(201,168,76,0.25);
+      color: var(--parchment); border-radius: 3px;
+      padding: 0.6rem 0.8rem;
+      font-family: 'Crimson Text', serif; font-size: 1rem;
+      transition: border-color 0.2s;
+      resize: vertical;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none; border-color: var(--gold);
+    }
+    input::placeholder, textarea::placeholder { color: rgba(245,234,208,0.3); }
+    select option { background: var(--ink); }
+
+    .input-hint { font-size: 0.8rem; opacity: 0.4; margin-top: 0.3rem; line-height: 1.4; }
+
+    /* ── TABS ── */
+    .tab-bar {
+      display: flex; gap: 0; margin-bottom: 1.25rem;
+      border-bottom: 1px solid rgba(201,168,76,0.15);
+    }
+    .tab {
+      padding: 0.5rem 1rem; cursor: pointer;
+      font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.08em;
+      color: rgba(245,234,208,0.4); border-bottom: 2px solid transparent;
+      transition: all 0.15s; margin-bottom: -1px;
+    }
+    .tab:hover { color: rgba(245,234,208,0.7); }
+    .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+    /* ── CARD ── */
+    .card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(201,168,76,0.12);
+      border-radius: 4px; padding: 1.25rem; margin-bottom: 1rem;
+    }
+    .card-title {
+      font-family: 'Cinzel', serif; font-size: 0.75rem;
+      letter-spacing: 0.08em; color: var(--gold); margin-bottom: 0.75rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.5rem 1rem; border-radius: 3px; cursor: pointer;
+      font-family: 'Cinzel', serif; font-size: 0.72rem;
+      letter-spacing: 0.05em; border: none; transition: all 0.15s;
+    }
+    .btn-gold {
+      background: linear-gradient(135deg, #8b6914, #c9a84c, #8b6914);
+      background-size: 200%; background-position: right;
+      color: var(--ink); font-weight: 700;
+    }
+    .btn-gold:hover { background-position: left; transform: translateY(-1px); }
+    .btn-outline {
+      background: transparent; color: var(--gold);
+      border: 1px solid rgba(201,168,76,0.35);
+    }
+    .btn-outline:hover { border-color: var(--gold); background: rgba(201,168,76,0.08); }
+    .btn-ghost {
+      background: transparent; color: rgba(245,234,208,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .btn-ghost:hover { color: var(--parchment); border-color: rgba(255,255,255,0.2); }
+    .btn-danger {
+      background: rgba(120,30,30,0.4); color: #f87171;
+      border: 1px solid rgba(220,60,60,0.2);
+    }
+    .btn-danger:hover { background: rgba(150,40,40,0.6); }
+    .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.65rem; }
+
+    /* ── QR MAPPING ── */
+    .qr-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 0; border-bottom: 1px solid rgba(201,168,76,0.08);
+    }
+    .qr-row:last-child { border-bottom: none; }
+    .qr-code-val {
+      font-family: monospace; font-size: 0.78rem;
+      background: rgba(0,0,0,0.35); padding: 0.25rem 0.5rem;
+      border-radius: 2px; border: 1px solid rgba(201,168,76,0.15);
+      color: var(--gold); flex: 1; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* ── PREVIEW PHONE ── */
+    .phone-frame {
+      width: 200px; margin: 0 auto;
+      background: #0a0a0a; border: 6px solid #1a1a1a;
+      border-radius: 2rem; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    }
+    .phone-notch {
+      height: 18px; background: #111;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .phone-notch-bar { width: 50px; height: 4px; background: #333; border-radius: 2px; }
+    .phone-screen {
+      background: linear-gradient(180deg, #0d2b14 0%, #1a120b 100%);
+      min-height: 380px; display: flex; flex-direction: column;
+    }
+    .phone-header {
+      padding: 0.6rem 0.75rem; border-bottom: 1px solid rgba(201,168,76,0.2);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .phone-body { flex: 1; padding: 0.75rem; overflow: hidden; }
+    .phone-story-text {
+      font-style: italic; font-size: 0.6rem; line-height: 1.6;
+      color: rgba(245,234,208,0.85); margin-bottom: 0.75rem;
+    }
+    .phone-puzzle-box {
+      background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.25);
+      border-radius: 3px; padding: 0.5rem;
+    }
+    .phone-label { font-family: 'Cinzel', serif; font-size: 0.42rem; letter-spacing: 0.08em; color: var(--gold); margin-bottom: 0.3rem; }
+    .phone-puzzle-text { font-size: 0.5rem; line-height: 1.5; color: rgba(245,234,208,0.75); margin-bottom: 0.5rem; }
+    .phone-input-mock {
+      background: rgba(0,0,0,0.4); border: 1px solid rgba(201,168,76,0.3);
+      border-radius: 2px; padding: 0.3rem 0.5rem; font-size: 0.48rem;
+      color: rgba(245,234,208,0.5); margin-bottom: 0.4rem;
+    }
+    .phone-btn-mock {
+      background: linear-gradient(135deg, #8b6914, #c9a84c);
+      border-radius: 2px; padding: 0.3rem;
+      text-align: center; font-family: 'Cinzel', serif;
+      font-size: 0.42rem; color: var(--ink); font-weight: 700;
+    }
+    .phone-nav {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      border-top: 1px solid rgba(201,168,76,0.15); padding: 0.4rem 0;
+    }
+    .phone-nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      font-size: 0.38rem; font-family: 'Cinzel', serif;
+      color: rgba(245,234,208,0.35); padding: 0.1rem;
+    }
+    .phone-nav-item.active { color: var(--gold); }
+
+    /* ── DIVIDERS ── */
+    .section-divider {
+      height: 1px; margin: 1.25rem 0;
+      background: linear-gradient(to right, transparent, rgba(201,168,76,0.2), transparent);
+    }
+
+    /* ── TEST MODE ── */
+    #test-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.92); z-index: 200;
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 1rem;
+    }
+    #test-overlay.open { display: flex; }
+    .test-phone { max-width: 340px; width: 100%; }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 3px; }
+
+    /* ── EXPORT JSON ── */
+    #json-output {
+      font-family: monospace; font-size: 0.72rem;
+      background: rgba(0,0,0,0.5); border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 3px; padding: 1rem; white-space: pre-wrap;
+      word-break: break-all; max-height: 300px; overflow-y: auto;
+      color: rgba(245,234,208,0.8);
+    }
+
+    /* ── PROGRESS BAR ── */
+    .progress-bar-wrap { background: rgba(255,255,255,0.07); border-radius: 10px; height: 6px; }
+    .progress-bar-fill { height: 100%; border-radius: 10px; background: linear-gradient(to right, var(--gold-dark), var(--gold)); transition: width 0.4s; }
+
+    /* ── NOTIFICATION ── */
+    #toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 300;
+      padding: 0.75rem 1.25rem; border-radius: 4px;
+      background: var(--forest-mid); border: 1px solid rgba(201,168,76,0.35);
+      font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.05em;
+      color: var(--gold); transform: translateY(120%);
+      transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    #toast.show { transform: translateY(0); }
+
+    .empty-state {
+      text-align: center; padding: 3rem 1rem; opacity: 0.35;
+    }
+    .empty-state i { font-size: 2.5rem; margin-bottom: 0.75rem; color: var(--gold); display: block; }
+    .empty-state p { font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.08em; }
+
+    .inline-btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .hint-tag {
+      display: inline-block; padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.72rem;
+      background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2);
+      color: var(--gold); margin-right: 0.3rem; margin-bottom: 0.3rem; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .hint-tag:hover { background: rgba(201,168,76,0.2); }
+  </style>
+</head>
+<body>
+
+<div id="editor-lock">
+  <div style="text-align:center;">
+    <i class="fa-solid fa-shield-halved" style="font-size:2.5rem; color:#c9a84c; margin-bottom:0.75rem; display:block;"></i>
+    <div style="font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.15em; color:#c9a84c; margin-bottom:0.25rem;">RAUBRITTER ESCAPE</div>
+    <div style="font-family:'Cinzel',serif; font-size:1.1rem; color:#f5ead0; font-weight:700;">Spiel-Editor</div>
+  </div>
+  <input type="password" id="lock-input" placeholder="Passwort" autocomplete="current-password">
+  <div id="lock-error"></div>
+  <button id="lock-btn" onclick="unlockEditor()">
+    <i class="fa-solid fa-unlock mr-2"></i> Entsperren
+  </button>
+  <div style="font-family:'Cinzel',serif; font-size:0.6rem; color:rgba(245,234,208,0.25); letter-spacing:0.08em; margin-top:1rem;">
+    Nur für autorisierte Nutzer
+  </div>
+</div>
+
+<div class="app-shell">
+
+  <!-- ══════════ TOPBAR ══════════ -->
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:1rem;">
+      <div class="topbar-title"><i class="fa-solid fa-shield-halved mr-2" style="color:var(--gold);"></i>Raubritter Escape · Spiel-Editor</div>
+      <div id="game-title-display" style="font-size:0.8rem; opacity:0.5;">Unbenanntes Spiel</div>
+    </div>
+    <div class="topbar-actions">
+      <span id="save-indicator" style="font-size:0.7rem; opacity:0.4; font-family:'Cinzel',serif; letter-spacing:0.05em;">
+        <i class="fa-solid fa-circle-check mr-1" style="color:#4ade80;"></i>Auto-gespeichert
+      </span>
+      <button class="btn btn-ghost btn-sm" onclick="openTestMode()">
+        <i class="fa-solid fa-play"></i> Testen
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="showExport()">
+        <i class="fa-solid fa-download"></i> Export
+      </button>
+      <button class="btn btn-gold btn-sm" onclick="showImport()">
+        <i class="fa-solid fa-upload"></i> In App laden
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════ LEFT SIDEBAR – Station List ══════════ -->
+  <div class="sidebar-left">
+    <div style="padding: 0 1rem 0.75rem; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(201,168,76,0.1);">
+      <div class="font-display" style="font-size:0.65rem; letter-spacing:0.1em; opacity:0.5;">STATIONEN</div>
+      <button class="btn btn-gold btn-sm" onclick="addStation()"><i class="fa-solid fa-plus"></i></button>
+    </div>
+    <div id="station-list"></div>
+    <div style="padding: 0.75rem 1rem; border-top:1px solid rgba(201,168,76,0.1); margin-top:0.5rem;">
+      <div style="font-size:0.72rem; opacity:0.4; text-align:center; font-family:'Cinzel',serif; letter-spacing:0.05em;" id="station-count">0 Stationen</div>
+    </div>
+  </div>
+
+  <!-- ══════════ MAIN CONTENT ══════════ -->
+  <div class="main-content">
+
+    <!-- Spiel-Einstellungen Tab -->
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('station',this)" id="tab-station">Station</div>
+      <div class="tab" onclick="switchTab('game',this)" id="tab-game">Spiel-Einstellungen</div>
+      <div class="tab" onclick="switchTab('qr',this)" id="tab-qr">QR-Mapping</div>
+      <div class="tab" onclick="switchTab('admin',this)" id="tab-admin" style="background:rgba(201,168,76,0.1); border-bottom:2px solid transparent;">
+        <i class="fa-solid fa-shield-halved" style="margin-right:0.3rem; font-size:0.7rem;"></i>Admin
+      </div>
+    </div>
+
+    <!-- ── TAB: STATION EDITOR ── -->
+    <div id="pane-station">
+      <div id="station-editor-empty" class="empty-state">
+        <i class="fa-solid fa-map-pin"></i>
+        <p>Wähle eine Station links aus<br>oder erstelle eine neue</p>
+      </div>
+      <div id="station-editor-form" style="display:none;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
+
+          <!-- LINKS: Story & Rätsel -->
+          <div>
+            <div class="card">
+              <div class="card-title"><i class="fa-solid fa-scroll"></i> Story & Atmosphäre</div>
+              <label class="field-label">NAME DER STATION</label>
+              <input type="text" id="f-station-name" placeholder="z.B. Der alte Bergfried">
+
+              <label class="field-label">STORY-TEXT (erscheint nach dem Scan)</label>
+              <textarea id="f-story" rows="4" placeholder="Die alten Mauern sprechen zu euch. Ein vergilbtes Pergament klemmt zwischen den Steinen …"></textarea>
+              <div class="input-hint">Erzählt die Atmosphäre, baut Spannung auf. Wird dem Spieler angezeigt sobald er die Station scannt.</div>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><i class="fa-solid fa-puzzle-piece"></i> Rätsel</div>
+              <label class="field-label">RÄTSEL-AUFGABE</label>
+              <textarea id="f-puzzle" rows="3" placeholder="Wie viele Fenster hat der Bergfried? Zählt alle, auch die zugemauerten."></textarea>
+
+              <label class="field-label">ANTWORT (Groß-/Kleinschreibung egal)</label>
+              <input type="text" id="f-answer" placeholder="z.B. 7 oder sieben">
+              <div class="input-hint">Spieler müssen exakt diese Antwort eingeben. Tipp: Zahlen als Zahl eintragen, dann wird auch das ausgeschriebene Wort akzeptiert.</div>
+
+              <label class="field-label" style="margin-top:1rem;">HINWEIS (optional, erscheint nach 3 Fehlversuchen)</label>
+              <input type="text" id="f-hint" placeholder="Zählt auch die kleinen Schlitzfenster ganz oben …">
+
+              <label class="field-label" style="margin-top:1rem;">PUNKTE FÜR DIESE STATION</label>
+              <input type="text" id="f-points" placeholder="100" style="max-width:120px;">
+            </div>
+          </div>
+
+          <!-- RECHTS: Location & QR -->
+          <div>
+            <div class="card">
+              <div class="card-title"><i class="fa-solid fa-location-dot"></i> Location & Wegfindung</div>
+
+              <label class="field-label">FOTO-URL DER LOCATION</label>
+              <input type="url" id="f-photo" placeholder="https://… (Unsplash, eigenes Hosting, …)">
+              <div class="input-hint">Ein echtes Foto des Ortes. Die Spieler sehen es als Hinweis zur nächsten Station.</div>
+
+              <label class="field-label">WEGBESCHREIBUNG</label>
+              <textarea id="f-directions" rows="3" placeholder="Vom Outdoor-Schrank geradeaus Richtung Bergfried. Vor dem alten Burgtor links …"></textarea>
+
+              <label class="field-label">KOORDINATEN (optional)</label>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+                <input type="text" id="f-lat" placeholder="Breitengrad z.B. 50.3456">
+                <input type="text" id="f-lng" placeholder="Längengrad z.B. 11.6789">
+              </div>
+              <div class="input-hint">Tipp: Google Maps → Pin setzen → Rechtsklick → Koordinaten kopieren</div>
+            </div>
+
+            <div class="card">
+              <div class="card-title"><i class="fa-solid fa-qrcode"></i> QR-Code Verknüpfung</div>
+              <div style="font-size:0.88rem; opacity:0.65; line-height:1.6; margin-bottom:0.75rem;">
+                Scanne einen vorhandenen QR-Code (Flasche, Schild, Aufkleber …) mit dem Scan-Button unten, um ihn mit dieser Station zu verknüpfen. Der Inhalt des Codes ist egal – nur die ID zählt.
+              </div>
+              <div id="qr-linked-display" style="margin-bottom:0.75rem;"></div>
+              <button class="btn btn-outline" onclick="simulateScan()">
+                <i class="fa-solid fa-camera"></i> QR-Code scannen & verknüpfen
+              </button>
+              <div class="input-hint">Im Demo-Modus wird ein Test-Code generiert. In der echten App öffnet sich die Kamera.</div>
+
+              <div class="section-divider"></div>
+              <label class="field-label">ODER CODE-WERT MANUELL EINGEBEN</label>
+              <div style="display:flex; gap:0.5rem;">
+                <input type="text" id="f-qr-manual" placeholder="QR-Code-Inhalt einfügen …" style="flex:1;">
+                <button class="btn btn-outline btn-sm" onclick="linkManualQR()">Verknüpfen</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem; padding-top:1rem; border-top:1px solid rgba(201,168,76,0.1);">
+          <button class="btn btn-danger btn-sm" onclick="deleteStation()">
+            <i class="fa-solid fa-trash"></i> Station löschen
+          </button>
+          <div style="display:flex; gap:0.5rem;">
+            <button class="btn btn-ghost btn-sm" onclick="previewStation()">
+              <i class="fa-solid fa-eye"></i> Vorschau
+            </button>
+            <button class="btn btn-gold btn-sm" onclick="saveStation()">
+              <i class="fa-solid fa-floppy-disk"></i> Speichern
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: SPIEL-EINSTELLUNGEN ── -->
+    <div id="pane-game" style="display:none; max-width:600px;">
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-scroll"></i> Spieltitel & Story</div>
+        <label class="field-label">SPIELTITEL</label>
+        <input type="text" id="g-title" placeholder="Raubritter Escape – Der Fluch des Bergfrieds">
+
+        <label class="field-label">INTRO-TEXT (erscheint beim Start)</label>
+        <textarea id="g-intro" rows="5" placeholder="Das Jahr ist 1347. Der Raubritter von Lichtenberg hat einen Fluch über die Burg gelegt …"></textarea>
+
+        <label class="field-label">OUTRO / ABSCHLUSS-TEXT</label>
+        <textarea id="g-outro" rows="4" placeholder="Ihr habt den Fluch gebrochen! Der Schatz des Raubritters liegt nun frei …"></textarea>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-clock"></i> Spielregeln</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+          <div>
+            <label class="field-label">ZEITLIMIT (Minuten, 0 = kein Limit)</label>
+            <input type="text" id="g-timelimit" placeholder="120">
+          </div>
+          <div>
+            <label class="field-label">MAX. FEHLVERSUCHE PRO RÄTSEL</label>
+            <input type="text" id="g-maxattempts" placeholder="5">
+          </div>
+        </div>
+        <label class="field-label" style="margin-top:1rem;">REIHENFOLGE</label>
+        <select id="g-order">
+          <option value="linear">Linear – Stationen müssen der Reihe nach gelöst werden</option>
+          <option value="free">Frei – Spieler können Stationen in beliebiger Reihenfolge lösen</option>
+        </select>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-palette"></i> Erscheinungsbild</div>
+        <label class="field-label">THEMA</label>
+        <select id="g-theme">
+          <option value="raubritter">Raubritter (Standard – Dunkelgrün & Gold)</option>
+          <option value="krimi">Stadtkrimi (Dunkel & Rot)</option>
+          <option value="fantasy">Fantasy (Lila & Silber)</option>
+          <option value="nature">Natur (Hellgrün & Braun)</option>
+        </select>
+        <label class="field-label">BUCHUNGSSEITE-URL (für den „Jetzt buchen"-Link in der App)</label>
+        <input type="url" id="g-booking-url" placeholder="https://raubritter-escape.netlify.app/#kalender">
+      </div>
+
+      <div class="inline-btn-row">
+        <button class="btn btn-gold" onclick="saveGameSettings()"><i class="fa-solid fa-floppy-disk"></i> Einstellungen speichern</button>
+      </div>
+    </div>
+
+    <!-- ── NEUES SPIEL VORBEREITEN ── -->
+    <div class="card" style="max-width:700px; margin-top:1.5rem; border:1px solid rgba(201,168,76,0.3);">
+      <div class="card-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Neues Spiel vorbereiten</div>
+      <p style="font-size:0.88rem; opacity:0.65; line-height:1.6; margin-bottom:1.25rem;">
+        Generiere automatisch einen Schrank-Code (für die E-Mail) und einen App-Code (für den Zettel im Schrank).
+        Beide Codes sind einmalig und werden in Supabase gespeichert.
+      </p>
+
+      <!-- Codes anzeigen -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.25rem;">
+        <div style="background:rgba(13,43,20,0.4); border:1px solid rgba(201,168,76,0.2); border-radius:6px; padding:1rem; text-align:center;">
+          <div style="font-family:'Cinzel',serif; font-size:0.6rem; letter-spacing:0.12em; color:var(--gold); opacity:0.7; margin-bottom:0.5rem;">
+            🔒 SCHRANK-CODE
+          </div>
+          <div id="gen-schrank-code" style="font-family:'Cinzel',serif; font-size:2rem; font-weight:900; color:var(--gold); letter-spacing:0.15em;">
+            ——
+          </div>
+          <div style="font-size:0.75rem; opacity:0.5; margin-top:0.25rem;">kommt per E-Mail</div>
+        </div>
+        <div style="background:rgba(13,43,20,0.4); border:1px solid rgba(201,168,76,0.2); border-radius:6px; padding:1rem; text-align:center;">
+          <div style="font-family:'Cinzel',serif; font-size:0.6rem; letter-spacing:0.12em; color:var(--gold); opacity:0.7; margin-bottom:0.5rem;">
+            📱 APP-CODE
+          </div>
+          <div id="gen-app-code" style="font-family:'Cinzel',serif; font-size:2rem; font-weight:900; color:#f5ead0; letter-spacing:0.15em;">
+            ——
+          </div>
+          <div style="font-size:0.75rem; opacity:0.5; margin-top:0.25rem;">liegt im Schrank</div>
+        </div>
+      </div>
+
+      <!-- QR-Code für App-Code -->
+      <div id="gen-qr-container" style="display:none; text-align:center; margin-bottom:1.25rem;">
+        <div style="font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.1em; opacity:0.6; margin-bottom:0.75rem;">
+          QR-CODE FÜR DEN SCHRANK (zum Ausdrucken)
+        </div>
+        <div id="gen-qr-code" style="background:white; display:inline-block; padding:1rem; border-radius:6px;"></div>
+        <div style="margin-top:0.75rem;">
+          <button class="btn" onclick="printQR()" style="font-size:0.75rem; padding:0.5rem 1rem;">
+            <i class="fa-solid fa-print mr-1"></i> QR drucken
+          </button>
+        </div>
+      </div>
+
+      <!-- E-Mail Vorlage -->
+      <div id="gen-email-container" style="display:none; margin-bottom:1.25rem;">
+        <div style="font-family:'Cinzel',serif; font-size:0.65rem; letter-spacing:0.1em; opacity:0.6; margin-bottom:0.5rem;">
+          E-MAIL VORLAGE (für die Gruppe)
+        </div>
+        <textarea id="gen-email-text" rows="8" readonly
+          style="width:100%; background:rgba(0,0,0,0.2); border:1px solid rgba(201,168,76,0.2);
+            border-radius:4px; color:rgba(245,234,208,0.8); font-size:0.85rem;
+            padding:0.75rem; line-height:1.6; resize:vertical;"></textarea>
+        <button class="btn" onclick="copyEmailText()" style="margin-top:0.5rem; font-size:0.75rem; padding:0.5rem 1rem;">
+          <i class="fa-solid fa-copy mr-1"></i> Kopieren
+        </button>
+      </div>
+
+      <div class="inline-btn-row">
+        <button class="btn btn-gold" onclick="generateGameCodes()" style="flex:1;">
+          <i class="fa-solid fa-rotate mr-2"></i> Neue Codes generieren
+        </button>
+      </div>
+    </div>
+
+    <!-- ── TAB: QR-MAPPING ── -->
+    <div id="pane-qr" style="display:none;">
+      <div class="card" style="max-width:700px;">
+        <div class="card-title"><i class="fa-solid fa-qrcode"></i> Alle QR-Code Verknüpfungen</div>
+        <div style="font-size:0.88rem; opacity:0.65; line-height:1.6; margin-bottom:1rem;">
+          Hier siehst du alle verknüpften QR-Codes auf einen Blick. Du kannst sie bearbeiten, löschen oder neue hinzufügen. Ein QR-Code kann immer nur einer Station zugewiesen sein.
+        </div>
+        <div id="qr-mapping-list"></div>
+        <div class="section-divider"></div>
+        <div style="display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:wrap;">
+          <div style="flex:1; min-width:200px;">
+            <label class="field-label" style="margin-top:0;">NEUEN CODE HINZUFÜGEN</label>
+            <input type="text" id="new-qr-val" placeholder="QR-Code-Wert …">
+          </div>
+          <div style="flex:1; min-width:160px;">
+            <label class="field-label" style="margin-top:0;">STATION</label>
+            <select id="new-qr-station"></select>
+          </div>
+          <button class="btn btn-outline" onclick="addQRMapping()"><i class="fa-solid fa-plus"></i> Hinzufügen</button>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:700px;">
+        <div class="card-title"><i class="fa-solid fa-circle-info"></i> Welche QR-Codes eignen sich?</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; font-size:0.9rem; line-height:1.7;">
+          <div>
+            <div style="color:var(--gold); font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.08em; margin-bottom:0.4rem;">✓ GUT GEEIGNET</div>
+            <ul style="opacity:0.75; space-y:0.25rem;">
+              <li>QR-Codes auf Infotafeln / Schildern</li>
+              <li>Aufkleber an Objekten</li>
+              <li>Codes auf Verpackungen & Flaschen</li>
+              <li>Eigene gedruckte Aufkleber</li>
+              <li>Laminierte Karten (wetterfest)</li>
+            </ul>
+          </div>
+          <div>
+            <div style="color:#f87171; font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.08em; margin-bottom:0.4rem;">✗ WENIGER GEEIGNET</div>
+            <ul style="opacity:0.75;">
+              <li>Codes die sich oft ändern (z.B. Werbung)</li>
+              <li>Sehr kleine oder beschädigte Codes</li>
+              <li>Codes in stark reflektierenden Materialien</li>
+              <li>Passwortgeschützte URLs als Code-Inhalt</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+
+  <!-- ══════════ ADMIN TAB ══════════ -->
+  <div id="pane-admin" style="display:none;">
+
+    <!-- WOCHENCODE -->
+    <div class="card" style="max-width:700px; border:1px solid rgba(201,168,76,0.3);">
+      <div class="card-title"><i class="fa-solid fa-lock"></i> Wochencode – Schließfach</div>
+      <p style="font-size:0.88rem; opacity:0.65; line-height:1.6; margin-bottom:1.25rem;">
+        Der Schrank-Code ändert sich automatisch jede Woche. Jeden Montag kurz den Code ablesen und am Schloss einstellen – das wars.
+      </p>
+      <div id="week-codes-list"></div>
+      <div style="margin-top:1rem; padding:0.75rem; background:rgba(201,168,76,0.06); border:1px solid rgba(201,168,76,0.15); border-radius:4px; font-size:0.82rem; opacity:0.65; line-height:1.6;">
+        <i class="fa-solid fa-circle-info" style="color:var(--gold); margin-right:0.4rem;"></i>
+        Der Code wird aus der Kalenderwoche berechnet – kein Speichern nötig. Nur du kennst den Salt.
+      </div>
+    </div>
+
+    <!-- BUCHUNGEN HEUTE -->
+    <div class="card" style="max-width:700px; margin-top:1.25rem;">
+      <div class="card-title"><i class="fa-solid fa-calendar-day"></i> Buchungen heute</div>
+      <div id="bookings-today-list">
+        <div style="text-align:center; padding:2rem; opacity:0.4;">
+          <i class="fa-solid fa-spinner fa-spin" style="margin-bottom:0.5rem; display:block; font-size:1.5rem;"></i>
+          Lade Buchungen…
+        </div>
+      </div>
+      <div style="margin-top:0.75rem;">
+        <button class="btn" onclick="loadTodayBookings()" style="font-size:0.78rem; padding:0.5rem 1rem;">
+          <i class="fa-solid fa-rotate mr-1"></i> Aktualisieren
+        </button>
+      </div>
+    </div>
+
+    <!-- ALLE BUCHUNGEN -->
+    <div class="card" style="max-width:700px; margin-top:1.25rem;">
+      <div class="card-title"><i class="fa-solid fa-list"></i> Alle Buchungen</div>
+      <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+        <input type="date" id="filter-date" style="background:rgba(0,0,0,0.2); border:1px solid rgba(201,168,76,0.2); color:#f5ead0; border-radius:4px; padding:0.4rem 0.75rem; font-size:0.85rem;">
+        <select id="filter-status" style="background:rgba(0,0,0,0.2); border:1px solid rgba(201,168,76,0.2); color:#f5ead0; border-radius:4px; padding:0.4rem 0.75rem; font-size:0.85rem;">
+          <option value="">Alle Status</option>
+          <option value="paid">Bezahlt</option>
+          <option value="cancelled">Storniert</option>
+        </select>
+        <button class="btn btn-gold" onclick="loadAllBookings()" style="font-size:0.78rem; padding:0.5rem 1rem;">
+          <i class="fa-solid fa-search mr-1"></i> Suchen
+        </button>
+      </div>
+      <div id="bookings-all-list"></div>
+    </div>
+
+  </div>
+
+  <!-- ══════════ RIGHT SIDEBAR – Live-Preview & Stats ══════════ -->
+  <div class="sidebar-right">
+    <div class="font-display" style="font-size:0.65rem; letter-spacing:0.1em; opacity:0.45; margin-bottom:1rem;">LIVE-VORSCHAU</div>
+
+    <!-- Phone Preview -->
+    <div class="phone-frame" id="preview-phone">
+      <div class="phone-notch"><div class="phone-notch-bar"></div></div>
+      <div class="phone-screen">
+        <div class="phone-header">
+          <i class="fa-solid fa-shield-halved" style="color:var(--gold); font-size:0.6rem;"></i>
+          <span style="color:var(--gold); font-size:0.48rem; font-family:'Cinzel',serif; letter-spacing:0.08em;">RAUBRITTER ESCAPE</span>
+        </div>
+        <div class="phone-body" id="preview-body">
+          <div class="empty-state" style="padding:2rem 0.5rem;">
+            <i class="fa-solid fa-eye" style="font-size:1.5rem; margin-bottom:0.5rem;"></i>
+            <p style="font-size:0.55rem; font-family:'Cinzel',serif; letter-spacing:0.06em; opacity:0.5;">Station auswählen<br>für Vorschau</p>
+          </div>
+        </div>
+        <div class="phone-nav">
+          <div class="phone-nav-item"><i class="fa-solid fa-location-dot" style="font-size:0.8rem;"></i>Hinweis</div>
+          <div class="phone-nav-item active"><i class="fa-solid fa-camera" style="font-size:0.8rem;"></i>Scan</div>
+          <div class="phone-nav-item"><i class="fa-solid fa-scroll" style="font-size:0.8rem;"></i>Story</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- Spiel-Statistiken -->
+    <div class="meta-section">
+      <div class="meta-label">SPIELÜBERSICHT</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.75rem;">
+        <div class="card" style="padding:0.75rem; text-align:center; margin-bottom:0;">
+          <div style="font-family:'Cinzel',serif; font-size:1.3rem; font-weight:700; color:var(--gold);" id="stat-stations">0</div>
+          <div style="font-size:0.62rem; opacity:0.45; font-family:'Cinzel',serif; letter-spacing:0.05em;">STATIONEN</div>
+        </div>
+        <div class="card" style="padding:0.75rem; text-align:center; margin-bottom:0;">
+          <div style="font-family:'Cinzel',serif; font-size:1.3rem; font-weight:700; color:var(--gold);" id="stat-qr">0</div>
+          <div style="font-size:0.62rem; opacity:0.45; font-family:'Cinzel',serif; letter-spacing:0.05em;">QR-CODES</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vollständigkeit -->
+    <div class="meta-section">
+      <div class="meta-label">VOLLSTÄNDIGKEIT</div>
+      <div class="progress-bar-wrap" style="margin-bottom:0.4rem;">
+        <div class="progress-bar-fill" id="completeness-bar" style="width:0%;"></div>
+      </div>
+      <div style="font-size:0.72rem; opacity:0.5;" id="completeness-label">0 %</div>
+    </div>
+
+    <!-- Checkliste -->
+    <div class="meta-section">
+      <div class="meta-label">CHECKLISTE</div>
+      <div id="checklist" style="display:flex; flex-direction:column; gap:0.4rem; font-size:0.82rem;"></div>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <!-- Schnellaktionen -->
+    <div class="meta-label">SCHNELLAKTIONEN</div>
+    <div style="display:flex; flex-direction:column; gap:0.4rem;">
+      <button class="btn btn-outline btn-sm" onclick="addStation()" style="justify-content:flex-start;">
+        <i class="fa-solid fa-plus"></i> Neue Station
+      </button>
+      <button class="btn btn-outline btn-sm" onclick="duplicateStation()" style="justify-content:flex-start;">
+        <i class="fa-solid fa-copy"></i> Station duplizieren
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="openTestMode()" style="justify-content:flex-start;">
+        <i class="fa-solid fa-play"></i> Spiel testen
+      </button>
+    </div>
+  </div>
+
+</div><!-- /app-shell -->
+
+<!-- ══════════ TEST MODE OVERLAY ══════════ -->
+<div id="test-overlay">
+  <div style="text-align:center; margin-bottom:1rem;">
+    <div class="font-display" style="color:var(--gold); font-size:0.75rem; letter-spacing:0.15em; margin-bottom:0.25rem;">SPIELTEST-MODUS</div>
+    <div style="font-size:0.85rem; opacity:0.5;">So sieht die App für die Spieler aus</div>
+  </div>
+  <div class="test-phone">
+    <div class="phone-frame" style="width:100%; max-width:320px; margin:0 auto;">
+      <div class="phone-notch"><div class="phone-notch-bar"></div></div>
+      <div class="phone-screen" style="min-height:520px;">
+        <div class="phone-header">
+          <i class="fa-solid fa-shield-halved" style="color:var(--gold); font-size:0.7rem;"></i>
+          <span style="color:var(--gold); font-size:0.55rem; font-family:'Cinzel',serif; letter-spacing:0.08em;" id="test-game-title">RAUBRITTER ESCAPE</span>
+          <div style="margin-left:auto; display:flex; gap:0.5rem; align-items:center;">
+            <span style="font-size:0.5rem; opacity:0.5;" id="test-station-counter">0/0</span>
+          </div>
+        </div>
+        <div id="test-body" style="padding:0.75rem; flex:1; overflow-y:auto; min-height:420px; display:flex; flex-direction:column; gap:0.75rem;">
+        </div>
+        <div class="phone-nav">
+          <div class="phone-nav-item"><i class="fa-solid fa-location-dot" style="font-size:0.8rem;"></i>Hinweis</div>
+          <div class="phone-nav-item active"><i class="fa-solid fa-camera" style="font-size:0.8rem;"></i>Scan</div>
+          <div class="phone-nav-item"><i class="fa-solid fa-scroll" style="font-size:0.8rem;"></i>Story</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex; gap:0.75rem; margin-top:1rem;">
+    <button class="btn btn-ghost" onclick="testPrevStation()"><i class="fa-solid fa-arrow-left"></i> Zurück</button>
+    <button class="btn btn-gold" onclick="testNextStation()">Nächste Station <i class="fa-solid fa-arrow-right"></i></button>
+    <button class="btn btn-ghost" onclick="closeTestMode()"><i class="fa-solid fa-xmark"></i> Schließen</button>
+  </div>
+</div>
+
+<!-- ══════════ EXPORT MODAL ══════════ -->
+<div id="export-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:200; align-items:center; justify-content:center; padding:1rem;">
+  <div style="background:var(--stone); border:1px solid rgba(201,168,76,0.3); border-radius:4px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto; padding:1.5rem;">
+    <div class="font-display" style="color:var(--gold); font-size:0.85rem; letter-spacing:0.1em; margin-bottom:1rem;">EXPORT · JSON-DATEN</div>
+    <div style="font-size:0.88rem; opacity:0.6; margin-bottom:1rem; line-height:1.6;">
+      Diese JSON-Datei enthält dein komplettes Spiel. Speichere sie und lade sie in Supabase oder übergib sie dem Entwickler der App.
+    </div>
+    <div id="json-output"></div>
+    <div style="display:flex; gap:0.75rem; margin-top:1rem;">
+      <button class="btn btn-gold" onclick="downloadJSON()"><i class="fa-solid fa-download"></i> Als JSON speichern</button>
+      <button class="btn btn-outline" onclick="copyJSON()"><i class="fa-solid fa-copy"></i> Kopieren</button>
+      <button class="btn btn-ghost" onclick="closeExport()"><i class="fa-solid fa-xmark"></i> Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"><i class="fa-solid fa-circle-check"></i> <span id="toast-msg"></span></div>
+
+<!-- ══════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════ -->
+<script>
+// ─── DATEN-MODELL ──────────────────────────────────────
+let game = {
+  title: 'Raubritter Escape',
+  intro: '',
+  outro: '',
+  timelimit: 120,
+  maxattempts: 5,
+  order: 'linear',
+  theme: 'raubritter',
+  bookingUrl: '',
+  stations: [],
+  qrMappings: {}  // { "qr-code-value": stationIndex }
+};
+
+let activeStation = null;
+let testStationIndex = 0;
+
+// ─── INIT ──────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  loadFromLocalStorage();
+  renderAll();
+
+  // Auto-save alle 10 Sekunden
+  setInterval(() => {
+    saveToLocalStorage();
+    showSaveIndicator();
+  }, 10000);
+});
+
+// ─── PERSISTENZ ───────────────────────────────────────
+function saveToLocalStorage() {
+  localStorage.setItem('raubritter-editor-game', JSON.stringify(game));
+}
+function loadFromLocalStorage() {
+  const saved = localStorage.getItem('raubritter-editor-game');
+  if (saved) {
+    try { game = { ...game, ...JSON.parse(saved) }; } catch(e) {}
+  }
+  // Demo-Daten wenn leer
+  if (game.stations.length === 0) {
+    game.stations = [
+      {
+        name: 'Der Outdoor-Schrank',
+        story: 'Ein schweres eisenbeschlagenes Holzschloss sichert den Schrank. Ihr habt ihn geöffnet – das Abenteuer beginnt.',
+        puzzle: 'Welches Jahr steht auf der Gedenktafel am Eingang der Burg?',
+        answer: '1398',
+        hint: 'Schaut euch die Bronzetafel rechts neben dem Burgtor an.',
+        points: 100,
+        photo: 'https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=400&q=80',
+        directions: 'Ihr startet am Parkplatz Burgstraße. Den Wanderweg Richtung Burg nehmen, nach ca. 200m rechts am alten Brunnen.',
+        lat: '50.3456',
+        lng: '11.6789',
+        qrCode: 'demo-qr-station-1'
+      },
+      {
+        name: 'Der Bergfried',
+        story: 'Die Mauern tragen noch die Rußspuren des großen Brandes von 1626. Hier oben pfiff einst der Wind durch die Schießscharten.',
+        puzzle: 'Wie viele Stufen hat die Treppe zum Bergfried-Plateau?',
+        answer: '47',
+        hint: 'Fangt unten beim steinernen Bogen an zu zählen.',
+        points: 150,
+        photo: '',
+        directions: 'Vom Schrank geradeaus dem Mauerweg folgen bis zum Bergfried.',
+        lat: '', lng: '',
+        qrCode: ''
+      }
+    ];
+    game.qrMappings = { 'demo-qr-station-1': 0 };
+    saveToLocalStorage();
+  }
+}
+function showSaveIndicator() {
+  const el = document.getElementById('save-indicator');
+  el.innerHTML = '<i class="fa-solid fa-circle-check mr-1" style="color:#4ade80;"></i>Auto-gespeichert';
+}
+
+// ─── RENDER ALLE KOMPONENTEN ──────────────────────────
+function renderAll() {
+  renderStationList();
+  renderQRMappingList();
+  updateStats();
+  updateGameTitleDisplay();
+  loadGameSettingsIntoForm();
+  if (activeStation !== null) renderStationForm(activeStation);
+}
+
+function updateGameTitleDisplay() {
+  document.getElementById('game-title-display').textContent = game.title || 'Unbenanntes Spiel';
+  document.getElementById('test-game-title').textContent = (game.title || 'Spiel').toUpperCase();
+}
+
+// ─── STATIONEN LISTE ──────────────────────────────────
+function renderStationList() {
+  const list = document.getElementById('station-list');
+  const count = document.getElementById('station-count');
+  count.textContent = game.stations.length + ' Station' + (game.stations.length !== 1 ? 'en' : '');
+
+  if (game.stations.length === 0) {
+    list.innerHTML = '<div class="empty-state" style="padding:2rem 1rem;"><i class="fa-solid fa-map-pin"></i><p>Noch keine Stationen.<br>Erstelle die erste!</p></div>';
+    return;
+  }
+
+  list.innerHTML = game.stations.map((s, i) => `
+    <div class="station-item ${activeStation === i ? 'active' : ''}" onclick="selectStation(${i})">
+      <span class="drag-handle"><i class="fa-solid fa-grip-lines-vertical"></i></span>
+      <div class="station-num ${s.qrCode ? 'solved' : ''}">${i + 1}</div>
+      <div class="station-name-label">
+        ${s.name || '<em style="opacity:0.5">Unbenannte Station</em>'}
+        <span>${s.puzzle ? s.puzzle.substring(0, 35) + '…' : 'Kein Rätsel'}</span>
+      </div>
+      ${s.qrCode ? '<i class="fa-solid fa-qrcode" style="color:var(--gold); font-size:0.7rem; opacity:0.6;"></i>' : ''}
+    </div>
+  `).join('');
+}
+
+// ─── STATION AUSWÄHLEN / EDITOR ───────────────────────
+function selectStation(i) {
+  saveCurrentStationIfDirty();
+  activeStation = i;
+  renderStationList();
+  renderStationForm(i);
+  updatePreview(i);
+}
+
+function renderStationForm(i) {
+  const s = game.stations[i];
+  document.getElementById('station-editor-empty').style.display = 'none';
+  document.getElementById('station-editor-form').style.display = 'block';
+
+  document.getElementById('f-station-name').value = s.name || '';
+  document.getElementById('f-story').value = s.story || '';
+  document.getElementById('f-puzzle').value = s.puzzle || '';
+  document.getElementById('f-answer').value = s.answer || '';
+  document.getElementById('f-hint').value = s.hint || '';
+  document.getElementById('f-points').value = s.points || 100;
+  document.getElementById('f-photo').value = s.photo || '';
+  document.getElementById('f-directions').value = s.directions || '';
+  document.getElementById('f-lat').value = s.lat || '';
+  document.getElementById('f-lng').value = s.lng || '';
+  document.getElementById('f-qr-manual').value = '';
+
+  renderQRLinkedDisplay(s.qrCode);
+}
+
+function renderQRLinkedDisplay(qrCode) {
+  const el = document.getElementById('qr-linked-display');
+  if (!el) return;
+  if (qrCode) {
+    el.innerHTML = `
+      <div class="qr-row">
+        <i class="fa-solid fa-link" style="color:var(--gold); font-size:0.8rem;"></i>
+        <div class="qr-code-val">${qrCode}</div>
+        <button class="btn btn-danger btn-sm" onclick="unlinkQR()"><i class="fa-solid fa-unlink"></i></button>
+      </div>`;
+  } else {
+    el.innerHTML = '<div style="font-size:0.8rem; opacity:0.4; padding:0.25rem 0;">Noch kein QR-Code verknüpft</div>';
+  }
+}
+
+function saveCurrentStationIfDirty() {
+  if (activeStation === null || activeStation >= game.stations.length) return;
+  collectAndSaveStation(activeStation);
+}
+
+function collectAndSaveStation(i) {
+  const s = game.stations[i];
+  const old = s.qrCode;
+  s.name = document.getElementById('f-station-name').value.trim();
+  s.story = document.getElementById('f-story').value.trim();
+  s.puzzle = document.getElementById('f-puzzle').value.trim();
+  s.answer = document.getElementById('f-answer').value.trim();
+  s.hint = document.getElementById('f-hint').value.trim();
+  s.points = parseInt(document.getElementById('f-points').value) || 100;
+  s.photo = document.getElementById('f-photo').value.trim();
+  s.directions = document.getElementById('f-directions').value.trim();
+  s.lat = document.getElementById('f-lat').value.trim();
+  s.lng = document.getElementById('f-lng').value.trim();
+  // QR code bleibt wie es ist (wird separat gesetzt)
+}
+
+function saveStation() {
+  if (activeStation === null) return;
+  collectAndSaveStation(activeStation);
+  saveToLocalStorage();
+  renderStationList();
+  updateStats();
+  updatePreview(activeStation);
+  toast('Station gespeichert');
+}
+
+function addStation() {
+  saveCurrentStationIfDirty();
+  game.stations.push({
+    name: '', story: '', puzzle: '', answer: '', hint: '',
+    points: 100, photo: '', directions: '', lat: '', lng: '', qrCode: ''
+  });
+  saveToLocalStorage();
+  selectStation(game.stations.length - 1);
+  updateStats();
+}
+
+function deleteStation() {
+  if (activeStation === null) return;
+  if (!confirm('Station wirklich löschen?')) return;
+  // Remove QR mappings for this station
+  const qr = game.stations[activeStation].qrCode;
+  if (qr) delete game.qrMappings[qr];
+  // Remap remaining
+  const newMappings = {};
+  Object.entries(game.qrMappings).forEach(([k, v]) => {
+    if (v < activeStation) newMappings[k] = v;
+    else if (v > activeStation) newMappings[k] = v - 1;
+  });
+  game.qrMappings = newMappings;
+  game.stations.splice(activeStation, 1);
+  activeStation = Math.min(activeStation, game.stations.length - 1);
+  if (game.stations.length === 0) activeStation = null;
+  saveToLocalStorage();
+  renderAll();
+  if (activeStation !== null) selectStation(activeStation);
+  else {
+    document.getElementById('station-editor-empty').style.display = '';
+    document.getElementById('station-editor-form').style.display = 'none';
+  }
+  toast('Station gelöscht');
+}
+
+function duplicateStation() {
+  if (activeStation === null || game.stations.length === 0) return;
+  saveCurrentStationIfDirty();
+  const copy = JSON.parse(JSON.stringify(game.stations[activeStation]));
+  copy.name = copy.name + ' (Kopie)';
+  copy.qrCode = ''; // QR nicht duplizieren
+  game.stations.splice(activeStation + 1, 0, copy);
+  saveToLocalStorage();
+  selectStation(activeStation + 1);
+  toast('Station dupliziert');
+}
+
+// ─── QR-CODE LOGIK ────────────────────────────────────
+function simulateScan() {
+  // In der echten App: Kamera öffnen, QR scannen
+  // Demo: generiere Test-Code
+  const code = 'qr-' + Math.random().toString(36).substring(2, 10);
+  linkQRToCurrentStation(code);
+  toast('Demo-Code verknüpft: ' + code);
+}
+
+function linkManualQR() {
+  const val = document.getElementById('f-qr-manual').value.trim();
+  if (!val) return;
+  // Check if already used
+  if (game.qrMappings[val] !== undefined && game.qrMappings[val] !== activeStation) {
+    const otherName = game.stations[game.qrMappings[val]]?.name || 'Station ' + (game.qrMappings[val]+1);
+    if (!confirm(`Dieser QR-Code ist bereits mit "${otherName}" verknüpft. Umverknüpfen?`)) return;
+    // Remove old QR from old station
+    game.stations[game.qrMappings[val]].qrCode = '';
+  }
+  linkQRToCurrentStation(val);
+  document.getElementById('f-qr-manual').value = '';
+}
+
+function linkQRToCurrentStation(code) {
+  if (activeStation === null) return;
+  // Remove old mapping
+  const old = game.stations[activeStation].qrCode;
+  if (old) delete game.qrMappings[old];
+  // Set new
+  game.stations[activeStation].qrCode = code;
+  game.qrMappings[code] = activeStation;
+  saveToLocalStorage();
+  renderQRLinkedDisplay(code);
+  renderStationList();
+  updateStats();
+  renderQRMappingList();
+}
+
+function unlinkQR() {
+  if (activeStation === null) return;
+  const old = game.stations[activeStation].qrCode;
+  if (old) delete game.qrMappings[old];
+  game.stations[activeStation].qrCode = '';
+  saveToLocalStorage();
+  renderQRLinkedDisplay('');
+  renderStationList();
+  updateStats();
+  renderQRMappingList();
+  toast('QR-Code entfernt');
+}
+
+function renderQRMappingList() {
+  const list = document.getElementById('qr-mapping-list');
+  const sel = document.getElementById('new-qr-station');
+  if (!list || !sel) return;
+
+  const entries = Object.entries(game.qrMappings);
+  if (entries.length === 0) {
+    list.innerHTML = '<div style="opacity:0.35; font-size:0.85rem; padding:0.5rem 0;">Noch keine QR-Codes verknüpft.</div>';
+  } else {
+    list.innerHTML = entries.map(([code, stIdx]) => {
+      const stName = game.stations[stIdx]?.name || 'Station ' + (stIdx+1);
+      return `<div class="qr-row">
+        <div class="qr-code-val">${code}</div>
+        <div style="font-size:0.78rem; opacity:0.6; white-space:nowrap;">→ ${stName}</div>
+        <button class="btn btn-danger btn-sm" onclick="removeQRMapping('${code}')"><i class="fa-solid fa-trash"></i></button>
+      </div>`;
+    }).join('');
+  }
+
+  sel.innerHTML = game.stations.map((s, i) => `<option value="${i}">${i+1}. ${s.name || 'Station ' + (i+1)}</option>`).join('');
+}
+
+function addQRMapping() {
+  const val = document.getElementById('new-qr-val').value.trim();
+  const idx = parseInt(document.getElementById('new-qr-station').value);
+  if (!val || isNaN(idx)) return;
+
+  if (game.qrMappings[val] !== undefined) {
+    if (!confirm('Dieser Code ist bereits vergeben. Überschreiben?')) return;
+    const old = game.qrMappings[val];
+    if (game.stations[old]) game.stations[old].qrCode = '';
+  }
+  if (game.stations[idx].qrCode) {
+    delete game.qrMappings[game.stations[idx].qrCode];
+  }
+  game.stations[idx].qrCode = val;
+  game.qrMappings[val] = idx;
+  saveToLocalStorage();
+  document.getElementById('new-qr-val').value = '';
+  renderAll();
+  toast('QR-Mapping hinzugefügt');
+}
+
+function removeQRMapping(code) {
+  const idx = game.qrMappings[code];
+  if (game.stations[idx]) game.stations[idx].qrCode = '';
+  delete game.qrMappings[code];
+  saveToLocalStorage();
+  renderAll();
+  toast('QR-Mapping entfernt');
+}
+
+// ─── SPIEL-EINSTELLUNGEN ──────────────────────────────
+function loadGameSettingsIntoForm() {
+  if (document.getElementById('g-title')) {
+    document.getElementById('g-title').value = game.title || '';
+    document.getElementById('g-intro').value = game.intro || '';
+    document.getElementById('g-outro').value = game.outro || '';
+    document.getElementById('g-timelimit').value = game.timelimit || 120;
+    document.getElementById('g-maxattempts').value = game.maxattempts || 5;
+    document.getElementById('g-order').value = game.order || 'linear';
+    document.getElementById('g-theme').value = game.theme || 'raubritter';
+    document.getElementById('g-booking-url').value = game.bookingUrl || '';
+  }
+}
+
+function saveGameSettings() {
+  game.title = document.getElementById('g-title').value.trim();
+  game.intro = document.getElementById('g-intro').value.trim();
+  game.outro = document.getElementById('g-outro').value.trim();
+  game.timelimit = parseInt(document.getElementById('g-timelimit').value) || 120;
+  game.maxattempts = parseInt(document.getElementById('g-maxattempts').value) || 5;
+  game.order = document.getElementById('g-order').value;
+  game.theme = document.getElementById('g-theme').value;
+  game.bookingUrl = document.getElementById('g-booking-url').value.trim();
+  saveToLocalStorage();
+  updateGameTitleDisplay();
+  updateStats();
+  toast('Einstellungen gespeichert');
+}
+
+// ─── PREVIEW ──────────────────────────────────────────
+function updatePreview(i) {
+  const body = document.getElementById('preview-body');
+  if (i === null || !game.stations[i]) {
+    body.innerHTML = '<div class="empty-state" style="padding:2rem 0.5rem;"><i class="fa-solid fa-eye" style="font-size:1.5rem; margin-bottom:0.5rem;"></i><p style="font-size:0.55rem; font-family:\'Cinzel\',serif; letter-spacing:0.06em; opacity:0.5;">Vorschau</p></div>';
+    return;
+  }
+  const s = game.stations[i];
+  body.innerHTML = `
+    ${s.photo ? `<div style="width:100%; height:55px; background:url('${s.photo}') center/cover; border-radius:3px; margin-bottom:0.5rem;"></div>` : ''}
+    <div class="phone-story-text">${s.story || '<em style="opacity:0.4">Kein Story-Text</em>'}</div>
+    ${s.puzzle ? `<div class="phone-puzzle-box">
+      <div class="phone-label">RÄTSEL</div>
+      <div class="phone-puzzle-text">${s.puzzle}</div>
+      <div class="phone-input-mock">Antwort eingeben …</div>
+      <div class="phone-btn-mock">BESTÄTIGEN</div>
+    </div>` : '<div style="font-size:0.55rem; opacity:0.3; text-align:center;">Kein Rätsel eingetragen</div>'}
+  `;
+}
+
+function previewStation() {
+  if (activeStation === null) return;
+  saveCurrentStationIfDirty();
+  updatePreview(activeStation);
+  toast('Vorschau aktualisiert');
+}
+
+// ─── TEST MODE ────────────────────────────────────────
+function openTestMode() {
+  saveCurrentStationIfDirty();
+  if (game.stations.length === 0) { toast('Keine Stationen vorhanden'); return; }
+  testStationIndex = 0;
+  renderTestStation();
+  document.getElementById('test-overlay').classList.add('open');
+}
+function closeTestMode() {
+  document.getElementById('test-overlay').classList.remove('open');
+}
+function testNextStation() {
+  if (testStationIndex < game.stations.length - 1) {
+    testStationIndex++;
+    renderTestStation();
+  } else {
+    renderTestOutro();
+  }
+}
+function testPrevStation() {
+  if (testStationIndex > 0) {
+    testStationIndex--;
+    renderTestStation();
+  }
+}
+function renderTestStation() {
+  const s = game.stations[testStationIndex];
+  const counter = document.getElementById('test-station-counter');
+  counter.textContent = `${testStationIndex + 1}/${game.stations.length}`;
+  const body = document.getElementById('test-body');
+  body.innerHTML = `
+    <div style="font-family:'Cinzel',serif; font-size:0.6rem; letter-spacing:0.1em; color:var(--gold); margin-bottom:0.25rem;">
+      STATION ${testStationIndex + 1} · ${(s.name || 'Unbenannt').toUpperCase()}
+    </div>
+    ${s.photo ? `<div style="width:100%; height:80px; background:url('${s.photo}') center/cover; border-radius:3px;"></div>` : ''}
+    ${s.directions ? `<div style="font-size:0.58rem; opacity:0.6; padding:0.4rem 0.5rem; background:rgba(0,0,0,0.3); border-radius:2px; border-left:2px solid var(--gold-dark);">${s.directions}</div>` : ''}
+    ${s.lat && s.lng ? `<div style="font-size:0.55rem; padding:0.3rem 0.5rem; background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.2); border-radius:2px; display:flex; align-items:center; gap:0.3rem;"><i class="fa-solid fa-diamond-turn-right" style="color:var(--gold); font-size:0.5rem;"></i><span style="color:var(--gold);">In Maps öffnen</span><span style="opacity:0.4;">${s.lat}, ${s.lng}</span></div>` : ''}
+    <div style="font-style:italic; font-size:0.6rem; line-height:1.6; color:rgba(245,234,208,0.85);">${s.story || '(Kein Story-Text)'}</div>
+    ${s.puzzle ? `<div style="background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.25); border-radius:3px; padding:0.5rem;">
+      <div style="font-family:'Cinzel',serif; font-size:0.45rem; color:var(--gold); letter-spacing:0.08em; margin-bottom:0.3rem;">RÄTSEL</div>
+      <div style="font-size:0.55rem; line-height:1.5; margin-bottom:0.4rem;">${s.puzzle}</div>
+      <div style="background:rgba(0,0,0,0.4); border:1px solid rgba(201,168,76,0.3); padding:0.25rem 0.4rem; font-size:0.5rem; color:rgba(245,234,208,0.4); border-radius:2px; margin-bottom:0.3rem;">Antwort: ${s.answer || '?'}</div>
+      ${s.hint ? `<div style="font-size:0.48rem; opacity:0.5;"><i class="fa-solid fa-lightbulb" style="color:var(--gold);"></i> ${s.hint}</div>` : ''}
+    </div>` : ''}
+    <div style="font-size:0.5rem; opacity:0.4; font-family:'Cinzel',serif; letter-spacing:0.05em;">PUNKTE: ${s.points || 100} · QR: ${s.qrCode || 'nicht verknüpft'}</div>
+  `;
+}
+function renderTestOutro() {
+  const body = document.getElementById('test-body');
+  const total = game.stations.reduce((sum, s) => sum + (s.points || 100), 0);
+  body.innerHTML = `
+    <div style="text-align:center; padding:1rem 0;">
+      <i class="fa-solid fa-trophy" style="color:var(--gold); font-size:1.5rem; margin-bottom:0.5rem; display:block;"></i>
+      <div style="font-family:'Cinzel',serif; font-size:0.7rem; color:var(--gold); letter-spacing:0.1em; margin-bottom:0.5rem;">GESCHAFFT!</div>
+      <div style="font-size:0.6rem; opacity:0.75; margin-bottom:0.75rem; font-style:italic;">${game.outro || 'Ihr habt alle Rätsel gelöst!'}</div>
+      <div style="font-family:'Cinzel',serif; font-size:1rem; color:var(--gold);">${total} Punkte</div>
+    </div>
+  `;
+  document.getElementById('test-station-counter').textContent = '✓ Fertig';
+}
+
+// ─── STATS & CHECKLISTE ───────────────────────────────
+function updateStats() {
+  const n = game.stations.length;
+  const qrCount = Object.keys(game.qrMappings).length;
+  document.getElementById('stat-stations').textContent = n;
+  document.getElementById('stat-qr').textContent = qrCount;
+
+  // Vollständigkeit
+  let score = 0; let total = 0;
+  const checks = [];
+  if (game.title) { score++; } total++;
+  checks.push({ ok: !!game.title, label: 'Spieltitel' });
+  if (game.intro) { score++; } total++;
+  checks.push({ ok: !!game.intro, label: 'Intro-Text' });
+  if (n > 0) { score++; } total++;
+  checks.push({ ok: n > 0, label: 'Mindestens 1 Station' });
+  const allHaveRiddle = n > 0 && game.stations.every(s => s.puzzle && s.answer);
+  if (allHaveRiddle) { score++; } total++;
+  checks.push({ ok: allHaveRiddle, label: 'Alle Rätsel vollständig' });
+  const allHaveQR = n > 0 && game.stations.every(s => s.qrCode);
+  if (allHaveQR) { score++; } total++;
+  checks.push({ ok: allHaveQR, label: 'Alle QR-Codes verknüpft' });
+  if (game.outro) { score++; } total++;
+  checks.push({ ok: !!game.outro, label: 'Abschluss-Text' });
+
+  const pct = total > 0 ? Math.round(score / total * 100) : 0;
+  document.getElementById('completeness-bar').style.width = pct + '%';
+  document.getElementById('completeness-label').textContent = pct + ' % vollständig';
+
+  const cl = document.getElementById('checklist');
+  cl.innerHTML = checks.map(c => `
+    <div style="display:flex; align-items:center; gap:0.4rem;">
+      <i class="fa-solid ${c.ok ? 'fa-circle-check' : 'fa-circle-xmark'}" style="color:${c.ok ? '#4ade80' : '#f87171'}; font-size:0.75rem; flex-shrink:0;"></i>
+      <span style="font-size:0.8rem; opacity:${c.ok ? 0.75 : 0.5};">${c.label}</span>
+    </div>
+  `).join('');
+}
+
+// ─── TABS ──────────────────────────────────────────────
+function switchTab(name, el) {
+  ['station','game','qr','admin'].forEach(t => {
+    const pane = document.getElementById('pane-' + t);
+    const tab = document.getElementById('tab-' + t);
+    if (pane) pane.style.display = 'none';
+    if (tab) tab.classList.remove('active');
+  });
+  const pane = document.getElementById('pane-' + name);
+  if (pane) pane.style.display = '';
+  if (el) el.classList.add('active');
+  if (name === 'qr') renderQRMappingList();
+  if (name === 'game') loadGameSettingsIntoForm();
+  if (name === 'admin') initAdminTab();
+}
+
+// ─── EXPORT ────────────────────────────────────────────
+function showExport() {
+  saveCurrentStationIfDirty();
+  const json = JSON.stringify(game, null, 2);
+  document.getElementById('json-output').textContent = json;
+  document.getElementById('export-overlay').style.display = 'flex';
+}
+function closeExport() {
+  document.getElementById('export-overlay').style.display = 'none';
+}
+function downloadJSON() {
+  const json = JSON.stringify(game, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = (game.title || 'raubritter-escape').replace(/\s+/g,'-').toLowerCase() + '-game.json';
+  a.click(); URL.revokeObjectURL(url);
+  toast('JSON heruntergeladen');
+}
+function copyJSON() {
+  const json = JSON.stringify(game, null, 2);
+  navigator.clipboard.writeText(json).then(() => toast('JSON kopiert'));
+}
+function showImport() {
+  const url = prompt('Supabase-URL eingeben (oder leer lassen für lokalen Test):');
+  if (url === null) return;
+  saveCurrentStationIfDirty();
+  const json = JSON.stringify(game, null, 2);
+  navigator.clipboard.writeText(json).then(() => {
+    toast('JSON kopiert – jetzt in Supabase einfügen');
+  });
+}
+
+// ─── ADMIN TAB INITIALISIERUNG ──────────────────────────
+function initAdminTab() {
+  renderWeekCodes();
+  loadTodayBookings();
+}
+
+// ─── WOCHENCODE ANZEIGEN ─────────────────────────────────
+function renderWeekCodes() {
+  const container = document.getElementById('week-codes-list');
+  if (!container) return;
+
+  const today = new Date();
+  let html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem;">';
+
+  for (let i = 0; i < 4; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + (i * 7));
+    const code = generateWeekCode(date);
+    const kw = getWeekNumber(date);
+    const range = getWeekRange(date);
+    const isCurrentWeek = i === 0;
+
+    html += `
+      <div style="background:${isCurrentWeek ? 'rgba(13,43,20,0.6)' : 'rgba(0,0,0,0.2)'};
+        border:1px solid ${isCurrentWeek ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'};
+        border-radius:6px; padding:1rem; text-align:center; position:relative;">
+        ${isCurrentWeek ? '<div style="position:absolute; top:-8px; left:50%; transform:translateX(-50%); background:#8b6914; color:#1a120b; font-family:\'Cinzel\',serif; font-size:0.55rem; font-weight:700; letter-spacing:0.08em; padding:0.15rem 0.5rem; border-radius:10px;">DIESE WOCHE</div>' : ''}
+        <div style="font-family:'Cinzel',serif; font-size:0.6rem; letter-spacing:0.1em; color:rgba(201,168,76,0.6); margin-bottom:0.4rem;">KW ${kw}</div>
+        <div style="font-family:'Cinzel',serif; font-size:2.2rem; font-weight:900; color:${isCurrentWeek ? '#c9a84c' : 'rgba(245,234,208,0.5)'}; letter-spacing:0.2em;">${code}</div>
+        <div style="font-size:0.72rem; color:rgba(245,234,208,0.4); margin-top:0.3rem;">${range}</div>
+        ${isCurrentWeek ? `<button onclick="navigator.clipboard.writeText('${code}').then(()=>toast('Code kopiert!'))"
+          style="margin-top:0.6rem; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3);
+          color:var(--gold); font-family:'Cinzel',serif; font-size:0.6rem; padding:0.3rem 0.75rem;
+          border-radius:3px; cursor:pointer; letter-spacing:0.05em;">
+          <i class="fa-solid fa-copy"></i> Kopieren
+        </button>` : ''}
+      </div>`;
+  }
+
+  html += '</div>';
+  html += `<div style="font-size:0.82rem; color:rgba(245,234,208,0.5); line-height:1.7;">
+    <i class="fa-solid fa-circle-exclamation" style="color:var(--gold); margin-right:0.4rem;"></i>
+    <strong style="color:rgba(245,234,208,0.8);">Jeden Montag:</strong> Aktuellen Code ablesen und am Schließfach einstellen.
+  </div>`;
+
+  container.innerHTML = html;
+}
+
+// ─── BUCHUNGEN HEUTE LADEN ───────────────────────────────
+async function loadTodayBookings() {
+  const container = document.getElementById('bookings-today-list');
+  if (!container) return;
+
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+  container.innerHTML = '<div style="text-align:center; padding:1.5rem; opacity:0.4;"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/bookings?select=*&slot_date=eq.${todayStr}&status=eq.paid&order=slot_time.asc`,
+      { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+    );
+    const bookings = await res.json();
+
+    if (!bookings.length) {
+      container.innerHTML = '<div style="text-align:center; padding:2rem; opacity:0.4; font-size:0.88rem;">Keine Buchungen heute</div>';
+      return;
+    }
+
+    container.innerHTML = bookings.map(b => renderBookingCard(b, true)).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="color:#f87171; font-size:0.85rem; padding:1rem;">Verbindungsfehler – Supabase nicht erreichbar</div>';
+  }
+}
+
+// ─── ALLE BUCHUNGEN LADEN ────────────────────────────────
+async function loadAllBookings() {
+  const container = document.getElementById('bookings-all-list');
+  if (!container) return;
+
+  const dateFilter = document.getElementById('filter-date').value;
+  const statusFilter = document.getElementById('filter-status').value;
+
+  container.innerHTML = '<div style="text-align:center; padding:1.5rem; opacity:0.4;"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+
+  let url = `${SUPABASE_URL}/rest/v1/bookings?select=*&order=slot_date.desc,slot_time.asc&limit=50`;
+  if (dateFilter) url += `&slot_date=eq.${dateFilter}`;
+  if (statusFilter) url += `&status=eq.${statusFilter}`;
+
+  try {
+    const res = await fetch(url, {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    const bookings = await res.json();
+
+    if (!bookings.length) {
+      container.innerHTML = '<div style="text-align:center; padding:2rem; opacity:0.4; font-size:0.88rem;">Keine Buchungen gefunden</div>';
+      return;
+    }
+
+    container.innerHTML = bookings.map(b => renderBookingCard(b, false)).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="color:#f87171; font-size:0.85rem; padding:1rem;">Verbindungsfehler</div>';
+  }
+}
+
+// ─── BUCHUNGS-KARTE RENDERN ──────────────────────────────
+function renderBookingCard(b, showAppCode) {
+  const date = new Date(b.slot_date);
+  const dateStr = date.toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' });
+  const time = (b.slot_time || '').substring(0,5);
+  const statusColor = b.status === 'paid' ? '#4ade80' : b.status === 'cancelled' ? '#f87171' : '#c9a84c';
+  const statusLabel = b.status === 'paid' ? 'Bezahlt' : b.status === 'cancelled' ? 'Storniert' : b.status;
+
+  return `
+    <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(201,168,76,0.12);
+      border-radius:6px; padding:0.85rem; margin-bottom:0.6rem;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+        <div>
+          <div style="font-family:'Cinzel',serif; font-size:0.9rem; font-weight:700; color:#f5ead0;">${b.name}</div>
+          <div style="font-size:0.8rem; color:rgba(245,234,208,0.5); margin-top:0.15rem;">${b.email}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:0.7rem; color:${statusColor}; font-family:'Cinzel',serif; letter-spacing:0.05em;">${statusLabel}</div>
+          <div style="font-size:0.8rem; color:rgba(245,234,208,0.6); margin-top:0.15rem;">${b.total_price} €</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:1rem; font-size:0.8rem; color:rgba(245,234,208,0.55); flex-wrap:wrap;">
+        <span><i class="fa-solid fa-calendar" style="opacity:0.5; margin-right:0.3rem;"></i>${dateStr}</span>
+        <span><i class="fa-solid fa-clock" style="opacity:0.5; margin-right:0.3rem;"></i>${time} Uhr</span>
+        <span><i class="fa-solid fa-users" style="opacity:0.5; margin-right:0.3rem;"></i>${b.persons} Person${b.persons>1?'en':''}</span>
+      </div>
+      ${showAppCode && b.booking_code ? `
+        <div style="margin-top:0.6rem; padding:0.5rem 0.75rem; background:rgba(13,43,20,0.5);
+          border:1px solid rgba(201,168,76,0.25); border-radius:4px;
+          display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-family:'Cinzel',serif; font-size:0.55rem; letter-spacing:0.1em; color:rgba(201,168,76,0.6); margin-bottom:0.2rem;">APP-CODE</div>
+            <div style="font-family:'Cinzel',serif; font-size:1.4rem; font-weight:900; color:#c9a84c; letter-spacing:0.25em;">${b.booking_code}</div>
+          </div>
+          <button onclick="navigator.clipboard.writeText('${b.booking_code}').then(()=>toast('App-Code kopiert!'))"
+            style="background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3);
+            color:var(--gold); font-family:'Cinzel',serif; font-size:0.6rem;
+            padding:0.35rem 0.7rem; border-radius:3px; cursor:pointer;">
+            <i class="fa-solid fa-copy"></i>
+          </button>
+        </div>` : b.booking_code ? `
+        <div style="margin-top:0.5rem; font-size:0.78rem; color:rgba(245,234,208,0.4);">
+          App-Code: <span style="font-family:'Cinzel',serif; color:rgba(201,168,76,0.6); letter-spacing:0.1em;">${b.booking_code}</span>
+        </div>` : ''}
+    </div>`;
+}
+
+// ─── CODE GENERATOR (aktualisiert) ──────────────────────
+function generateGameCodes() {
+  // Schrank-Code = aktueller Wochencode
+  const schrankCode = generateWeekCode(new Date());
+
+  // App-Code: 6-stellig (wird normalerweise bei Buchung auto-generiert)
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let appCode = '';
+  for (let i = 0; i < 6; i++) appCode += chars[Math.floor(Math.random() * chars.length)];
+
+  document.getElementById('gen-schrank-code').textContent = schrankCode;
+  document.getElementById('gen-app-code').textContent = appCode;
+
+  generateQR(appCode);
+
+  const gameTitle = document.getElementById('g-title')?.value || 'Raubritter Escape';
+  document.getElementById('gen-email-text').value = generateEmailTemplate(schrankCode, appCode, gameTitle);
+
+  document.getElementById('gen-qr-container').style.display = 'block';
+  document.getElementById('gen-email-container').style.display = 'block';
+
+  toast('Wochencode + App-Code generiert!');
+}
+
+function generateQR(text) {
+  const container = document.getElementById('gen-qr-code');
+  container.innerHTML = '';
+
+  // QR-Code per API generieren (keine externe Lib nötig)
+  const size = 200;
+  const img = document.createElement('img');
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(text)}&color=1a120b&bgcolor=ffffff&margin=2`;
+  img.alt = 'App-Code QR';
+  img.style.cssText = 'width:200px; height:200px; display:block;';
+  container.appendChild(img);
+}
+
+function printQR() {
+  const qrEl = document.getElementById('gen-qr-code');
+  const appCode = document.getElementById('gen-app-code').textContent;
+  const gameTitle = document.getElementById('g-title')?.value || 'Raubritter Escape';
+
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>App-Code QR – ${gameTitle}</title>
+      <style>
+        body { font-family: Georgia, serif; text-align: center; padding: 2cm; }
+        h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .subtitle { font-size: 0.9rem; color: #555; margin-bottom: 1.5rem; }
+        .code { font-size: 2.5rem; font-weight: bold; letter-spacing: 0.3em;
+          margin: 1rem 0; color: #1a120b; }
+        .qr { margin: 1rem auto; }
+        .instructions { font-size: 0.85rem; color: #555; line-height: 1.7;
+          max-width: 300px; margin: 1rem auto;
+          border: 1px solid #ccc; padding: 1rem; border-radius: 4px; }
+        @media print { button { display: none; } }
+      </style>
+    </head>
+    <body>
+      <h1>${gameTitle}</h1>
+      <div class="subtitle">App-Code für die Spieler-App</div>
+      <div class="qr">${qrEl.innerHTML}</div>
+      <div class="code">${appCode}</div>
+      <div class="instructions">
+        1. Scannt den QR-Code mit der App<br>
+        – oder –<br>
+        2. Gebt den Code manuell ein:<br>
+        <strong>${appCode}</strong>
+      </div>
+      <br>
+      <button onclick="window.print()">Drucken</button>
+    </body>
+    </html>
+  `);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 500);
+}
+
+function generateEmailTemplate(schrankCode, appCode, gameTitle) {
+  const heute = new Date().toLocaleDateString('de-DE', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+  return `Betreff: Eure Buchung – ${gameTitle}
+
+Hallo,
+
+euer Abenteuer beginnt bald! Hier sind alle Informationen für euren Spieltag.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔒 SCHRANK-CODE: ${schrankCode}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Mit diesem Code öffnet ihr den Outdoor-Schrank beim Start.
+Dort findet ihr euren Rucksack mit dem gesamten Spielmaterial.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WICHTIGE HINWEISE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Ladet die Spieler-App VORHER auf eurem Smartphone herunter:
+  https://raubritter.netlify.app/spiel.html
+
+• Den App-Code findet ihr AUF EINEM ZETTEL IM SCHRANK
+  (nicht schummeln – er startet den Timer!)
+
+• Plant ca. 2 Stunden ein
+
+• Seid pünktlich – der nächste Termin wartet!
+
+Bei Fragen: kontakt@raubritter-escape.de
+
+Viel Erfolg und viel Spaß!
+Das Raubritter Escape Team 🏰`;
+}
+
+function copyEmailText() {
+  const text = document.getElementById('gen-email-text').value;
+  navigator.clipboard.writeText(text).then(() => toast('E-Mail-Text kopiert!')).catch(() => {
+    document.getElementById('gen-email-text').select();
+    document.execCommand('copy');
+    toast('Kopiert!');
+  });
+}
+
+// ─── TOAST ─────────────────────────────────────────────
+function toast(msg) {
+  const el = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
