@@ -1,0 +1,1924 @@
+<!DOCTYPE html>
+<html lang="de" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Raubritter Escape • Burg Lichtenberg</title>
+  <meta name="theme-color" content="#0d2b14">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Raubritter Escape">
+  <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/commons/8/81/Wappen_lichtenberg-oberfranken.png">
+  <link rel="manifest" href="/manifest.json">
+  <!-- PWA Install prompt abfangen -->
+  <script>
+    let pwaInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      pwaInstallPrompt = e;
+      const banner = document.getElementById('pwa-install-banner');
+      if (banner) banner.style.display = 'flex';
+    });
+    window.addEventListener('appinstalled', () => {
+      const banner = document.getElementById('pwa-install-banner');
+      if (banner) banner.style.display = 'none';
+      pwaInstallPrompt = null;
+    });
+    function triggerPWAInstall() {
+      if (pwaInstallPrompt) {
+        pwaInstallPrompt.prompt();
+      } else {
+        document.getElementById('pwa-ios-modal').classList.add('open');
+      }
+    }
+    function closePWAModal() {
+      document.getElementById('pwa-ios-modal').classList.remove('open');
+    }
+
+    // payBank global – wird nach dem Laden der Hauptfunktionen gemappt
+    function payBank() {
+      if (typeof _payBank === 'function') _payBank();
+      else alert('Fehler: Bitte Seite neu laden.');
+    }
+    function setStep(n) {
+      if (typeof _setStep === 'function') _setStep(n);
+    }
+    function closeModal() {
+      if (typeof _closeModal === 'function') _closeModal();
+    }
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    :root {
+      --gold: #c9a84c;
+      --gold-light: #e8c96a;
+      --gold-dark: #8b6914;
+      --parchment: #f5ead0;
+      --ink: #1a120b;
+      --forest: #0d2b14;
+      --forest-mid: #1a4a24;
+      --stone: #2d2520;
+    }
+
+    body {
+      font-family: 'Crimson Text', Georgia, serif;
+      background-color: var(--ink);
+      color: var(--parchment);
+    }
+
+    .font-display { font-family: 'Cinzel', serif; }
+
+    .hero-bg {
+      background:
+        linear-gradient(to bottom, rgba(10,30,15,0.65) 0%, rgba(13,43,20,0.82) 60%, rgba(26,18,11,0.97) 100%),
+        /*
+          ══ EIGENES LICHTENBERG-FOTO ══════════════════════════
+          Foto auf Netlify hochladen → URL hier ersetzen.
+          Empfohlen: Panorama Burgruine Lichtenberg, Querformat.
+          Beispiel: url('/bilder/burgruine-lichtenberg-panorama.jpg')
+          ════════════════════════════════════════════════════════
+        */
+        url('/bilder/hero.jpg') center 40%/cover no-repeat fixed;
+    }
+
+    .photo-divider {
+      position: relative;
+      min-height: 320px;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+    }
+    .photo-divider::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-attachment: fixed;
+      background-size: cover;
+      background-position: center;
+    }
+    .photo-divider-1::before {
+      /* EIGENES FOTO: Burgtor oder Mauerwerk → url('/bilder/burgtor-lichtenberg.jpg') */
+      background-image:
+        linear-gradient(to right, rgba(13,43,20,0.9) 0%, rgba(13,43,20,0.55) 50%, rgba(13,43,20,0.85) 100%),
+        url('/bilder/burgtor.jpg');
+    }
+    .photo-divider-2::before {
+      /* EIGENES FOTO: Ausblick vom Schlossbergturm → url('/bilder/bergfried-aussicht.jpg') */
+      background-image:
+        linear-gradient(to bottom, rgba(26,18,11,0.85), rgba(26,18,11,0.6) 50%, rgba(26,18,11,0.9)),
+        url('/bilder/bergfried.jpg');
+    }
+    .photo-divider-3::before {
+      /* EIGENES FOTO: Abendstimmung Burg → url('/bilder/burg-abend-lichtenberg.jpg') */
+      background-image:
+        linear-gradient(135deg, rgba(13,43,20,0.92) 25%, rgba(13,43,20,0.65) 65%, rgba(26,18,11,0.88) 100%),
+        url('/bilder/hero.jpg');
+    }
+    .photo-divider > * { position: relative; z-index: 1; }
+
+    .parchment-texture {
+      background-color: #f5ead0;
+      background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 35px, rgba(180,150,80,0.04) 35px, rgba(180,150,80,0.04) 36px),
+        repeating-linear-gradient(90deg, transparent, transparent 35px, rgba(180,150,80,0.03) 35px, rgba(180,150,80,0.03) 36px);
+    }
+
+    .gold-border {
+      border: 1px solid var(--gold-dark);
+      box-shadow: 0 0 0 1px rgba(201,168,76,0.15), inset 0 0 0 1px rgba(201,168,76,0.05);
+    }
+
+    .slot-available {
+      background: rgba(13,43,20,0.6);
+      border: 1px solid rgba(201,168,76,0.3);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .slot-available:hover {
+      background: rgba(26,74,36,0.9);
+      border-color: var(--gold);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(201,168,76,0.2);
+    }
+    .slot-booked {
+      background: rgba(80,30,30,0.5);
+      border: 1px solid rgba(180,60,60,0.3);
+      cursor: not-allowed;
+    }
+    .slot-selected {
+      background: rgba(26,74,36,1) !important;
+      border-color: var(--gold) !important;
+      box-shadow: 0 0 0 2px var(--gold-dark), 0 4px 20px rgba(201,168,76,0.3);
+    }
+
+    .ornament::before, .ornament::after {
+      content: '⸻ ✦ ⸻';
+      display: block;
+      color: var(--gold-dark);
+      font-size: 0.8rem;
+      letter-spacing: 0.3em;
+      text-align: center;
+      margin: 0.5rem 0;
+    }
+
+    .step-active { background: var(--gold-dark); color: var(--parchment); }
+    .step-done { background: var(--forest-mid); color: var(--gold); }
+    .step-inactive { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); }
+
+    input, select, textarea {
+      background: rgba(0,0,0,0.3) !important;
+      border: 1px solid rgba(201,168,76,0.3) !important;
+      color: var(--parchment) !important;
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      width: 100%;
+      font-family: 'Crimson Text', serif;
+      font-size: 1.05rem;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--gold) !important;
+    }
+    input::placeholder { color: rgba(245,234,208,0.4) !important; }
+    select option { background: #1a120b; color: var(--parchment); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #8b6914, #c9a84c, #8b6914);
+      background-size: 200% 100%;
+      background-position: right;
+      color: var(--ink);
+      font-family: 'Cinzel', serif;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      border: none;
+      padding: 0.85rem 2rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background-position 0.4s ease, transform 0.15s ease;
+    }
+    .btn-primary:hover {
+      background-position: left;
+      transform: translateY(-1px);
+    }
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--gold);
+      font-family: 'Cinzel', serif;
+      font-weight: 400;
+      letter-spacing: 0.05em;
+      border: 1px solid rgba(201,168,76,0.4);
+      padding: 0.85rem 2rem;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover {
+      border-color: var(--gold);
+      background: rgba(201,168,76,0.1);
+    }
+
+    .week-btn-active {
+      background: rgba(201,168,76,0.15);
+      border-color: var(--gold) !important;
+      color: var(--gold);
+    }
+
+    /* Modal */
+    #modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    #modal-overlay.open { display: flex; }
+
+    #modal-box {
+      background: var(--stone);
+      border: 1px solid rgba(201,168,76,0.4);
+      border-radius: 4px;
+      max-width: 520px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.8);
+    }
+
+    .modal-header {
+      background: linear-gradient(180deg, var(--forest) 0%, var(--stone) 100%);
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid rgba(201,168,76,0.2);
+    }
+
+    /* Progress steps */
+    .progress-step {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.05em;
+    }
+    .progress-dot {
+      width: 24px; height: 24px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 600; flex-shrink: 0;
+    }
+
+    /* Notification */
+    #notification {
+      position: fixed; bottom: 2rem; right: 2rem;
+      z-index: 200; max-width: 360px;
+      transform: translateX(120%);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    #notification.show { transform: translateX(0); }
+
+    /* Calendar responsive */
+    @media (max-width: 640px) {
+      .calendar-grid { grid-template-columns: repeat(4, 1fr) !important; }
+      .cal-day-header:nth-child(n+5) { display: none; }
+      .cal-slot:nth-child(7n+5),
+      .cal-slot:nth-child(7n+6),
+      .cal-slot:nth-child(7n+7) { display: none; }
+    }
+
+    /* Smooth scroll + selection */
+    ::selection { background: rgba(201,168,76,0.3); }
+    * { scroll-behavior: smooth; }
+
+    .nav-link {
+      position: relative; color: rgba(245,234,208,0.75);
+      font-family: 'Cinzel', serif; font-size: 0.8rem;
+      letter-spacing: 0.1em; transition: color 0.2s;
+    }
+    .nav-link:hover { color: var(--gold); }
+    .nav-link::after {
+      content: ''; position: absolute;
+      bottom: -3px; left: 0; right: 0; height: 1px;
+      background: var(--gold); transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+    .nav-link:hover::after { transform: scaleX(1); }
+
+    .feature-icon {
+      width: 52px; height: 52px;
+      background: rgba(201,168,76,0.12);
+      border: 1px solid rgba(201,168,76,0.25);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gold);
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PWA INSTALL BANNER (Android/Chrome – erscheint automatisch) -->
+  <div id="pwa-install-banner" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:300;
+    background: linear-gradient(135deg, #0d2b14, #1a4a24);
+    border-top: 1px solid rgba(201,168,76,0.4);
+    padding: 0.85rem 1.25rem;
+    align-items: center; justify-content: space-between; gap:1rem;
+    box-shadow: 0 -4px 30px rgba(0,0,0,0.5);">
+    <div style="display:flex; align-items:center; gap:0.75rem;">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/8/81/Wappen_lichtenberg-oberfranken.png"
+           style="width:36px; height:36px; border-radius:8px;">
+      <div>
+        <div style="font-family:'Cinzel',serif; font-size:0.75rem; color:#c9a84c; letter-spacing:0.06em;">App installieren</div>
+        <div style="font-size:0.8rem; color:rgba(245,234,208,0.65); margin-top:1px;">Zum Homescreen hinzufügen</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:0.5rem; flex-shrink:0;">
+      <button onclick="document.getElementById('pwa-install-banner').style.display='none'"
+        style="background:transparent; border:1px solid rgba(245,234,208,0.2); color:rgba(245,234,208,0.5);
+               font-family:'Cinzel',serif; font-size:0.65rem; padding:0.4rem 0.75rem; border-radius:3px; cursor:pointer; letter-spacing:0.05em;">
+        SPÄTER
+      </button>
+      <button onclick="triggerPWAInstall()"
+        style="background:linear-gradient(135deg,#8b6914,#c9a84c); border:none; color:#1a120b;
+               font-family:'Cinzel',serif; font-size:0.65rem; font-weight:700;
+               padding:0.4rem 0.9rem; border-radius:3px; cursor:pointer; letter-spacing:0.05em;">
+        INSTALLIEREN
+      </button>
+    </div>
+  </div>
+
+  <!-- iOS INSTALL MODAL -->
+  <div id="pwa-ios-modal" style="position:fixed; inset:0; z-index:400; background:rgba(0,0,0,0.85);
+    backdrop-filter:blur(6px); display:none; align-items:flex-end; justify-content:center; padding:1rem;">
+  <style>#pwa-ios-modal.open { display:flex !important; }</style>
+    <div style="background:#2d2520; border:1px solid rgba(201,168,76,0.35); border-radius:12px 12px 0 0;
+      padding:1.5rem 1.5rem 2rem; max-width:480px; width:100%;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+        <div style="font-family:'Cinzel',serif; font-size:0.85rem; color:#c9a84c; letter-spacing:0.08em;">
+          APP INSTALLIEREN · iPHONE
+        </div>
+        <button onclick="closePWAModal()" style="background:transparent; border:none; color:rgba(245,234,208,0.5); font-size:1.2rem; cursor:pointer;">✕</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:1rem;">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <div style="width:32px; height:32px; border-radius:50%; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3);
+            display:flex; align-items:center; justify-content:center; flex-shrink:0;
+            font-family:'Cinzel',serif; font-size:0.7rem; font-weight:700; color:#c9a84c;">1</div>
+          <div style="font-size:0.95rem; color:rgba(245,234,208,0.85); line-height:1.5;">
+            Diese Seite in <strong style="color:#f5ead0;">Safari</strong> öffnen
+            <span style="color:rgba(245,234,208,0.4); font-size:0.8rem;"> (nicht Chrome!)</span>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <div style="width:32px; height:32px; border-radius:50%; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3);
+            display:flex; align-items:center; justify-content:center; flex-shrink:0;
+            font-family:'Cinzel',serif; font-size:0.7rem; font-weight:700; color:#c9a84c;">2</div>
+          <div style="font-size:0.95rem; color:rgba(245,234,208,0.85); line-height:1.5;">
+            Teilen-Button <i class="fa-solid fa-arrow-up-from-bracket" style="color:#c9a84c;"></i> unten in der Mitte antippen
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+          <div style="width:32px; height:32px; border-radius:50%; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3);
+            display:flex; align-items:center; justify-content:center; flex-shrink:0;
+            font-family:'Cinzel',serif; font-size:0.7rem; font-weight:700; color:#c9a84c;">3</div>
+          <div style="font-size:0.95rem; color:rgba(245,234,208,0.85); line-height:1.5;">
+            <em>„Zum Home-Bildschirm"</em> wählen und bestätigen
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:1.25rem; padding:0.75rem; background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.2); border-radius:4px;">
+        <div style="font-size:0.82rem; color:rgba(245,234,208,0.6); line-height:1.6;">
+          <i class="fa-solid fa-circle-check mr-1" style="color:#4ade80;"></i>
+          Danach startet die App wie eine echte App – ohne Browser-Leiste, mit Kamera-Zugriff.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <nav style="background: rgba(13,43,20,0.97); border-bottom: 1px solid rgba(201,168,76,0.2);" class="sticky top-0 z-50 backdrop-blur-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/8/81/Wappen_lichtenberg-oberfranken.png" alt="Wappen" class="h-9 w-9 opacity-90">
+        <div>
+          <div class="font-display text-lg font-bold tracking-wide" style="color: var(--gold); line-height: 1.1;">Raubritter Escape</div>
+          <div class="text-xs opacity-50 tracking-widest" style="font-family: 'Cinzel', serif; font-size: 0.6rem;">BURG LICHTENBERG • FRANKENWALD</div>
+        </div>
+      </div>
+      <div class="hidden md:flex gap-8">
+        <a href="#how" class="nav-link">Das Erlebnis</a>
+        <a href="#material" class="nav-link">Equipment</a>
+        <a href="#kalender" class="nav-link">Termine</a>
+        <a href="#app" class="nav-link">App</a>
+      </div>
+      <a href="#kalender" class="btn-primary text-sm hidden sm:block" style="padding: 0.5rem 1.25rem;">Jetzt buchen</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <header class="hero-bg min-h-screen flex items-center relative overflow-hidden">
+    <div class="absolute inset-0 pointer-events-none">
+      <div style="position: absolute; top: 15%; left: 5%; width: 1px; height: 200px; background: linear-gradient(to bottom, transparent, rgba(201,168,76,0.15), transparent);"></div>
+      <div style="position: absolute; top: 20%; right: 8%; width: 1px; height: 150px; background: linear-gradient(to bottom, transparent, rgba(201,168,76,0.1), transparent);"></div>
+    </div>
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-24 text-center w-full">
+      <div class="inline-flex items-center gap-3 mb-6 px-5 py-2 rounded-full" style="border: 1px solid rgba(201,168,76,0.3); background: rgba(201,168,76,0.08);">
+        <i class="fa-solid fa-shield-halved text-sm" style="color: var(--gold);"></i>
+        <span class="font-display text-xs tracking-widest" style="color: var(--gold);">OUTDOOR ESCAPE GAME</span>
+      </div>
+
+      <h1 class="font-display text-5xl sm:text-7xl md:text-8xl font-black mb-2 tracking-tight leading-none" style="color: var(--parchment);">Raubritter</h1>
+      <h2 class="font-display text-3xl sm:text-5xl md:text-6xl font-black mb-8 tracking-tight" style="color: var(--gold);">Escape</h2>
+
+      <div class="w-24 h-px mx-auto mb-8" style="background: linear-gradient(to right, transparent, var(--gold), transparent);"></div>
+
+      <p class="text-xl sm:text-2xl max-w-2xl mx-auto mb-4 leading-relaxed" style="color: rgba(245,234,208,0.85); font-style: italic;">
+        „Löst die Rätsel der Burg. Durchbrecht den Fluch des Raubritters."
+      </p>
+      <p class="text-base sm:text-lg max-w-xl mx-auto mb-12" style="color: rgba(245,234,208,0.6);">
+        Ein historisches Erlebnis an echten Stelen. Mit Equipment aus dem Schrank, einer Story-App und echter Atmosphäre.
+      </p>
+
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="#kalender" class="btn-primary text-lg" style="padding: 1rem 2.5rem;">
+          <i class="fa-solid fa-calendar-check mr-2"></i> Termin buchen
+        </a>
+        <a href="#how" class="btn-secondary text-lg" style="padding: 1rem 2.5rem;">
+          <i class="fa-solid fa-scroll mr-2"></i> Mehr erfahren
+        </a>
+      </div>
+
+      <div class="mt-16 grid grid-cols-3 gap-8 max-w-sm mx-auto">
+        <div class="text-center">
+          <div class="font-display text-2xl font-bold" style="color: var(--gold);">2–10</div>
+          <div class="text-xs opacity-50 tracking-wider mt-1">PERSONEN</div>
+        </div>
+        <div class="text-center border-x" style="border-color: rgba(201,168,76,0.2);">
+          <div class="font-display text-2xl font-bold" style="color: var(--gold);">2–3h</div>
+          <div class="text-xs opacity-50 tracking-wider mt-1">SPIELZEIT</div>
+        </div>
+        <div class="text-center">
+          <div class="font-display text-2xl font-bold" style="color: var(--gold);">ab 25€</div>
+          <div class="text-xs opacity-50 tracking-wider mt-1">PRO GRUPPE</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce opacity-30">
+      <i class="fa-solid fa-chevron-down text-xl" style="color: var(--gold);"></i>
+    </div>
+  </header>
+
+  <!-- SO FUNKTIONIERT'S -->
+  <section id="how" style="background: var(--stone); padding: 6rem 0;">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-16">
+        <div class="font-display text-xs tracking-widest mb-3 opacity-50">DAS ABENTEUER</div>
+        <h2 class="font-display text-3xl sm:text-4xl font-bold" style="color: var(--parchment);">Wie es funktioniert</h2>
+        <div class="w-16 h-px mx-auto mt-4" style="background: linear-gradient(to right, transparent, var(--gold), transparent);"></div>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-8 relative">
+        <div class="hidden md:block absolute top-8 left-1/3 right-1/3 h-px" style="background: linear-gradient(to right, transparent, rgba(201,168,76,0.3), transparent); top: 26px;"></div>
+
+        <div class="relative p-8 rounded" style="background: rgba(13,43,20,0.4); border: 1px solid rgba(201,168,76,0.15);">
+          <div class="font-display text-4xl font-black mb-4 opacity-10" style="color: var(--gold); position: absolute; top: 1rem; right: 1.5rem;">01</div>
+          <div class="feature-icon mb-5">
+            <i class="fa-solid fa-calendar-days"></i>
+          </div>
+          <h3 class="font-display text-lg font-semibold mb-3" style="color: var(--gold);">Online buchen</h3>
+          <p style="color: rgba(245,234,208,0.7); line-height: 1.7;">Termin wählen, Gruppe anmelden und sicher bezahlen – per PayPal oder Banküberweisung. Ihr erhaltet sofort eure Buchungsbestätigung per E-Mail.</p>
+        </div>
+
+        <div class="relative p-8 rounded" style="background: rgba(13,43,20,0.4); border: 1px solid rgba(201,168,76,0.15);">
+          <div class="font-display text-4xl font-black mb-4 opacity-10" style="color: var(--gold); position: absolute; top: 1rem; right: 1.5rem;">02</div>
+          <div class="feature-icon mb-5">
+            <i class="fa-solid fa-backpack"></i>
+          </div>
+          <h3 class="font-display text-lg font-semibold mb-3" style="color: var(--gold);">Rucksack abholen</h3>
+          <p style="color: rgba(245,234,208,0.7); line-height: 1.7;">Mit eurem Code öffnet ihr den Outdoor-Schrank. Darin wartet ein Rucksack mit handgefertigtem Rätselmaterial aus der Schreinerei – gelaserte Holztafeln, Chiffren, Schlüssel und mehr.</p>
+        </div>
+
+        <div class="relative p-8 rounded" style="background: rgba(13,43,20,0.4); border: 1px solid rgba(201,168,76,0.15);">
+          <div class="font-display text-4xl font-black mb-4 opacity-10" style="color: var(--gold); position: absolute; top: 1rem; right: 1.5rem;">03</div>
+          <div class="feature-icon mb-5">
+            <i class="fa-solid fa-map-location-dot"></i>
+          </div>
+          <h3 class="font-display text-lg font-semibold mb-3" style="color: var(--gold);">Rätsel lösen</h3>
+          <p style="color: rgba(245,234,208,0.7); line-height: 1.7;">Mit der App und den historischen Stelen rund um die Burg erlebt ihr die Geschichte des Raubritters. Scannt QR-Codes, löst Rätsel – werdet Teil der Legende.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RUCKSACK & MATERIAL -->
+  <section id="material" style="background: var(--ink); padding: 6rem 0;">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-16">
+        <div class="font-display text-xs tracking-widest mb-3 opacity-50">HANDGEMACHT · SCHREINEREI LICHTENBERG</div>
+        <h2 class="font-display text-3xl sm:text-4xl font-bold" style="color: var(--parchment);">Der Rucksack</h2>
+        <div class="w-16 h-px mx-auto mt-4 mb-5" style="background: linear-gradient(to right, transparent, var(--gold), transparent);"></div>
+        <p class="max-w-xl mx-auto" style="color: rgba(245,234,208,0.6); font-size: 1.05rem; line-height: 1.8;">Kein Plastik, kein Papier – echtes Handwerk. Alle Rätselmaterialien werden in einer echten Schreinerei gefertigt und per Laser in Holz und Schiefer gebrannt.</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-12 items-start">
+
+        <!-- Rucksack Illustration / Inhaltsliste -->
+        <div>
+          <!-- Rucksack visual -->
+          <div class="relative p-8 rounded-lg mb-6" style="background: linear-gradient(135deg, rgba(13,43,20,0.6), rgba(45,37,32,0.8)); border: 1px solid rgba(201,168,76,0.2);">
+            <div class="absolute top-4 right-4 font-display text-xs opacity-20" style="color: var(--gold); letter-spacing: 0.1em;">RUCKSACK-INHALT</div>
+
+            <!-- Rucksack Icon groß -->
+            <div class="text-center mb-8">
+              <div style="position:relative; display:inline-block;">
+                <i class="fa-solid fa-backpack" style="font-size: 5rem; color: var(--gold-dark); opacity: 0.9;"></i>
+                <div style="position:absolute; top:-6px; right:-10px; width:22px; height:22px; background:var(--gold-dark); border-radius:50%; display:flex; align-items:center; justify-content:center;">
+                  <i class="fa-solid fa-lock-open" style="font-size:0.55rem; color:var(--parchment);"></i>
+                </div>
+              </div>
+              <div class="font-display text-xs mt-3 opacity-40" style="letter-spacing:0.15em;">ÖFFNEN MIT BUCHUNGSCODE</div>
+            </div>
+
+            <!-- Inhaltsliste als Karten-Grid -->
+            <div class="grid grid-cols-2 gap-3">
+
+              <div class="flex items-start gap-3 p-3 rounded" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(201,168,76,0.15);">
+                <div style="width:32px; height:32px; border-radius:6px; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <i class="fa-solid fa-scroll" style="color:var(--gold); font-size:0.8rem;"></i>
+                </div>
+                <div>
+                  <div class="font-display" style="font-size:0.65rem; color:var(--gold); letter-spacing:0.05em; margin-bottom:2px;">HOLZTAFEL</div>
+                  <div style="font-size:0.78rem; opacity:0.65; line-height:1.4;">Gelaserte Story-Karte mit dem Einführungstext</div>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-3 p-3 rounded" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(201,168,76,0.15);">
+                <div style="width:32px; height:32px; border-radius:6px; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <i class="fa-solid fa-key" style="color:var(--gold); font-size:0.8rem;"></i>
+                </div>
+                <div>
+                  <div class="font-display" style="font-size:0.65rem; color:var(--gold); letter-spacing:0.05em; margin-bottom:2px;">SCHLÜSSEL</div>
+                  <div style="font-size:0.78rem; opacity:0.65; line-height:1.4;">Nummerierte Holzschlüssel für versteckte Truhen</div>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-3 p-3 rounded" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(201,168,76,0.15);">
+                <div style="width:32px; height:32px; border-radius:6px; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <i class="fa-solid fa-circle-nodes" style="color:var(--gold); font-size:0.8rem;"></i>
+                </div>
+                <div>
+                  <div class="font-display" style="font-size:0.65rem; color:var(--gold); letter-spacing:0.05em; margin-bottom:2px;">CHIFFREN-SCHEIBE</div>
+                  <div style="font-size:0.78rem; opacity:0.65; line-height:1.4;">Drehbare Holzscheibe zum Entschlüsseln von Botschaften</div>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-3 p-3 rounded" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(201,168,76,0.15);">
+                <div style="width:32px; height:32px; border-radius:6px; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <i class="fa-solid fa-tablet-screen-button" style="color:var(--gold); font-size:0.8rem;"></i>
+                </div>
+                <div>
+                  <div class="font-display" style="font-size:0.65rem; color:var(--gold); letter-spacing:0.05em; margin-bottom:2px;">SCHIEFER-TAFEL</div>
+                  <div style="font-size:0.78rem; opacity:0.65; line-height:1.4;">Gelaserte Hinweise und Rätsel auf echtem Schiefer</div>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-3 p-3 rounded" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(201,168,76,0.15);">
+                <div style="width:32px; height:32px; border-radius:6px; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <i class="fa-solid fa-magnifying-glass" style="color:var(--gold); font-size:0.8rem;"></i>
+                </div>
+                <div>
+                  <div class="font-display" style="font-size:0.65rem; color:var(--gold); letter-spacing:0.05em; margin-bottom:2px;">LUPE</div>
+                  <div style="font-size:0.78rem; opacity:0.65; line-height:1.4;">Für versteckte Symbole und Mikroschrift auf den Tafeln</div>
+                </div>
+              </div>
+
+              <div class="flex items-start gap-3 p-3 rounded" style="background: rgba(0,0,0,0.25); border: 1px solid rgba(201,168,76,0.15);">
+                <div style="width:32px; height:32px; border-radius:6px; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                  <i class="fa-solid fa-mobile-screen-button" style="color:var(--gold); font-size:0.8rem;"></i>
+                </div>
+                <div>
+                  <div class="font-display" style="font-size:0.65rem; color:var(--gold); letter-spacing:0.05em; margin-bottom:2px;">APP-KARTE</div>
+                  <div style="font-size:0.78rem; opacity:0.65; line-height:1.4;">Holzkarte mit QR-Code zum Installieren der App</div>
+                </div>
+              </div>
+
+            </div><!-- /grid -->
+          </div><!-- /rucksack card -->
+
+          <p style="color: rgba(245,234,208,0.4); font-size: 0.82rem; text-align:center; font-style:italic;">
+            Exakter Inhalt kann je nach Spielversion variieren.
+          </p>
+        </div>
+
+        <!-- Rechts: Schreiner-Handwerk Erklärung -->
+        <div class="space-y-6">
+
+          <!-- Laser-Highlight -->
+          <div class="p-6 rounded-lg" style="background: linear-gradient(135deg, rgba(139,105,20,0.15), rgba(13,43,20,0.3)); border: 1px solid rgba(201,168,76,0.3);">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="feature-icon">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+              </div>
+              <div>
+                <h3 class="font-display text-lg font-semibold" style="color: var(--gold);">Laser-Gravur auf Holz & Schiefer</h3>
+                <div style="font-size:0.8rem; opacity:0.5;">Handwerk aus der Schreinerei Lichtenberg</div>
+              </div>
+            </div>
+            <p style="color: rgba(245,234,208,0.75); font-size: 1rem; line-height: 1.8;">Mit einem professionellen Laser werden Rätsel, Karten, Chiffren und Botschaften millimetergenau in echtes Holz und Schiefer gebrannt. Jedes Stück ist ein Unikat – und riecht noch nach Frankenwald.</p>
+          </div>
+
+          <!-- Kombination physisch + digital -->
+          <div class="p-6 rounded-lg" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(201,168,76,0.12);">
+            <h3 class="font-display text-base font-semibold mb-4" style="color: var(--gold);">
+              <i class="fa-solid fa-link mr-2 opacity-60"></i>Physisch trifft Digital
+            </h3>
+            <div class="space-y-4" style="color: rgba(245,234,208,0.7); font-size: 0.95rem; line-height: 1.7;">
+              <div class="flex items-start gap-3">
+                <div class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 font-display text-xs font-bold" style="background: var(--gold-dark); color: var(--parchment); font-size:0.6rem;">1</div>
+                <p>Die <strong style="color:var(--parchment);">Holztafel</strong> im Rucksack zeigt eine gelaserte Chiffre. Die App an Station 3 gibt euch das Alphabet dazu – zusammen ergibt sich das Lösungswort.</p>
+              </div>
+              <div class="flex items-start gap-3">
+                <div class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 font-display text-xs font-bold" style="background: var(--gold-dark); color: var(--parchment); font-size:0.6rem;">2</div>
+                <p>Der <strong style="color:var(--parchment);">Holzschlüssel #3</strong> öffnet eine kleine Truhe an Station 5 – darin liegt ein Schieferstein mit dem nächsten Hinweis.</p>
+              </div>
+              <div class="flex items-start gap-3">
+                <div class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 font-display text-xs font-bold" style="background: var(--gold-dark); color: var(--parchment); font-size:0.6rem;">3</div>
+                <p>Die <strong style="color:var(--parchment);">Chiffren-Scheibe</strong> aus Holz dreht ihr auf den Wert den die App anzeigt – und seht die geheime Botschaft des Raubritters.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rückgabe-Hinweis -->
+          <div class="flex items-start gap-4 p-5 rounded-lg" style="background: rgba(201,168,76,0.06); border: 1px solid rgba(201,168,76,0.18);">
+            <i class="fa-solid fa-rotate-left mt-0.5 flex-shrink-0" style="color: var(--gold); font-size: 1.1rem;"></i>
+            <div style="font-size: 0.92rem; line-height: 1.7; color: rgba(245,234,208,0.7);">
+              <strong style="color: var(--parchment);">Rückgabe:</strong> Den Rucksack und alle Materialien legt ihr nach dem Spiel zurück in den Outdoor-Schrank. So kann die nächste Gruppe direkt loslegen – und ihr habt keinen Aufwand.
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="kalender" style="background: var(--forest); padding: 6rem 0;">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-12">
+        <div class="font-display text-xs tracking-widest mb-3 opacity-50">VERFÜGBARE ZEITEN</div>
+        <h2 class="font-display text-3xl sm:text-4xl font-bold" style="color: var(--parchment);">Termin wählen</h2>
+        <div class="w-16 h-px mx-auto mt-4 mb-6" style="background: linear-gradient(to right, transparent, var(--gold), transparent);"></div>
+        <p style="color: rgba(245,234,208,0.6); font-size: 1.05rem;">Klicke auf einen freien Zeitslot, um den Buchungsvorgang zu starten.</p>
+      </div>
+
+      <!-- Week Navigation -->
+      <div class="flex flex-wrap justify-center gap-3 mb-8" id="weekNav"></div>
+
+      <!-- Legend -->
+      <div class="flex justify-center gap-6 mb-6 text-sm">
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded-sm" style="background: rgba(26,74,36,0.8); border: 1px solid rgba(201,168,76,0.4);"></div>
+          <span style="color: rgba(245,234,208,0.6);">Verfügbar</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded-sm" style="background: rgba(80,30,30,0.5); border: 1px solid rgba(180,60,60,0.3);"></div>
+          <span style="color: rgba(245,234,208,0.6);">Gebucht</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded-sm" style="background: rgba(26,74,36,1); border: 1px solid var(--gold);"></div>
+          <span style="color: rgba(245,234,208,0.6);">Ausgewählt</span>
+        </div>
+      </div>
+
+      <!-- Calendar -->
+      <div id="calendar" class="rounded overflow-hidden" style="border: 1px solid rgba(201,168,76,0.2);"></div>
+
+      <!-- Mobile hint -->
+      <p class="text-center text-xs mt-4 opacity-40 sm:hidden">← Wische, um mehr Tage zu sehen</p>
+    </div>
+  </section>
+
+  <!-- FOTO-TRENNER: Burg Panorama -->
+  <div class="photo-divider photo-divider-1" style="min-height: 260px;">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 w-full py-16">
+      <div class="max-w-2xl">
+        <div class="font-display text-xs tracking-widest mb-3 opacity-50">STATIONEN · ÜBERALL IM FRANKENWALD</div>
+        <h3 class="font-display text-3xl sm:text-4xl font-bold mb-4" style="color: var(--parchment);">Jeder Ort kann eine Station sein</h3>
+        <p style="color: rgba(245,234,208,0.75); font-size: 1.1rem; line-height: 1.8;">Die Burgruine, ein alter Keller, eine Scheune, ein Waldpfad – oder ein geheimer Ort, den nur Eingeweihte kennen. Die App zeigt ein Foto und eine Wegbeschreibung zu jeder Station. Kein GPS-Tracking, kein Roaming-Stress.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP – WIE FUNKTIONIERT SIE? -->
+  <section id="app" style="background: var(--ink); padding: 6rem 0;">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="text-center mb-16">
+        <div class="font-display text-xs tracking-widest mb-3 opacity-50">DIGITAL BEGLEITET</div>
+        <h2 class="font-display text-3xl sm:text-4xl font-bold" style="color: var(--parchment);">Die Raubritter App</h2>
+        <div class="w-16 h-px mx-auto mt-4 mb-4" style="background: linear-gradient(to right, transparent, var(--gold), transparent);"></div>
+        <p style="color: rgba(245,234,208,0.5); font-size: 1rem;">Progressive Web App – kein Download nötig, direkt im Browser installierbar</p>
+        <a href="/spiel.html" style="
+          margin-top: 1rem;
+          background: linear-gradient(135deg, #8b6914, #c9a84c);
+          border: none; border-radius: 4px; cursor: pointer;
+          font-family: 'Cinzel', serif; font-weight: 700; font-size: 0.85rem;
+          letter-spacing: 0.06em; color: #1a120b;
+          padding: 0.85rem 2rem; text-decoration: none;
+          display: inline-flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-mobile-screen-button"></i> App öffnen & installieren
+        </a>
+      </div>
+
+      <!-- WIE DIE APP FUNKTIONIERT – Schritt-für-Schritt mit Mockups -->
+      <div class="mb-20">
+        <h3 class="font-display text-xl font-semibold text-center mb-12" style="color: var(--gold);">So läuft euer Abenteuer in der App ab</h3>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
+          <!-- Screen 1: Buchungs-Code eingeben -->
+          <div class="flex flex-col items-center">
+            <div class="w-40 h-72 rounded-2xl flex flex-col overflow-hidden mb-4 flex-shrink-0" style="background: #0a0a0a; border: 5px solid #222; box-shadow: 0 15px 40px rgba(0,0,0,0.7);">
+              <div class="h-4 flex items-center justify-center" style="background: #111;"><div class="w-10 h-1 rounded-full bg-gray-700"></div></div>
+              <div class="flex-1 flex flex-col" style="background: linear-gradient(180deg, #0d2b14 0%, #1a120b 100%);">
+                <div class="px-3 py-2 text-center border-b" style="border-color: rgba(201,168,76,0.2);">
+                  <div class="font-display" style="color: var(--gold); font-size: 0.5rem; letter-spacing: 0.1em;">RAUBRITTER ESCAPE</div>
+                </div>
+                <div class="flex-1 flex flex-col items-center justify-center px-3 py-4">
+                  <div class="w-10 h-10 rounded-xl mb-3 flex items-center justify-center" style="background: rgba(201,168,76,0.15); border: 1px solid rgba(201,168,76,0.3);">
+                    <i class="fa-solid fa-key" style="color: var(--gold); font-size: 0.9rem;"></i>
+                  </div>
+                  <div style="color: rgba(245,234,208,0.8); font-size: 0.55rem; font-family: 'Cinzel', serif; letter-spacing: 0.08em; text-align: center; margin-bottom: 0.5rem;">BUCHUNGSCODE</div>
+                  <div class="w-full px-2 py-1.5 rounded text-center mb-2" style="background: rgba(0,0,0,0.4); border: 1px solid rgba(201,168,76,0.3); font-size: 0.65rem; color: var(--gold); font-family: monospace; letter-spacing: 0.2em;">RE-2026-••••</div>
+                  <div class="w-full py-1.5 rounded text-center" style="background: linear-gradient(135deg, #8b6914, #c9a84c); font-size: 0.55rem; font-family: 'Cinzel', serif; color: #1a120b; font-weight: 700;">STARTEN</div>
+                </div>
+              </div>
+            </div>
+            <div class="text-center">
+              <div class="font-display text-xs font-semibold mb-1" style="color: var(--gold);">1. Code eingeben</div>
+              <p style="color: rgba(245,234,208,0.55); font-size: 0.85rem; line-height: 1.5;">Ihr erhaltet den Code per E-Mail nach der Buchung</p>
+            </div>
+          </div>
+
+          <!-- Screen 2: Location-Hinweis + Foto + Koordinaten -->
+          <div class="flex flex-col items-center">
+            <div class="w-40 h-72 rounded-2xl flex flex-col overflow-hidden mb-4 flex-shrink-0" style="background: #0a0a0a; border: 5px solid #222; box-shadow: 0 15px 40px rgba(0,0,0,0.7);">
+              <div class="h-4 flex items-center justify-center" style="background: #111;"><div class="w-10 h-1 rounded-full bg-gray-700"></div></div>
+              <div class="flex-1 flex flex-col" style="background: linear-gradient(180deg, #0d2b14 0%, #1a120b 100%);">
+                <div class="px-3 py-2 border-b flex items-center gap-2" style="border-color: rgba(201,168,76,0.2); background: rgba(13,43,20,0.9);">
+                  <i class="fa-solid fa-location-dot" style="color: var(--gold); font-size: 0.6rem;"></i>
+                  <div style="color: var(--gold); font-size: 0.5rem; font-family: 'Cinzel', serif; letter-spacing: 0.08em;">STATION 2 VON 8</div>
+                </div>
+                <div class="flex-1 flex flex-col px-2 py-2 gap-2">
+                  <!-- Mini Foto der Location -->
+                  <div class="rounded overflow-hidden flex-shrink-0" style="height: 52px; background: linear-gradient(135deg, #1a3020, #2d4a1e); position: relative;">
+                    <div class="absolute inset-0 flex items-center justify-center">
+                      <i class="fa-solid fa-dungeon" style="color: rgba(201,168,76,0.4); font-size: 1.2rem;"></i>
+                    </div>
+                    <div class="absolute bottom-1 left-2" style="font-size: 0.38rem; color: rgba(245,234,208,0.5); font-family: 'Cinzel', serif;">FOTO DER LOCATION</div>
+                  </div>
+                  <!-- Wegbeschreibung -->
+                  <div style="color: rgba(245,234,208,0.8); font-size: 0.46rem; line-height: 1.5;">
+                    Vom Outdoor-Schrank geradeaus Richtung Bergfried. Vor dem alten Burgtor links abbiegen, ca. 30 m dem Mauerweg folgen.
+                  </div>
+                  <!-- Koordinaten Button -->
+                  <div class="mt-auto w-full py-1.5 rounded flex items-center justify-center gap-1" style="background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.3);">
+                    <i class="fa-solid fa-diamond-turn-right" style="color: var(--gold); font-size: 0.5rem;"></i>
+                    <span style="color: var(--gold); font-size: 0.45rem; font-family: 'Cinzel', serif; letter-spacing: 0.05em;">IN MAPS ÖFFNEN</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="text-center">
+              <div class="font-display text-xs font-semibold mb-1" style="color: var(--gold);">2. Hinweis lesen</div>
+              <p style="color: rgba(245,234,208,0.55); font-size: 0.85rem; line-height: 1.5;">Foto + Wegbeschreibung + Koordinaten-Link</p>
+            </div>
+          </div>
+
+          <!-- Screen 3: QR-Scanner -->
+          <div class="flex flex-col items-center">
+            <div class="w-40 h-72 rounded-2xl flex flex-col overflow-hidden mb-4 flex-shrink-0" style="background: #0a0a0a; border: 5px solid #222; box-shadow: 0 15px 40px rgba(0,0,0,0.7);">
+              <div class="h-4 flex items-center justify-center" style="background: #111;"><div class="w-10 h-1 rounded-full bg-gray-700"></div></div>
+              <div class="flex-1 flex flex-col" style="background: #0a0a0a;">
+                <div class="px-3 py-2 border-b flex items-center gap-2" style="border-color: rgba(201,168,76,0.2); background: rgba(13,43,20,0.95);">
+                  <i class="fa-solid fa-camera" style="color: var(--gold); font-size: 0.6rem;"></i>
+                  <div style="color: var(--gold); font-size: 0.5rem; font-family: 'Cinzel', serif; letter-spacing: 0.08em;">QR-SCANNER</div>
+                </div>
+                <div class="flex-1 relative overflow-hidden">
+                  <!-- Camera viewfinder effect -->
+                  <div class="absolute inset-0" style="background: #111;"></div>
+                  <!-- QR frame corners -->
+                  <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="relative w-20 h-20">
+                      <div class="absolute top-0 left-0 w-4 h-4" style="border-top: 2px solid var(--gold); border-left: 2px solid var(--gold);"></div>
+                      <div class="absolute top-0 right-0 w-4 h-4" style="border-top: 2px solid var(--gold); border-right: 2px solid var(--gold);"></div>
+                      <div class="absolute bottom-0 left-0 w-4 h-4" style="border-bottom: 2px solid var(--gold); border-left: 2px solid var(--gold);"></div>
+                      <div class="absolute bottom-0 right-0 w-4 h-4" style="border-bottom: 2px solid var(--gold); border-right: 2px solid var(--gold);"></div>
+                      <!-- Fake QR inside -->
+                      <div class="absolute inset-3" style="display: grid; grid-template-columns: repeat(5,1fr); gap: 1px; opacity: 0.3;">
+                        <div style="background:#fff;"></div><div style="background:#fff;"></div><div style="background:#fff;"></div><div style="background:#fff;"></div><div style="background:#fff;"></div>
+                        <div style="background:#fff;"></div><div></div><div style="background:#fff;"></div><div></div><div style="background:#fff;"></div>
+                        <div style="background:#fff;"></div><div style="background:#fff;"></div><div></div><div style="background:#fff;"></div><div style="background:#fff;"></div>
+                        <div></div><div style="background:#fff;"></div><div style="background:#fff;"></div><div></div><div style="background:#fff;"></div>
+                        <div style="background:#fff;"></div><div style="background:#fff;"></div><div style="background:#fff;"></div><div style="background:#fff;"></div><div style="background:#fff;"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Scan line animation -->
+                  <div style="position: absolute; top: 30%; left: 10%; right: 10%; height: 1px; background: rgba(201,168,76,0.6); animation: scanline 2s ease-in-out infinite;"></div>
+                </div>
+                <div class="px-3 py-2 text-center" style="background: rgba(13,43,20,0.9);">
+                  <div style="color: rgba(245,234,208,0.6); font-size: 0.5rem; font-family: 'Cinzel', serif; letter-spacing: 0.08em;">QR-CODE AUF STELE SCANNEN</div>
+                </div>
+              </div>
+            </div>
+            <div class="text-center">
+              <div class="font-display text-xs font-semibold mb-1" style="color: var(--gold);">3. QR-Code scannen</div>
+              <p style="color: rgba(245,234,208,0.55); font-size: 0.85rem; line-height: 1.5;">Haltet die Kamera auf den Code an der Stele</p>
+            </div>
+          </div>
+
+          <!-- Screen 4: Story / Rätsel -->
+          <div class="flex flex-col items-center">
+            <div class="w-40 h-72 rounded-2xl flex flex-col overflow-hidden mb-4 flex-shrink-0" style="background: #0a0a0a; border: 5px solid #222; box-shadow: 0 15px 40px rgba(0,0,0,0.7);">
+              <div class="h-4 flex items-center justify-center" style="background: #111;"><div class="w-10 h-1 rounded-full bg-gray-700"></div></div>
+              <div class="flex-1 flex flex-col" style="background: linear-gradient(180deg, #1a0f05 0%, #0d2b14 100%);">
+                <div class="px-3 py-2 border-b flex items-center gap-2" style="border-color: rgba(201,168,76,0.2); background: rgba(26,15,5,0.9);">
+                  <i class="fa-solid fa-scroll" style="color: var(--gold); font-size: 0.6rem;"></i>
+                  <div style="color: var(--gold); font-size: 0.5rem; font-family: 'Cinzel', serif; letter-spacing: 0.08em;">STELE 4 GEFUNDEN!</div>
+                </div>
+                <div class="flex-1 px-3 py-3 flex flex-col">
+                  <div class="text-center mb-2">
+                    <i class="fa-solid fa-tower-observation" style="color: var(--gold); font-size: 1.2rem;"></i>
+                  </div>
+                  <div style="color: rgba(245,234,208,0.85); font-size: 0.5rem; line-height: 1.6; font-style: italic; margin-bottom: 0.5rem;">
+                    „Der Raubritter ließ seinen Schatz in vier Teilen vergraben. Nur wer die Sprache der Steine versteht …"
+                  </div>
+                  <div style="background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.25); border-radius: 4px; padding: 0.4rem; margin-top: auto;">
+                    <div style="color: var(--gold); font-size: 0.45rem; font-family: 'Cinzel', serif; letter-spacing: 0.08em; margin-bottom: 0.25rem;">RÄTSEL</div>
+                    <div style="color: rgba(245,234,208,0.7); font-size: 0.48rem; line-height: 1.5;">Wie viele Fenster hat der Bergfried? Zählt sie und gebt die Antwort ein.</div>
+                    <div class="mt-1 w-full py-1 rounded text-center" style="background: linear-gradient(135deg, #8b6914, #c9a84c); font-size: 0.48rem; font-family: 'Cinzel', serif; color: #1a120b; font-weight: 700;">ANTWORT EINGEBEN</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="text-center">
+              <div class="font-display text-xs font-semibold mb-1" style="color: var(--gold);">4. Story & Rätsel</div>
+              <p style="color: rgba(245,234,208,0.55); font-size: 0.85rem; line-height: 1.5;">Jede Stele entfaltet ein Stück der Geschichte</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- WIE EINE STATION AUFGEBAUT IST -->
+      <div class="mb-16">
+        <h3 class="font-display text-xl font-semibold text-center mb-8" style="color: var(--gold);">Wie eine Station aufgebaut ist</h3>
+        <div class="grid md:grid-cols-3 gap-5">
+
+          <div class="p-5 rounded-lg" style="background: rgba(13,43,20,0.45); border: 1px solid rgba(201,168,76,0.15);">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="feature-icon" style="width: 40px; height: 40px; flex-shrink: 0;">
+                <i class="fa-solid fa-image text-sm"></i>
+              </div>
+              <h4 class="font-display text-sm font-semibold" style="color: var(--gold);">Foto der Location</h4>
+            </div>
+            <p style="color: rgba(245,234,208,0.65); font-size: 0.9rem; line-height: 1.7;">Ein echtes Foto des Ortes – Eingang, Gebäude, Baum, Scheune, was auch immer. Damit findet ihr den Ort auch ohne GPS, ganz natürlich.</p>
+          </div>
+
+          <div class="p-5 rounded-lg" style="background: rgba(13,43,20,0.45); border: 1px solid rgba(201,168,76,0.15);">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="feature-icon" style="width: 40px; height: 40px; flex-shrink: 0;">
+                <i class="fa-solid fa-signs-post text-sm"></i>
+              </div>
+              <h4 class="font-display text-sm font-semibold" style="color: var(--gold);">Wegbeschreibung</h4>
+            </div>
+            <p style="color: rgba(245,234,208,0.65); font-size: 0.9rem; line-height: 1.7;">Ein bis drei Sätze: „Vom Parkplatz die Treppe hoch, links durch das Burgtor, an der alten Mauer entlang …" – einfach, klar, funktioniert offline.</p>
+          </div>
+
+          <div class="p-5 rounded-lg" style="background: rgba(13,43,20,0.45); border: 1px solid rgba(201,168,76,0.15);">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="feature-icon" style="width: 40px; height: 40px; flex-shrink: 0;">
+                <i class="fa-solid fa-qrcode text-sm"></i>
+              </div>
+              <h4 class="font-display text-sm font-semibold" style="color: var(--gold);">Jeder QR-Code funktioniert</h4>
+            </div>
+            <p style="color: rgba(245,234,208,0.65); font-size: 0.9rem; line-height: 1.7;">Die App liest den Code, ignoriert seinen eigentlichen Inhalt und sucht ihn in eurer Stationsliste. So wird jeder vorhandene QR-Code im Freien zur Spielstation – ohne eigene Druckkosten.</p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- iOS PWA WICHTIGER HINWEIS -->
+      <div class="mb-16 p-6 rounded-lg" style="background: rgba(139,105,20,0.12); border: 1px solid rgba(201,168,76,0.35);">
+        <div class="flex items-start gap-4">
+          <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" style="background: rgba(201,168,76,0.2); border: 1px solid rgba(201,168,76,0.4);">
+            <i class="fa-brands fa-apple" style="color: var(--gold);"></i>
+          </div>
+          <div>
+            <h4 class="font-display text-sm font-semibold mb-2" style="color: var(--gold);">Wichtig für iPhone-Nutzer</h4>
+            <p style="color: rgba(245,234,208,0.75); font-size: 0.95rem; line-height: 1.7;">
+              Auf dem iPhone muss die App zwingend über <strong style="color: var(--parchment);">Safari</strong> installiert werden – nicht über Chrome, Firefox oder einen Link aus einer E-Mail. Nur Safari zeigt den „Zum Home-Bildschirm"-Button. Einmal installiert, funktioniert die App vollständig wie eine native App, inklusive Kamera-Zugriff für den QR-Scanner.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Installation Grid: Android + iOS nebeneinander mit visuellen Steps -->
+      <div class="grid md:grid-cols-2 gap-8 mb-16">
+
+        <!-- Android -->
+        <div class="p-6 rounded-lg" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(201,168,76,0.12);">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="feature-icon"><i class="fa-brands fa-android"></i></div>
+            <div>
+              <h4 class="font-display text-base font-semibold" style="color: var(--gold);">Android</h4>
+              <div class="text-xs opacity-40">Chrome · Samsung Internet · Edge</div>
+            </div>
+          </div>
+          <div class="space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 font-display text-xs font-bold" style="background: var(--gold-dark); color: var(--parchment);">1</div>
+              <span style="color: rgba(245,234,208,0.75); font-size: 0.95rem;">Diese Seite in <strong style="color: var(--parchment);">Chrome</strong> öffnen</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 font-display text-xs font-bold" style="background: var(--gold-dark); color: var(--parchment);">2</div>
+              <span style="color: rgba(245,234,208,0.75); font-size: 0.95rem;">Drei-Punkte-Menü <i class="fa-solid fa-ellipsis-vertical opacity-60"></i> oben rechts</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 font-display text-xs font-bold" style="background: var(--gold-dark); color: var(--parchment);">3</div>
+              <span style="color: rgba(245,234,208,0.75); font-size: 0.95rem;"><em>„Zum Startbildschirm hinzufügen"</em></span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 font-display text-xs font-bold" style="background: rgba(13,43,20,0.8); color: var(--gold); border: 1px solid var(--gold-dark);">✓</div>
+              <span style="color: rgba(201,168,76,0.8); font-size: 0.95rem;">App-Icon erscheint – sofort spielbereit</span>
+            </div>
+          </div>
+          <div class="mt-4 pt-4" style="border-top: 1px solid rgba(201,168,76,0.1);">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-circle-check text-xs" style="color: #4ade80;"></i>
+              <span style="color: rgba(245,234,208,0.45); font-size: 0.8rem;">Kein App-Store · Kein Download · Immer aktuell</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- iPhone -->
+        <div class="p-6 rounded-lg" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(201,168,76,0.12);">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="feature-icon"><i class="fa-brands fa-apple"></i></div>
+            <div>
+              <h4 class="font-display text-base font-semibold" style="color: var(--gold);">iPhone / iPad</h4>
+              <div class="text-xs opacity-40" style="color: #f97316;">Nur über Safari – nicht über andere Browser!</div>
+            </div>
+          </div>
+          <div class="space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 font-display text-xs font-bold" style="background: var(--gold-dark); color: var(--parchment);">1</div>
+              <span style="color: rgba(245,234,208,0.75); font-size: 0.95rem;">Link in <strong style="color: #f97316;">Safari</strong> öffnen <span style="color: rgba(245,234,208,0.35); font-size: 0.8rem;">(nicht Chrome!)</span></span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 font-display text-xs font-bold" style="background: var(--gold-dark); color: var(--parchment);">2</div>
+              <span style="color: rgba(245,234,208,0.75); font-size: 0.95rem;">Teilen-Button <i class="fa-solid fa-arrow-up-from-bracket opacity-60"></i> unten in der Mitte</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 font-display text-xs font-bold" style="background: var(--gold-dark); color: var(--parchment);">3</div>
+              <span style="color: rgba(245,234,208,0.75); font-size: 0.95rem;"><em>„Zum Home-Bildschirm"</em> wählen</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 font-display text-xs font-bold" style="background: var(--gold-dark); color: var(--parchment);">4</div>
+              <span style="color: rgba(245,234,208,0.75); font-size: 0.95rem;">Kamera-Erlaubnis beim ersten Scan erteilen</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 font-display text-xs font-bold" style="background: rgba(13,43,20,0.8); color: var(--gold); border: 1px solid var(--gold-dark);">✓</div>
+              <span style="color: rgba(201,168,76,0.8); font-size: 0.95rem;">App-Icon erscheint – sofort spielbereit</span>
+            </div>
+          </div>
+          <div class="mt-4 pt-4" style="border-top: 1px solid rgba(201,168,76,0.1);">
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-circle-check text-xs" style="color: #4ade80;"></i>
+              <span style="color: rgba(245,234,208,0.45); font-size: 0.8rem;">iOS 16.4+ · Vollständige Kamera-Unterstützung</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Berechtigungen -->
+      <div class="p-6 rounded-lg" style="background: rgba(201,168,76,0.05); border: 1px solid rgba(201,168,76,0.18);">
+        <h4 class="font-display text-sm font-semibold mb-5 flex items-center gap-2" style="color: var(--gold);">
+          <i class="fa-solid fa-shield-halved"></i> Benötigte Berechtigungen – was und warum
+        </h4>
+        <div class="grid sm:grid-cols-3 gap-5">
+          <div class="flex items-start gap-3">
+            <i class="fa-solid fa-camera text-lg mt-0.5" style="color: var(--gold);"></i>
+            <div>
+              <div class="text-sm font-semibold mb-0.5">Kamera</div>
+              <div class="text-xs opacity-50 leading-relaxed">Für den QR-Scanner an den Stationen. Die App liest den Code und ordnet ihn eurem Spiel zu – der eigentliche Inhalt des Codes ist egal.</div>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <i class="fa-solid fa-location-dot text-lg mt-0.5" style="color: var(--gold);"></i>
+            <div>
+              <div class="text-sm font-semibold mb-0.5">Standort</div>
+              <div class="text-xs opacity-50 leading-relaxed">Zeigt euren Standort auf der Stelen-Karte. Optional – ihr könnt auch ohne navigieren.</div>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <i class="fa-solid fa-bell text-lg mt-0.5" style="color: var(--gold);"></i>
+            <div>
+              <div class="text-sm font-semibold mb-0.5">Push-Nachrichten</div>
+              <div class="text-xs opacity-50 leading-relaxed">Für Hinweise und euren Zugangscode kurz vor dem Spielbeginn. Nur nach Installation.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOTO-TRENNER: Schlossbergturm -->
+  <div class="photo-divider photo-divider-2" style="min-height: 280px;">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 w-full py-16 text-center">
+      <div class="font-display text-xs tracking-widest mb-4 opacity-50">DER SCHLOSSBERGTURM</div>
+      <h3 class="font-display text-3xl sm:text-4xl font-bold mb-4" style="color: var(--parchment);">25 Meter über dem Frankenwald</h3>
+      <p class="max-w-xl mx-auto" style="color: rgba(245,234,208,0.65); font-size: 1.05rem; line-height: 1.8;">Der Bergfried bietet einen atemberaubenden Panoramablick über das Höllental bis nach Thüringen – und eine der atmosphärischsten Stationen des gesamten Abenteuers.</p>
+    </div>
+  </div>
+
+  <!-- FOTO-TRENNER: Burgruine Mauern -->
+  <div class="photo-divider photo-divider-3" style="min-height: 260px;">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 w-full py-16">
+      <div class="max-w-xl ml-auto text-right">
+        <div class="font-display text-xs tracking-widest mb-3 opacity-50">DAS ABENTEUER WARTET</div>
+        <h3 class="font-display text-3xl sm:text-4xl font-bold mb-4" style="color: var(--parchment);">Werdet Teil der Legende</h3>
+        <p style="color: rgba(245,234,208,0.7); font-size: 1.05rem; line-height: 1.8;">Seit 800 n. Chr. erzählt diese Burg Geschichten von Mut, Verrat und verborgenen Schätzen. Jetzt seid ihr dran – löst den Fluch des Raubritters.</p>
+        <a href="#kalender" class="btn-primary inline-block mt-5" style="padding: 0.85rem 2rem;">
+          <i class="fa-solid fa-calendar-check mr-2"></i> Termin buchen
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preise -->
+  <section style="background: var(--stone); padding: 5rem 0; border-top: 1px solid rgba(201,168,76,0.1);">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+      <div class="font-display text-xs tracking-widest mb-3 opacity-50">INVESTITION</div>
+      <h2 class="font-display text-3xl font-bold mb-4" style="color: var(--parchment);">Preise</h2>
+      <div class="w-16 h-px mx-auto mb-10" style="background: linear-gradient(to right, transparent, var(--gold), transparent);"></div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="p-5 rounded text-center" style="background: rgba(13,43,20,0.5); border: 1px solid rgba(201,168,76,0.15);">
+          <div class="font-display text-2xl font-bold" style="color: var(--gold);">25 €</div>
+          <div class="text-xs opacity-50 mt-1 tracking-wider">1 PERSON</div>
+        </div>
+        <div class="p-5 rounded text-center" style="background: rgba(13,43,20,0.5); border: 1px solid rgba(201,168,76,0.15);">
+          <div class="font-display text-2xl font-bold" style="color: var(--gold);">33 €</div>
+          <div class="text-xs opacity-50 mt-1 tracking-wider">2 PERSONEN</div>
+        </div>
+        <div class="p-5 rounded text-center" style="background: rgba(13,43,20,0.5); border: 1px solid rgba(201,168,76,0.15);">
+          <div class="font-display text-2xl font-bold" style="color: var(--gold);">57 €</div>
+          <div class="text-xs opacity-50 mt-1 tracking-wider">5 PERSONEN</div>
+        </div>
+        <div class="p-5 rounded text-center" style="background: rgba(26,74,36,0.5); border: 1px solid var(--gold-dark);">
+          <div class="font-display text-2xl font-bold" style="color: var(--gold);">99 €</div>
+          <div class="text-xs mt-1 tracking-wider" style="color: var(--gold); opacity: 0.7;">BIS 10 PERS.</div>
+          <div class="text-xs mt-0.5" style="color: var(--gold); opacity: 0.5;">Flat Rate</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer style="background: #0d0a07; border-top: 1px solid rgba(201,168,76,0.15); padding: 3rem 0;">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6">
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="text-center sm:text-left">
+          <div class="font-display text-sm mb-1" style="color: var(--gold);">Raubritter Escape</div>
+          <p class="text-xs opacity-40">© 2026 Stadt Lichtenberg • Frankenwald</p>
+        </div>
+        <div class="flex gap-6 text-xs opacity-50">
+          <a href="#impressum" class="hover:opacity-100" style="color: var(--parchment);">Impressum</a>
+          <a href="#agb" class="hover:opacity-100" style="color: var(--parchment);">AGB</a>
+          <a href="#datenschutz" class="hover:opacity-100" style="color: var(--parchment);">Datenschutz</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Rechtliches -->
+  <section id="impressum" style="background: #0d0a07; padding: 4rem 0; border-top: 1px solid rgba(201,168,76,0.1);">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6">
+      <h2 class="font-display text-2xl font-bold mb-8" style="color: var(--gold);">Impressum</h2>
+      <div style="color: rgba(245,234,208,0.7); line-height: 2; font-size: 1rem;">
+        <p style="margin-bottom:1.25rem;">
+          <strong style="color:var(--parchment);">Angaben gemäß § 5 TMG</strong><br>
+          Raubritter-Escape<br>
+          Inhaber: [Dein Vor- und Nachname]<br>
+          [Straße und Hausnummer]<br>
+          95192 Lichtenberg i. Frankenwald
+        </p>
+        <p style="margin-bottom:1.25rem;">
+          <strong style="color:var(--parchment);">Kontakt</strong><br>
+          E-Mail: kontakt@raubritter-escape.de
+        </p>
+        <p style="margin-bottom:1.25rem;">
+          <strong style="color:var(--parchment);">Umsatzsteuer</strong><br>
+          Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).
+        </p>
+        <p style="margin-bottom:1.25rem;">
+          <strong style="color:var(--parchment);">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</strong><br>
+          [Dein Vor- und Nachname]<br>
+          [Straße und Hausnummer]<br>
+          95192 Lichtenberg i. Frankenwald
+        </p>
+        <p style="margin-bottom:1.25rem;">
+          <strong style="color:var(--parchment);">Streitschlichtung</strong><br>
+          Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:
+          <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener" style="color:var(--gold);">https://ec.europa.eu/consumers/odr</a>.<br>
+          Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer
+          Verbraucherschlichtungsstelle teilzunehmen.
+        </p>
+        <p style="opacity:0.45; font-size:0.85rem;">
+          [Dein Name] und [Deine Adresse] bitte noch eintragen – markierte Stellen in eckigen Klammern.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="agb" style="background: #0d0a07; padding: 4rem 0; border-top: 1px solid rgba(201,168,76,0.08);">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6">
+      <h2 class="font-display text-2xl font-bold mb-8" style="color: var(--gold);">Allgemeine Geschäftsbedingungen</h2>
+      <div style="color: rgba(245,234,208,0.7); line-height: 2; font-size: 1rem;">
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">§ 1 Geltungsbereich</strong></p>
+        <p style="margin-bottom:1.25rem;">Diese AGB gelten für alle Buchungen über raubritter-escape.de zwischen dem Anbieter Raubritter-Escape, Inhaber [Name], 95192 Lichtenberg i. Frankenwald (nachfolgend „Anbieter") und dem Kunden.</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">§ 2 Leistungsbeschreibung</strong></p>
+        <p style="margin-bottom:1.25rem;">Der Anbieter bietet ein Outdoor-Escape-Game an der Burgruine Lichtenberg und umliegenden Stationen an. Das Erlebnis umfasst die Nutzung eines Rucksacks mit Rätselmaterial sowie Zugang zur Raubritter-Escape-App für die Dauer des gebuchten Zeitslots.</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">§ 3 Buchung und Vertragsschluss</strong></p>
+        <p style="margin-bottom:1.25rem;">Die Buchung erfolgt über das Online-Formular auf dieser Website. Mit dem Absenden der Buchung gibt der Kunde ein verbindliches Angebot ab. Der Vertrag kommt mit Erhalt der Buchungsbestätigung per E-Mail zustande.</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">§ 4 Preise und Zahlung</strong></p>
+        <p style="margin-bottom:1.25rem;">Alle Preise sind Endpreise gemäß § 19 UStG (Kleinunternehmerregelung, keine MwSt. ausgewiesen). Die Zahlung erfolgt per PayPal oder Banküberweisung vor dem Spieltermin. Bei Banküberweisung muss der Betrag spätestens 3 Tage vor dem Termin eingegangen sein.</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">§ 5 Stornierung und Rücktritt</strong></p>
+        <p style="margin-bottom:1.25rem;">
+          Stornierungen sind möglich unter folgenden Bedingungen:<br>
+          – Bis 48 Stunden vor Spielbeginn: vollständige Erstattung<br>
+          – 24–48 Stunden vorher: 50 % Erstattung<br>
+          – Weniger als 24 Stunden vorher: keine Erstattung<br>
+          Bei Stornierung durch den Anbieter (z.B. bei extremen Wetterbedingungen) wird der volle Betrag erstattet oder ein Ausweichtermin angeboten.
+        </p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">§ 6 Pflichten des Kunden</strong></p>
+        <p style="margin-bottom:1.25rem;">Der Kunde ist verpflichtet, das ausgehändigte Equipment pfleglich zu behandeln und vollständig zurückzugeben. Bei Verlust oder Beschädigung von Rätselmaterial kann ein Ersatz in Höhe des tatsächlichen Schadens in Rechnung gestellt werden. Das Spielmaterial ist ausschließlich für den Eigenbedarf bestimmt.</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">§ 7 Haftung</strong></p>
+        <p style="margin-bottom:1.25rem;">Das Outdoor-Escape-Game findet im Freien statt. Die Teilnahme erfolgt auf eigene Gefahr. Der Anbieter haftet nicht für Unfälle, die auf unachtsames Verhalten der Teilnehmer zurückzuführen sind. Kinder unter 12 Jahren dürfen nur in Begleitung Erwachsener teilnehmen.</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">§ 8 Widerrufsrecht</strong></p>
+        <p style="margin-bottom:1.25rem;">Bei Buchung eines konkreten Termins (Freizeitdienstleistung) gilt gemäß § 312g Abs. 2 Nr. 9 BGB kein gesetzliches Widerrufsrecht. Eine freiwillige Stornierung ist gemäß § 5 möglich.</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">§ 9 Anwendbares Recht</strong></p>
+        <p style="margin-bottom:0;">Es gilt deutsches Recht. Gerichtsstand ist Lichtenberg i. Frankenwald.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="datenschutz" style="background: #0d0a07; padding: 4rem 0; border-top: 1px solid rgba(201,168,76,0.08);">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6">
+      <h2 class="font-display text-2xl font-bold mb-8" style="color: var(--gold);">Datenschutzerklärung</h2>
+      <div style="color: rgba(245,234,208,0.7); line-height: 2; font-size: 1rem;">
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">1. Verantwortlicher</strong></p>
+        <p style="margin-bottom:1.25rem;">
+          Raubritter-Escape, Inhaber [Dein Name]<br>
+          [Adresse], 95192 Lichtenberg i. Frankenwald<br>
+          E-Mail: kontakt@raubritter-escape.de
+        </p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">2. Erhobene Daten bei der Buchung</strong></p>
+        <p style="margin-bottom:1.25rem;">Bei einer Buchung erheben wir folgende personenbezogene Daten: Vor- und Nachname, E-Mail-Adresse, Telefonnummer (freiwillig), Buchungsdatum und -uhrzeit, Personenanzahl sowie Zahlungsart. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung).</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">3. Speicherung und Löschung</strong></p>
+        <p style="margin-bottom:1.25rem;">Buchungsdaten werden in der Datenbank unseres Dienstleisters Supabase Inc. (USA) gespeichert. Supabase ist nach dem EU-US Data Privacy Framework zertifiziert. Daten werden nach Ablauf der gesetzlichen Aufbewahrungsfrist (10 Jahre für steuerrelevante Unterlagen) gelöscht.</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">4. Zahlungsabwicklung via PayPal</strong></p>
+        <p style="margin-bottom:1.25rem;">Bei Zahlung per PayPal werden die notwendigen Zahlungsdaten an PayPal (Europe) S.à.r.l. et Cie, S.C.A., 22-24 Boulevard Royal, L-2449 Luxemburg übermittelt. Es gelten die Datenschutzbestimmungen von PayPal: <a href="https://www.paypal.com/de/webapps/mpp/ua/privacy-full" target="_blank" rel="noopener" style="color:var(--gold);">paypal.com/de/privacy</a>. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">5. Progressive Web App (PWA)</strong></p>
+        <p style="margin-bottom:1.25rem;">Die Spieler-App kann als PWA auf dem Homescreen installiert werden. Dabei werden keine zusätzlichen personenbezogenen Daten erhoben. Die App nutzt die Gerätekamera ausschließlich zum Scannen von QR-Codes während des Spiels. Kamerabilder werden nicht gespeichert oder übertragen.</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">6. Hosting via Netlify</strong></p>
+        <p style="margin-bottom:1.25rem;">Diese Website wird über Netlify Inc., 44 Montgomery Street, San Francisco, CA 94104, USA gehostet. Beim Aufruf der Website werden technische Zugriffsdaten (IP-Adresse, Browsertyp, Uhrzeit) in Server-Logs gespeichert. Netlify ist nach dem EU-US Data Privacy Framework zertifiziert. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an sicherem Betrieb).</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">7. Keine Cookies, kein Tracking</strong></p>
+        <p style="margin-bottom:1.25rem;">Diese Website verwendet keine Tracking-Cookies und keine Analyse-Tools wie Google Analytics. Es werden keine Nutzerprofile erstellt.</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">8. Ihre Rechte</strong></p>
+        <p style="margin-bottom:1.25rem;">Sie haben das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18) und Datenübertragbarkeit (Art. 20). Anfragen richten Sie bitte an: kontakt@raubritter-escape.de</p>
+
+        <p style="margin-bottom:0.5rem;"><strong style="color:var(--parchment);">9. Beschwerderecht</strong></p>
+        <p style="margin-bottom:0;">Sie haben das Recht, sich bei der zuständigen Aufsichtsbehörde zu beschweren. Zuständig ist das Bayerische Landesamt für Datenschutzaufsicht (BayLDA), Promenade 27, 91522 Ansbach.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- MODAL -->
+  <!-- ============================================================ -->
+  <div id="modal-overlay">
+    <div id="modal-box">
+      <!-- Progress Bar -->
+      <div id="modal-progress" class="modal-header">
+        <div class="flex items-center justify-between gap-2">
+          <div class="progress-step">
+            <div class="progress-dot step-active" id="prog-1">1</div>
+            <span id="prog-1-label" class="hidden sm:inline" style="color: rgba(245,234,208,0.6); font-size: 0.65rem; letter-spacing: 0.08em;">ZEITSLOT</span>
+          </div>
+          <div class="flex-1 h-px mx-2" style="background: rgba(201,168,76,0.2);" id="prog-line-1"></div>
+          <div class="progress-step">
+            <div class="progress-dot step-inactive" id="prog-2">2</div>
+            <span id="prog-2-label" class="hidden sm:inline" style="color: rgba(245,234,208,0.3); font-size: 0.65rem; letter-spacing: 0.08em;">DEINE DATEN</span>
+          </div>
+          <div class="flex-1 h-px mx-2" style="background: rgba(201,168,76,0.2);" id="prog-line-2"></div>
+          <div class="progress-step">
+            <div class="progress-dot step-inactive" id="prog-3">3</div>
+            <span id="prog-3-label" class="hidden sm:inline" style="color: rgba(245,234,208,0.3); font-size: 0.65rem; letter-spacing: 0.08em;">ZAHLUNG</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="modal-content" class="p-6 sm:p-8"></div>
+    </div>
+  </div>
+
+  <!-- NOTIFICATION -->
+  <div id="notification" class="rounded-lg p-4 shadow-2xl" style="background: var(--forest-mid); border: 1px solid rgba(201,168,76,0.4);">
+    <div class="flex items-start gap-3">
+      <i id="notif-icon" class="fa-solid fa-circle-check text-xl mt-0.5" style="color: var(--gold);"></i>
+      <div>
+        <div class="font-display text-sm font-semibold mb-1" style="color: var(--gold);" id="notif-title"></div>
+        <div class="text-sm" style="color: rgba(245,234,208,0.8);" id="notif-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- JAVASCRIPT -->
+  <!-- ============================================================ -->
+  <script>
+  // ─────────────────────────────────────────────
+  // SUPABASE KONFIGURATION
+  // ─────────────────────────────────────────────
+  const SUPABASE_URL = 'https://uulpxvyjevnvggvamhha.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1bHB4dnlqZXZudmdndmFtaGhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODA5MjIsImV4cCI6MjA5Mjk1NjkyMn0.XJWbivvaWU4WVD-48_-Pnlr5XfKkjSHuIvVqdpq-bH4';
+
+  // ─────────────────────────────────────────────
+  // PAYPAL CLIENT ID
+  // ─────────────────────────────────────────────
+  const PAYPAL_CLIENT_ID = 'BAAPkZ7jOC6kFvfNELz0qqPD14tfo33YbPsUwaDHCBJWeFPYfyJ0FJ5e2FDK8rsnUqtRj95QyAHB6pa8yo';
+
+  // Supabase-Tabelle: bookings
+  // Spalten: id (uuid), created_at, slot_date (date), slot_time (text),
+  //          name (text), email (text), phone (text), persons (int),
+  //          total_price (int), payment_method (text), status (text)
+  //
+  // Row Level Security: INSERT für alle, SELECT nur für authenticated
+  //
+  // Email via Supabase Edge Function "send-booking-email":
+  // Diese wird nach erfolgreichem INSERT aufgerufen und sendet
+  // eine Bestätigungs-E-Mail via Resend oder Postmark.
+
+  async function supabaseInsert(data) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/bookings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        return { success: false, error: err };
+      }
+      return { success: true };
+    } catch(e) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  async function loadBookedSlots(weekStart) {
+    try {
+      const endDate = new Date(weekStart);
+      endDate.setDate(endDate.getDate() + 7);
+      // isoDate() statt toISOString() – verhindert UTC-Verschiebung
+      const startStr = isoDate(weekStart);
+      const endStr = isoDate(endDate);
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/bookings?select=slot_date,slot_time&slot_date=gte.${startStr}&slot_date=lt.${endStr}&status=eq.paid`,
+        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+      );
+      if (!res.ok) return [];
+      const rows = await res.json();
+      if (!Array.isArray(rows)) return [];
+      return rows.map(r => `${r.slot_date}T${r.slot_time.substring(0, 5)}`);
+    } catch { return []; }
+  }
+
+  // ─────────────────────────────────────────────
+  // KONFIGURATION
+  // ─────────────────────────────────────────────
+  const TIMES = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00'];
+  const DAYS_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  const DAYS_LONG = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+
+  // Startdaten der Wochen (Montag je Woche)
+  const WEEKS = [
+    new Date(2026, 4, 18), // 18. Mai 2026
+    new Date(2026, 4, 25), // 25. Mai 2026
+    new Date(2026, 5,  1), // 1. Juni 2026
+  ];
+
+  // Demo-Buchungen nur als Fallback wenn Supabase nicht erreichbar
+  const DEMO_BOOKED = [];
+
+  let currentWeek = 0;
+  let bookedSlots = [];
+  let selectedSlot = null;
+
+  // ─────────────────────────────────────────────
+  // HILFSFUNKTIONEN
+  // ─────────────────────────────────────────────
+  function formatDate(date) {
+    return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function isoDate(date) {
+    // Lokales Datum verwenden statt UTC – verhindert Zeitzone-Verschiebung
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function slotKey(date, time) {
+    return `${isoDate(date)}T${time}`;
+  }
+
+  function calcPrice(persons) {
+    if (!persons || persons < 1) return 0;
+    if (persons === 1) return 25;
+    if (persons >= 10) return 99;
+    return Math.round(25 + (persons - 1) * 8.222);
+  }
+
+  function formatWeekLabel(monday) {
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const opts = { day: '2-digit', month: '2-digit' };
+    return `${monday.toLocaleDateString('de-DE', opts)} – ${sunday.toLocaleDateString('de-DE', opts)}`;
+  }
+
+  // ─────────────────────────────────────────────
+  // WOCHENNAVIGATION
+  // ─────────────────────────────────────────────
+  function renderWeekNav() {
+    const nav = document.getElementById('weekNav');
+    nav.innerHTML = WEEKS.map((w, i) => `
+      <button onclick="switchWeek(${i})" id="weekBtn${i}"
+        class="btn-secondary font-display text-xs tracking-wider px-5 py-2.5 ${i === 0 ? 'week-btn-active' : ''}">
+        ${formatWeekLabel(w)}
+      </button>
+    `).join('');
+  }
+
+  async function switchWeek(i) {
+    currentWeek = i;
+    document.querySelectorAll('#weekNav button').forEach((btn, j) => {
+      btn.classList.toggle('week-btn-active', j === i);
+    });
+    bookedSlots = await loadBookedSlots(WEEKS[i]);
+    renderCalendar();
+  }
+
+  // ─────────────────────────────────────────────
+  // KALENDER
+  // ─────────────────────────────────────────────
+  function renderCalendar() {
+    const monday = WEEKS[currentWeek];
+    let html = '<div class="grid grid-cols-7" style="gap: 1px; background: rgba(201,168,76,0.1);">';
+
+    // Header
+    DAYS_SHORT.forEach((d, i) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      const isWeekend = i >= 5;
+      html += `
+        <div class="p-2 sm:p-3 text-center font-display text-xs tracking-wider" style="background: rgba(13,43,20,0.9); color: ${isWeekend ? 'var(--gold)' : 'rgba(245,234,208,0.6)'};">
+          <div>${d}</div>
+          <div class="text-lg font-bold mt-0.5" style="color: ${isWeekend ? 'var(--gold)' : 'var(--parchment)'}; font-family: 'Cinzel', serif;">${date.getDate()}</div>
+        </div>`;
+    });
+
+    // Slots
+    TIMES.forEach(time => {
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        const key = slotKey(date, time);
+        const booked = bookedSlots.includes(key);
+        const selected = selectedSlot && selectedSlot.key === key;
+        const isPast = date < new Date();
+
+        let cls, onclick;
+        if (booked) {
+          cls = 'slot-booked';
+          onclick = '';
+        } else if (isPast) {
+          cls = 'slot-booked';
+          onclick = '';
+        } else if (selected) {
+          cls = 'slot-available slot-selected';
+          onclick = `selectSlot('${key}', '${isoDate(date)}', '${time}', '${DAYS_LONG[i]}, ${formatDate(date)}')`;
+        } else {
+          cls = 'slot-available';
+          onclick = `selectSlot('${key}', '${isoDate(date)}', '${time}', '${DAYS_LONG[i]}, ${formatDate(date)}')`;
+        }
+
+        html += `
+          <div class="${cls} p-2 sm:p-3 text-center" onclick="${onclick}">
+            ${booked
+              ? `<span class="text-xs sm:text-sm" style="color: rgba(255,100,100,0.5); text-decoration: line-through;">${time}</span>`
+              : `<span class="text-xs sm:text-sm font-semibold" style="color: ${selected ? 'var(--gold)' : 'rgba(245,234,208,0.85)'}; font-family: 'Cinzel', serif;">${time}</span>`
+            }
+          </div>`;
+      }
+    });
+
+    html += '</div>';
+    document.getElementById('calendar').innerHTML = html;
+  }
+
+  function selectSlot(key, isoDateStr, time, displayStr) {
+    selectedSlot = { key, isoDate: isoDateStr, time, displayStr };
+    renderCalendar();
+    openModal();
+  }
+
+  // ─────────────────────────────────────────────
+  // MODAL
+  // ─────────────────────────────────────────────
+  function openModal() { setStep(1); document.getElementById('modal-overlay').classList.add('open'); }
+  function _closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    selectedSlot = null;
+    renderCalendar();
+  }
+
+  document.getElementById('modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) _closeModal();
+  });
+
+  function updateProgress(step) {
+    [1,2,3].forEach(s => {
+      const dot = document.getElementById(`prog-${s}`);
+      const label = document.getElementById(`prog-${s}-label`);
+      dot.className = 'progress-dot ' + (s < step ? 'step-done' : s === step ? 'step-active' : 'step-inactive');
+      if (label) label.style.color = s <= step ? 'rgba(245,234,208,0.8)' : 'rgba(245,234,208,0.3)';
+    });
+  }
+
+  function _setStep(step) {
+    updateProgress(step);
+    const content = document.getElementById('modal-content');
+    if (step === 1) renderStep1(content);
+    if (step === 2) renderStep2(content);
+    if (step === 3) renderStep3(content);
+  }
+
+  // ─────────────────────────────────────────────
+  // SCHRITT 1 – Slotbestätigung
+  // ─────────────────────────────────────────────
+  function renderStep1(el) {
+    el.innerHTML = `
+      <div class="font-display text-xs tracking-widest mb-1 opacity-40">DEINE AUSWAHL</div>
+      <h3 class="font-display text-xl font-bold mb-6" style="color: var(--parchment);">Zeitslot bestätigen</h3>
+
+      <div class="p-5 rounded mb-6" style="background: rgba(13,43,20,0.5); border: 1px solid rgba(201,168,76,0.3);">
+        <div class="flex items-center gap-4">
+          <div class="feature-icon">
+            <i class="fa-solid fa-calendar-check"></i>
+          </div>
+          <div>
+            <div class="font-display text-sm font-semibold" style="color: var(--gold);">${selectedSlot.displayStr}</div>
+            <div class="text-sm opacity-60 mt-0.5">Startzeit: ${selectedSlot.time} Uhr • Dauer: ca. 2–3 Stunden</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-4 rounded text-sm mb-8" style="background: rgba(201,168,76,0.06); border: 1px solid rgba(201,168,76,0.15); color: rgba(245,234,208,0.7); line-height: 1.7;">
+        <i class="fa-solid fa-circle-info mr-2" style="color: var(--gold);"></i>
+        Bitte seid pünktlich am Outdoor-Schrank. Bei starkem Unwetter behalten wir uns vor, euch zu kontaktieren.
+      </div>
+
+      <div class="flex gap-3">
+        <button onclick="closeModal()" class="btn-secondary flex-1">Abbrechen</button>
+        <button onclick="setStep(2)" class="btn-primary flex-1">Weiter <i class="fa-solid fa-arrow-right ml-2"></i></button>
+      </div>
+    `;
+  }
+
+  // ─────────────────────────────────────────────
+  // SCHRITT 2 – Persönliche Daten
+  // ─────────────────────────────────────────────
+  function renderStep2(el) {
+    el.innerHTML = `
+      <div class="font-display text-xs tracking-widest mb-1 opacity-40">EURE GRUPPE</div>
+      <h3 class="font-display text-xl font-bold mb-6" style="color: var(--parchment);">Anmeldeformular</h3>
+
+      <div class="space-y-4 mb-2">
+        <div>
+          <label class="block text-xs opacity-50 tracking-wider mb-1.5 font-display">VOR- UND NACHNAME *</label>
+          <input type="text" id="f-name" placeholder="Max Mustermann" autocomplete="name">
+        </div>
+        <div>
+          <label class="block text-xs opacity-50 tracking-wider mb-1.5 font-display">E-MAIL-ADRESSE *</label>
+          <input type="email" id="f-email" placeholder="max@beispiel.de" autocomplete="email">
+        </div>
+        <div>
+          <label class="block text-xs opacity-50 tracking-wider mb-1.5 font-display">TELEFONNUMMER</label>
+          <input type="tel" id="f-phone" placeholder="+49 …" autocomplete="tel">
+        </div>
+        <div>
+          <label class="block text-xs opacity-50 tracking-wider mb-1.5 font-display">ANZAHL PERSONEN *</label>
+          <select id="f-persons" onchange="updatePriceDisplay()">
+            <option value="">Bitte wählen …</option>
+            ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}">${n} Person${n > 1 ? 'en' : ''}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <div id="price-display" class="text-center py-3 mb-4 min-h-[48px] transition-all duration-300"></div>
+
+      <div class="flex items-start gap-3 mb-6 p-3 rounded" style="background: rgba(255,255,255,0.03);">
+        <input type="checkbox" id="f-agb" class="mt-1" style="width: auto; background: transparent; border: 1px solid rgba(201,168,76,0.4) !important; accent-color: var(--gold-dark);">
+        <label for="f-agb" class="text-sm" style="color: rgba(245,234,208,0.65); line-height: 1.6;">
+          Ich akzeptiere die <a href="#agb" onclick="closeModal()" style="color: var(--gold);">AGB</a> und die
+          <a href="#datenschutz" onclick="closeModal()" style="color: var(--gold);">Datenschutzerklärung</a>
+        </label>
+      </div>
+
+      <div class="flex gap-3">
+        <button onclick="setStep(1)" class="btn-secondary flex-1"><i class="fa-solid fa-arrow-left mr-2"></i> Zurück</button>
+        <button onclick="validateAndNext()" class="btn-primary flex-1">Weiter zur Zahlung <i class="fa-solid fa-arrow-right ml-2"></i></button>
+      </div>
+    `;
+  }
+
+  function updatePriceDisplay() {
+    const p = parseInt(document.getElementById('f-persons')?.value);
+    const el = document.getElementById('price-display');
+    if (!el) return;
+    if (!p) { el.innerHTML = ''; return; }
+    const price = calcPrice(p);
+    el.innerHTML = `
+      <div class="font-display text-xs tracking-wider mb-1 opacity-40">GESAMTPREIS</div>
+      <div class="font-display text-3xl font-bold" style="color: var(--gold);">${price} €</div>
+      <div class="text-xs opacity-40 mt-0.5">${p >= 10 ? 'Flat Rate für bis zu 10 Personen' : `${p} Person${p > 1 ? 'en' : ''} · ${Math.round(price/p * 10)/10} € pro Person`}</div>
+    `;
+  }
+
+  let bookingData = {};
+
+  function validateAndNext() {
+    const name = document.getElementById('f-name').value.trim();
+    const email = document.getElementById('f-email').value.trim();
+    const phone = document.getElementById('f-phone').value.trim();
+    const persons = parseInt(document.getElementById('f-persons').value);
+    const agb = document.getElementById('f-agb').checked;
+
+    if (!name) { shakeField('f-name'); return; }
+    if (!email || !/\S+@\S+\.\S+/.test(email)) { shakeField('f-email'); return; }
+    if (!persons) { shakeField('f-persons'); return; }
+    if (!agb) { showNotification('Bitte AGB akzeptieren', 'Zur Buchung müssen die AGB und Datenschutzerklärung akzeptiert werden.', 'warning'); return; }
+
+    bookingData = { name, email, phone, persons, price: calcPrice(persons) };
+    _setStep(3);
+  }
+
+  function shakeField(id) {
+    const el = document.getElementById(id);
+    el.style.borderColor = '#e05050 !important';
+    el.style.animation = 'none';
+    el.offsetHeight; // reflow
+    el.style.animation = 'shake 0.4s ease';
+    setTimeout(() => { el.style.borderColor = ''; el.style.animation = ''; }, 500);
+    el.focus();
+  }
+
+  // ─────────────────────────────────────────────
+  // SCHRITT 3 – Zahlung
+  // ─────────────────────────────────────────────
+  function renderStep3(el) {
+    el.innerHTML = `
+      <div class="font-display text-xs tracking-widest mb-1 opacity-40">LETZTER SCHRITT</div>
+      <h3 class="font-display text-xl font-bold mb-2" style="color: var(--parchment);">Zahlung</h3>
+
+      <div class="p-4 rounded mb-5" style="background: rgba(13,43,20,0.4); border: 1px solid rgba(201,168,76,0.15);">
+        <div class="flex justify-between items-center">
+          <span style="color: rgba(245,234,208,0.6); font-size:0.9rem;">${bookingData.name} · ${selectedSlot.displayStr} · ${bookingData.persons} Person${bookingData.persons > 1 ? 'en' : ''}</span>
+          <span class="font-display font-bold" style="color: var(--gold);">${bookingData.price} €</span>
+        </div>
+      </div>
+
+      <!-- PayPal SDK Buttons (PayPal, Kreditkarte, Apple Pay, Google Pay) -->
+      <div id="paypal-button-container" style="margin-bottom:0.75rem;"></div>
+
+      <!-- Ladeindikator -->
+      <div id="paypal-loading" style="text-align:center; padding:1.5rem 0; color:rgba(245,234,208,0.4);">
+        <i class="fa-solid fa-spinner fa-spin mr-2"></i>
+        <span style="font-family:'Cinzel',serif; font-size:0.75rem; letter-spacing:0.08em;">ZAHLUNGSOPTIONEN LADEN …</span>
+      </div>
+
+      <!-- Banküberweisung auf Anfrage -->
+      <div style="margin-top:0.75rem; padding:0.75rem; border-radius:4px; text-align:center;
+        background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);">
+        <p style="font-size:0.82rem; color:rgba(245,234,208,0.35); line-height:1.6;">
+          Banküberweisung auf Anfrage:
+          <a href="mailto:kontakt@raubritter-escape.de" style="color:rgba(201,168,76,0.6); text-decoration:none;">
+            kontakt@raubritter-escape.de
+          </a>
+        </p>
+      </div>
+
+      <div style="margin-top:0.75rem;">
+        <button onclick="setStep(2)" class="btn-secondary" style="width:100%; opacity:0.5; font-size:0.75rem;">
+          <i class="fa-solid fa-arrow-left mr-2"></i> Zurück
+        </button>
+      </div>
+    `;
+
+    loadPayPalSDK();
+  }
+
+  function loadPayPalSDK() {
+    if (window.paypal) { initPayPalButtons(); return; }
+    const script = document.createElement('script');
+    // Einfache SDK-URL – Apple Pay / Google Pay erscheinen automatisch
+    // sobald sie im PayPal Business Dashboard aktiviert sind
+    script.src = `https://www.paypal.com/sdk/js?client-id=${PAYPAL_CLIENT_ID}&currency=EUR&locale=de_DE`;
+    script.setAttribute('data-sdk-integration-source', 'button-factory');
+    script.onload = () => initPayPalButtons();
+    script.onerror = () => {
+      const loading = document.getElementById('paypal-loading');
+      if (loading) loading.innerHTML =
+        `<span style="color:rgba(245,234,208,0.5); font-family:'Cinzel',serif; font-size:0.72rem; line-height:1.8;">
+          Zahlung gerade nicht verfügbar.<br>
+          Bitte per E-Mail anfragen:<br>
+          <a href="mailto:kontakt@raubritter-escape.de" style="color:var(--gold);">kontakt@raubritter-escape.de</a>
+        </span>`;
+    };
+    document.head.appendChild(script);
+  }
+
+  function initPayPalButtons() {
+    const container = document.getElementById('paypal-button-container');
+    const loading = document.getElementById('paypal-loading');
+    if (!container || !window.paypal) return;
+
+    loading.style.display = 'none';
+
+    // Prüfen ob Client ID gesetzt ist
+    if (PAYPAL_CLIENT_ID === 'DEINE-PAYPAL-CLIENT-ID') {
+      container.innerHTML = `
+        <div style="background:rgba(139,105,20,0.15); border:1px solid rgba(201,168,76,0.3); border-radius:4px; padding:1rem; text-align:center;">
+          <i class="fa-solid fa-triangle-exclamation mr-2" style="color:var(--gold);"></i>
+          <span style="font-family:'Cinzel',serif; font-size:0.72rem; color:var(--gold);">
+            PayPal Client ID noch nicht eingetragen.<br>Bitte Banküberweisung nutzen.
+          </span>
+        </div>`;
+      return;
+    }
+
+    paypal.Buttons({
+      style: {
+        layout: 'vertical',
+        color: 'gold',
+        shape: 'rect',
+        label: 'pay',
+        height: 45,
+      },
+
+      // Bestellung anlegen
+      createOrder: async (data, actions) => {
+        // Zustand vor PayPal-Popup sichern – Edge öffnet neues Fenster
+        // und kann den JS-Kontext verlieren
+        sessionStorage.setItem('rb_slot', JSON.stringify(selectedSlot));
+        sessionStorage.setItem('rb_booking', JSON.stringify(bookingData));
+
+        return actions.order.create({
+          purchase_units: [{
+            description: `Raubritter Escape – ${selectedSlot.displayStr}`,
+            amount: {
+              value: String(bookingData.price),
+              currency_code: 'EUR'
+            }
+          }],
+          application_context: {
+            brand_name: 'Raubritter Escape',
+            locale: 'de-DE',
+            shipping_preference: 'NO_SHIPPING',
+            user_action: 'PAY_NOW'
+          }
+        });
+      },
+
+      onApprove: async (data, actions) => {
+        try {
+          // Zustand aus sessionStorage wiederherstellen falls verloren
+          if (!selectedSlot) {
+            const s = sessionStorage.getItem('rb_slot');
+            if (s) selectedSlot = JSON.parse(s);
+          }
+          if (!bookingData || !bookingData.name) {
+            const b = sessionStorage.getItem('rb_booking');
+            if (b) bookingData = JSON.parse(b);
+          }
+
+          const capture = await actions.order.capture();
+          const orderId = data.orderID;
+          console.log('PayPal onApprove:', { orderId, status: capture?.status });
+
+          // 6-stelligen App-Code generieren (ohne verwechselbare Zeichen)
+          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+          let bookingCode = '';
+          for (let i = 0; i < 6; i++) {
+            bookingCode += chars[Math.floor(Math.random() * chars.length)];
+          }
+
+          await supabaseInsert({
+            slot_date: selectedSlot.isoDate,
+            slot_time: selectedSlot.time,
+            name: bookingData.name,
+            email: bookingData.email,
+            phone: bookingData.phone || null,
+            persons: bookingData.persons,
+            total_price: bookingData.price,
+            payment_method: 'paypal',
+            status: 'paid',
+            paypal_order_id: orderId,
+            booking_code: bookingCode
+          });
+
+          sessionStorage.removeItem('rb_slot');
+          sessionStorage.removeItem('rb_booking');
+
+          _closeModal();
+          if (selectedSlot) bookedSlots.push(selectedSlot.key);
+          renderCalendar();
+          showNotification(
+            '✦ Buchung bestätigt!',
+            `Danke ${bookingData?.name || ''}! Ihr erhaltet gleich eine Bestätigung per E-Mail.`,
+            'success'
+          );
+
+        } catch(err) {
+          console.error('onApprove Fehler:', err);
+          // Letzter Rettungsversuch mit sessionStorage
+          try {
+            const slot = selectedSlot || JSON.parse(sessionStorage.getItem('rb_slot') || 'null');
+            const booking = (bookingData?.name) ? bookingData : JSON.parse(sessionStorage.getItem('rb_booking') || 'null');
+            if (slot && booking) {
+              await supabaseInsert({
+                slot_date: slot.isoDate,
+                slot_time: slot.time,
+                name: booking.name,
+                email: booking.email,
+                phone: booking.phone || null,
+                persons: booking.persons,
+                total_price: booking.price,
+                payment_method: 'paypal',
+                status: 'paid',
+                paypal_order_id: data.orderID || 'unknown',
+                booking_code: bookingCode || 'FALLBACK'
+              });
+              sessionStorage.removeItem('rb_slot');
+              sessionStorage.removeItem('rb_booking');
+            }
+          } catch(e) { console.error('Fallback Fehler:', e); }
+
+          _closeModal();
+          if (selectedSlot) { bookedSlots.push(selectedSlot.key); renderCalendar(); }
+          showNotification('✦ Zahlung erhalten!', 'Danke! Wir bestätigen eure Buchung per E-Mail.', 'success');
+        }
+      },
+
+      // Abgebrochen
+      onCancel: () => {
+        showNotification('Abgebrochen', 'Zahlung wurde abgebrochen. Ihr könnt es erneut versuchen.', 'warning');
+      },
+
+      // Fehler
+      onError: (err) => {
+        console.error('PayPal Fehler:', err);
+        showNotification('Zahlungsfehler', 'Bitte erneut versuchen oder per E-Mail anfragen.', 'error');
+      }
+
+    }).render('#paypal-button-container');
+  }
+
+  async function _payBank() {
+    const result = await supabaseInsert({
+      slot_date: selectedSlot.isoDate,
+      slot_time: selectedSlot.time,
+      name: bookingData.name,
+      email: bookingData.email,
+      phone: bookingData.phone || null,
+      persons: bookingData.persons,
+      total_price: bookingData.price,
+      payment_method: 'bank',
+      status: 'pending'
+    });
+
+    _closeModal();
+
+    if (result.success) {
+      bookedSlots.push(selectedSlot.key);
+      renderCalendar();
+      showNotification('Buchung gespeichert!', 'Überweisungsdaten wurden dir per E-Mail gesendet.', 'success');
+      // Überweisungsdaten anzeigen
+      setTimeout(() => {
+        alert(
+          `Banküberweisung\n\n` +
+          `IBAN: DE19 1203 0000 1204 0724 31\n` +
+          `Empfänger: Stadt Lichtenberg\n` +
+          `Betrag: ${bookingData.price} €\n` +
+          `Verwendungszweck: RE-${selectedSlot.isoDate}-${bookingData.name.replace(/\s+/g, '-')}`
+        );
+      }, 800);
+    } else {
+      showNotification('Fehler', 'Buchung konnte nicht gespeichert werden. Bitte erneut versuchen.', 'error');
+    }
+  }
+
+  // pay() als Fallback (nicht mehr direkt genutzt)
+  async function pay(method) {
+    if (method === 'bank') { payBank(); return; }
+  }
+
+  // ─────────────────────────────────────────────
+  // BENACHRICHTIGUNG
+  // ─────────────────────────────────────────────
+  function showNotification(title, msg, type = 'success') {
+    const el = document.getElementById('notification');
+    const icon = document.getElementById('notif-icon');
+    document.getElementById('notif-title').textContent = title;
+    document.getElementById('notif-msg').textContent = msg;
+
+    const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', warning: 'fa-triangle-exclamation' };
+    icon.className = `fa-solid ${icons[type] || icons.success} text-xl mt-0.5`;
+
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 5000);
+  }
+
+  // ─────────────────────────────────────────────
+  // INIT
+  // ─────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', async () => {
+    renderWeekNav();
+    // Erst gebuchte Slots von Supabase laden, dann Kalender rendern
+    bookedSlots = await loadBookedSlots(WEEKS[0]);
+    renderCalendar();
+  });
+  </script>
+
+  <style>
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+  @keyframes scanline {
+    0%, 100% { top: 25%; opacity: 0.8; }
+    50% { top: 65%; opacity: 0.4; }
+  }
+  </style>
+  <script>
+    // Funktionen global verfügbar machen (werden aus Modal-HTML aufgerufen)
+    window.payBank = payBank;
+    window.setStep = setStep;
+    window.closeModal = closeModal;
+  </script>
+</body>
+</html>
