@@ -1757,7 +1757,16 @@
           const orderId = data.orderID;
           console.log('PayPal onApprove:', { orderId, status: capture?.status });
 
-          // 6-stelligen App-Code generieren (ohne verwechselbare Zeichen)
+          // Spielzeit und Puffer aus Konfiguration
+          const GAME_DURATION_MIN = 120; // Minuten – im Editor konfigurierbar
+          const GAME_BUFFER_MIN   = 30;  // Puffer nach Spielende
+
+          // valid_from = Spielbeginn, valid_until = Spielbeginn + Spielzeit + Puffer
+          const slotDateTime = new Date(`${selectedSlot.isoDate}T${selectedSlot.time}`);
+          const validFrom   = slotDateTime.toISOString();
+          const validUntil  = new Date(slotDateTime.getTime() + (GAME_DURATION_MIN + GAME_BUFFER_MIN) * 60000).toISOString();
+
+          // 6-stelligen App-Code generieren
           const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
           let bookingCode = '';
           for (let i = 0; i < 6; i++) {
@@ -1775,7 +1784,9 @@
             payment_method: 'paypal',
             status: 'paid',
             paypal_order_id: orderId,
-            booking_code: bookingCode
+            booking_code: bookingCode,
+            valid_from: validFrom,
+            valid_until: validUntil
           });
 
           sessionStorage.removeItem('rb_slot');

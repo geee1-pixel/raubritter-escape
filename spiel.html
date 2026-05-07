@@ -1239,7 +1239,7 @@ function checkAppCode() {
 async function verifyAppCodeFromSupabase(code, errEl) {
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/bookings?select=booking_code,slot_date,slot_time,name&booking_code=eq.${code}&status=eq.paid`,
+      `${SUPABASE_URL}/rest/v1/bookings?select=booking_code,slot_date,slot_time,valid_from,valid_until,name&booking_code=eq.${code}&status=eq.paid`,
       { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
     );
     const data = await res.json();
@@ -1252,18 +1252,42 @@ async function verifyAppCodeFromSupabase(code, errEl) {
     }
 
     const booking = data[0];
+    const now = new Date();
 
-    // Prüfen ob Code heute gültig ist
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    // valid_from und valid_until prüfen
+    if (booking.valid_from && booking.valid_until) {
+      const validFrom  = new Date(booking.valid_from);
+      const validUntil = new Date(booking.valid_until);
 
-    if (booking.slot_date !== todayStr) {
-      const slotDate = new Date(booking.slot_date);
-      const dateStr = slotDate.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
-      errEl.textContent = `Code gültig am ${dateStr} – heute nicht nutzbar`;
-      document.getElementById('applock-input').classList.add('shake');
-      setTimeout(() => document.getElementById('applock-input').classList.remove('shake'), 500);
-      return;
+      if (now < validFrom) {
+        // Noch nicht gültig
+        const timeStr = validFrom.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+        const dateStr = validFrom.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
+        errEl.textContent = `Code erst ab ${dateStr} um ${timeStr} Uhr gültig`;
+        document.getElementById('applock-input').classList.add('shake');
+        setTimeout(() => document.getElementById('applock-input').classList.remove('shake'), 500);
+        return;
+      }
+
+      if (now > validUntil) {
+        // Abgelaufen
+        errEl.textContent = 'Code abgelaufen – Spielzeit beendet';
+        document.getElementById('applock-input').classList.add('shake');
+        setTimeout(() => document.getElementById('applock-input').classList.remove('shake'), 500);
+        return;
+      }
+    } else {
+      // Fallback: nur Datumsprüfung
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      if (booking.slot_date !== todayStr) {
+        const slotDate = new Date(booking.slot_date);
+        const dateStr = slotDate.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
+        errEl.textContent = `Code gültig am ${dateStr} – heute nicht nutzbar`;
+        document.getElementById('applock-input').classList.add('shake');
+        setTimeout(() => document.getElementById('applock-input').classList.remove('shake'), 500);
+        return;
+      }
     }
 
     // Alles ok – App freischalten

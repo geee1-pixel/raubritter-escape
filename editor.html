@@ -590,13 +590,19 @@
         <div class="card-title"><i class="fa-solid fa-clock"></i> Spielregeln</div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
           <div>
-            <label class="field-label">ZEITLIMIT (Minuten, 0 = kein Limit)</label>
-            <input type="text" id="g-timelimit" placeholder="120">
+            <label class="field-label">SPIELZEIT (Minuten)</label>
+            <input type="number" id="g-timelimit" placeholder="120" min="30" max="480">
+            <div class="input-hint">Wie lange dauert das Spiel? z.B. 120 = 2 Stunden</div>
           </div>
           <div>
-            <label class="field-label">MAX. FEHLVERSUCHE PRO RÄTSEL</label>
-            <input type="text" id="g-maxattempts" placeholder="5">
+            <label class="field-label">PUFFER DANACH (Minuten)</label>
+            <input type="number" id="g-buffer" placeholder="30" min="0" max="120">
+            <div class="input-hint">Wie lange ist die App nach Spielende noch nutzbar? z.B. 30</div>
           </div>
+        </div>
+        <div style="margin-top:0.75rem; padding:0.75rem; background:rgba(201,168,76,0.06); border:1px solid rgba(201,168,76,0.15); border-radius:4px; font-size:0.82rem; color:rgba(245,234,208,0.6); line-height:1.6;">
+          <i class="fa-solid fa-circle-info" style="color:var(--gold); margin-right:0.4rem;"></i>
+          Beispiel: Spielzeit 120 + Puffer 30 = App gültig von <strong style="color:rgba(245,234,208,0.8);">15:00 bis 17:30 Uhr</strong>. Davor und danach ist der App-Code ungültig.
         </div>
         <label class="field-label" style="margin-top:1rem;">REIHENFOLGE</label>
         <select id="g-order">
@@ -1271,6 +1277,7 @@ function loadGameSettingsIntoForm() {
     document.getElementById('g-intro').value = game.intro || '';
     document.getElementById('g-outro').value = game.outro || '';
     document.getElementById('g-timelimit').value = game.timelimit || 120;
+    document.getElementById('g-buffer').value = game.buffer || 30;
     document.getElementById('g-maxattempts').value = game.maxattempts || 5;
     document.getElementById('g-order').value = game.order || 'linear';
     document.getElementById('g-theme').value = game.theme || 'raubritter';
@@ -1283,6 +1290,7 @@ function saveGameSettings() {
   game.intro = document.getElementById('g-intro').value.trim();
   game.outro = document.getElementById('g-outro').value.trim();
   game.timelimit = parseInt(document.getElementById('g-timelimit').value) || 120;
+  game.buffer = parseInt(document.getElementById('g-buffer').value) || 30;
   game.maxattempts = parseInt(document.getElementById('g-maxattempts').value) || 5;
   game.order = document.getElementById('g-order').value;
   game.theme = document.getElementById('g-theme').value;
@@ -1603,18 +1611,24 @@ function renderBookingCard(b, showAppCode) {
       </div>
       ${showAppCode && b.booking_code ? `
         <div style="margin-top:0.6rem; padding:0.5rem 0.75rem; background:rgba(13,43,20,0.5);
-          border:1px solid rgba(201,168,76,0.25); border-radius:4px;
-          display:flex; align-items:center; justify-content:space-between;">
-          <div>
-            <div style="font-family:'Cinzel',serif; font-size:0.55rem; letter-spacing:0.1em; color:rgba(201,168,76,0.6); margin-bottom:0.2rem;">APP-CODE</div>
-            <div style="font-family:'Cinzel',serif; font-size:1.4rem; font-weight:900; color:#c9a84c; letter-spacing:0.25em;">${b.booking_code}</div>
+          border:1px solid rgba(201,168,76,0.25); border-radius:4px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.3rem;">
+            <div>
+              <div style="font-family:'Cinzel',serif; font-size:0.55rem; letter-spacing:0.1em; color:rgba(201,168,76,0.6); margin-bottom:0.2rem;">APP-CODE</div>
+              <div style="font-family:'Cinzel',serif; font-size:1.4rem; font-weight:900; color:#c9a84c; letter-spacing:0.25em;">${b.booking_code}</div>
+            </div>
+            <button onclick="navigator.clipboard.writeText('${b.booking_code}').then(()=>toast('App-Code kopiert!'))"
+              style="background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3);
+              color:var(--gold); font-family:'Cinzel',serif; font-size:0.6rem;
+              padding:0.35rem 0.7rem; border-radius:3px; cursor:pointer;">
+              <i class="fa-solid fa-copy"></i>
+            </button>
           </div>
-          <button onclick="navigator.clipboard.writeText('${b.booking_code}').then(()=>toast('App-Code kopiert!'))"
-            style="background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3);
-            color:var(--gold); font-family:'Cinzel',serif; font-size:0.6rem;
-            padding:0.35rem 0.7rem; border-radius:3px; cursor:pointer;">
-            <i class="fa-solid fa-copy"></i>
-          </button>
+          ${b.valid_from && b.valid_until ? `
+          <div style="font-size:0.75rem; color:rgba(245,234,208,0.4); margin-top:0.25rem;">
+            Gültig: ${new Date(b.valid_from).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} –
+            ${new Date(b.valid_until).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})} Uhr
+          </div>` : ''}
         </div>` : b.booking_code ? `
         <div style="margin-top:0.5rem; font-size:0.78rem; color:rgba(245,234,208,0.4);">
           App-Code: <span style="font-family:'Cinzel',serif; color:rgba(201,168,76,0.6); letter-spacing:0.1em;">${b.booking_code}</span>
