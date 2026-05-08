@@ -1348,11 +1348,45 @@ async function verifyAppCodeFromSupabase(code, errEl) {
 function unlockApp() {
   state.appUnlocked = true;
   stopApplockScan();
-  // Buchungscode-Screen zeigen (normaler Spielstart)
-  document.getElementById('screen-applock').classList.remove('active');
-  document.getElementById('screen-code').classList.add('active');
-  state.activeScreen = 'code';
-  toast('App freigeschaltet! ✦ Viel Erfolg!');
+
+  // App-Code = Buchungscode – direkt Spiel laden
+  const code = document.getElementById('applock-input').value.trim().toUpperCase();
+  toast('App freigeschaltet! ✦ Spiel wird geladen…');
+
+  // Kurz warten dann direkt Spiel laden
+  setTimeout(async () => {
+    const btn = { disabled: false, innerHTML: '' }; // Dummy für loadGame Kompatibilität
+    try {
+      // Aktives Spiel aus Supabase laden
+      const gameRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/games?active=eq.true&select=game_data&limit=1`,
+        { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
+      );
+      const games = await gameRes.json();
+
+      let gameData = null;
+      if (games.length && games[0].game_data) {
+        gameData = games[0].game_data;
+        localStorage.setItem('rb_game_cache', JSON.stringify(gameData));
+      } else {
+        const cached = localStorage.getItem('rb_game_cache');
+        if (cached) { try { gameData = JSON.parse(cached); } catch(e) {} }
+      }
+
+      if (!gameData) {
+        // Fallback: Demo-Spiel
+        startGame(DEMO_GAME);
+        return;
+      }
+
+      startGame(gameData);
+    } catch(e) {
+      console.error('Spiel laden Fehler:', e);
+      const cached = localStorage.getItem('rb_game_cache');
+      if (cached) { try { startGame(JSON.parse(cached)); return; } catch(e2) {} }
+      startGame(DEMO_GAME);
+    }
+  }, 500);
 }
 
 // App-Code QR Scanner
