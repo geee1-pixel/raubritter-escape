@@ -1349,15 +1349,24 @@ function unlockApp() {
   state.appUnlocked = true;
   stopApplockScan();
 
-  // App-Code = Buchungscode – direkt Spiel laden
   const code = document.getElementById('applock-input').value.trim().toUpperCase();
-  toast('App freigeschaltet! ✦ Spiel wird geladen…');
+  currentBookingCode = code; // Global merken für Supabase-Speicherung
+  localStorage.setItem(APP_CODE_KEY, code);
 
-  // Kurz warten dann direkt Spiel laden
+  toast('App freigeschaltet! ✦ Lade Spielstand…');
+
   setTimeout(async () => {
-    const btn = { disabled: false, innerHTML: '' }; // Dummy für loadGame Kompatibilität
     try {
-      // Aktives Spiel aus Supabase laden
+      // 1. Auf gespeicherten Spielstand prüfen
+      const savedState = await checkForSavedGame(code);
+
+      if (savedState) {
+        // Spielstand gefunden – direkt weitermachen
+        const restored = await restoreGameState(savedState);
+        if (restored) return;
+      }
+
+      // 2. Kein Spielstand – aktives Spiel laden und neu starten
       const gameRes = await fetch(
         `${SUPABASE_URL}/rest/v1/games?active=eq.true&select=game_data&limit=1`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
@@ -1374,19 +1383,18 @@ function unlockApp() {
       }
 
       if (!gameData) {
-        // Fallback: Demo-Spiel
         startGame(DEMO_GAME);
         return;
       }
 
       startGame(gameData);
     } catch(e) {
-      console.error('Spiel laden Fehler:', e);
+      console.error('Unlock Fehler:', e);
       const cached = localStorage.getItem('rb_game_cache');
       if (cached) { try { startGame(JSON.parse(cached)); return; } catch(e2) {} }
       startGame(DEMO_GAME);
     }
-  }, 500);
+  }, 400);
 }
 
 // App-Code QR Scanner
@@ -1500,66 +1508,116 @@ function showHintLevel(level) {
   if (btn) btn.disabled = true;
 }
 
-// ─── SPIELSTAND SPEICHERN / LADEN ────────────────────────
-const GAME_STATE_KEY = 'rb_game_state';
+// ─── SPIELSTAND IN SUPABASE ──────────────────────────────
+// Verknüpft mit booking_code → mehrere Geräte teilen denselben Stand
 
-function saveGameState() {
-  if (!game) return;
+let currentBookingCode = null; // wird beim App-Code-Login gesetzt
+
+async function saveGameState() {
+  if (!game || !currentBookingCode) return;
+
   const stateToSave = {
     currentStation: state.currentStation,
     solvedStations: state.solvedStations,
     totalScore: state.totalScore,
     hintsUsed: state.hintsUsed,
     startTime: state.startTime,
-    activeScreen: state.activeScreen,
-    gameTitle: game.title,
     savedAt: Date.now()
   };
-  localStorage.setItem(GAME_STATE_KEY, JSON.stringify(stateToSave));
+
+  // Lokal speichern (Offline-Fallback)
+  localStorage.setItem('rb_game_state_' + currentBookingCode, JSON.stringify(stateToSave));
+
+  // In Supabase speichern
+  try {
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/bookings?booking_code=eq.${currentBookingCode}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ game_state: stateToSave })
+      }
+    );
+  } catch(e) {
+    console.warn('Supabase Spielstand-Speicherung fehlgeschlagen – lokal gespeichert');
+  }
 }
 
-function clearGameState() {
-  localStorage.removeItem(GAME_STATE_KEY);
+async function clearGameState() {
+  if (currentBookingCode) {
+    localStorage.removeItem('rb_game_state_' + currentBookingCode);
+    // In Supabase löschen
+    try {
+      await fetch(
+        `${SUPABASE_URL}/rest/v1/bookings?booking_code=eq.${currentBookingCode}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ game_state: null })
+        }
+      );
+    } catch(e) {}
+  }
   localStorage.removeItem(APP_CODE_KEY);
+  currentBookingCode = null;
 }
 
-function hasSavedGame() {
-  const saved = localStorage.getItem(GAME_STATE_KEY);
-  if (!saved) return false;
+async function checkForSavedGame(bookingCode) {
+  // 1. Supabase prüfen
   try {
-    const s = JSON.parse(saved);
-    // Spielstand nur gültig wenn weniger als 4 Stunden alt
-    const age = (Date.now() - s.savedAt) / (1000 * 60 * 60);
-    return age < 4;
-  } catch(e) { return false; }
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/bookings?booking_code=eq.${bookingCode}&select=game_state,valid_from,valid_until`,
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
+    );
+    const data = await res.json();
+    if (data && data[0] && data[0].game_state) {
+      const s = data[0].game_state;
+      const age = (Date.now() - s.savedAt) / (1000 * 60 * 60);
+      if (age < 4 && s.currentStation > 0) return s; // Gültiger Spielstand
+    }
+  } catch(e) {}
+
+  // 2. Lokal prüfen (Fallback)
+  const local = localStorage.getItem('rb_game_state_' + bookingCode);
+  if (local) {
+    try {
+      const s = JSON.parse(local);
+      const age = (Date.now() - s.savedAt) / (1000 * 60 * 60);
+      if (age < 4 && s.currentStation > 0) return s;
+    } catch(e) {}
+  }
+  return null;
 }
 
-async function restoreGameState() {
-  const saved = localStorage.getItem(GAME_STATE_KEY);
-  if (!saved) return false;
+async function restoreGameState(savedState) {
   try {
-    const s = JSON.parse(saved);
-
     // Spiel aus Cache laden
     const cached = localStorage.getItem('rb_game_cache');
     if (!cached) return false;
     game = JSON.parse(cached);
 
     // Zustand wiederherstellen
-    state.currentStation = s.currentStation || 0;
-    state.solvedStations = s.solvedStations || [];
-    state.totalScore = s.totalScore || 0;
-    state.hintsUsed = s.hintsUsed || 0;
+    state.currentStation = savedState.currentStation || 0;
+    state.solvedStations = savedState.solvedStations || [];
+    state.totalScore = savedState.totalScore || 0;
+    state.hintsUsed = savedState.hintsUsed || 0;
     state.hintsLevel = 0;
     state.attempts = 0;
-    state.startTime = s.startTime || Date.now(); // Originalzeit!
+    state.startTime = savedState.startTime || Date.now();
 
-    startTimer(); // Timer mit originaler Startzeit
+    startTimer();
     showScreen('station');
     renderStation(state.currentStation);
     setTimeout(initSecretTexts, 500);
 
-    // Toast mit vergangener Zeit
     const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
     const m = Math.floor(elapsed / 60);
     toast(`Willkommen zurück! Station ${state.currentStation + 1} · ${m} Min. gespielt`);
@@ -1580,7 +1638,7 @@ function startGame(g) {
   state.attempts = 0;
   state.startTime = Date.now();
 
-  saveGameState(); // Sofort speichern
+  saveGameState();
   startTimer();
   showScreen('station');
   renderStation(0);
@@ -2040,71 +2098,44 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ─── INIT ────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Code-Input auto-uppercase
   document.getElementById('code-input').addEventListener('input', function() {
     this.value = this.value.toUpperCase();
   });
 
-  // App-Code Screen beim Start anzeigen
   const urlParams = new URLSearchParams(window.location.search);
   const isDemo = urlParams.get('demo') === '1';
 
   if (!isDemo) {
-    // Gespeicherten Spielstand prüfen
-    if (hasSavedGame()) {
-      // App-Code Screen überspringen und direkt wiederherstellen
+    // Gespeicherten App-Code prüfen – wenn vorhanden direkt einloggen
+    const savedCode = localStorage.getItem(APP_CODE_KEY);
+    if (savedCode) {
+      // Automatisch versuchen mit gespeichertem Code einzuloggen
+      document.getElementById('applock-input').value = savedCode;
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById('screen-applock').classList.add('active');
-      state.activeScreen = 'applock';
-
-      // Hinweis auf gespeicherten Spielstand im App-Code Screen zeigen
-      const hint = document.createElement('div');
-      hint.style.cssText = `margin-top:1rem; padding:0.75rem 1rem; background:rgba(201,168,76,0.1);
-        border:1px solid rgba(201,168,76,0.25); border-radius:6px; text-align:center;`;
-      hint.innerHTML = `
-        <div style="font-family:'Cinzel',serif; font-size:0.65rem; color:var(--gold); letter-spacing:0.08em; margin-bottom:0.4rem;">
-          SPIELSTAND GEFUNDEN
-        </div>
-        <div style="font-size:0.82rem; color:rgba(245,234,208,0.7); margin-bottom:0.6rem; line-height:1.5;">
-          Ihr habt ein laufendes Spiel. Weitermachen?
-        </div>
-        <button onclick="restoreAndContinue()" style="
-          width:100%; padding:0.75rem;
-          background:linear-gradient(135deg,#8b6914,#c9a84c);
-          border:none; border-radius:4px; cursor:pointer;
-          font-family:'Cinzel',serif; font-size:0.78rem; font-weight:700;
-          letter-spacing:0.06em; color:#1a120b;">
-          <i class="fa-solid fa-play mr-2"></i> Weiterspielen
-        </button>
-        <button onclick="clearGameState(); this.parentElement.remove();" style="
-          margin-top:0.4rem; width:100%; padding:0.5rem;
-          background:transparent; border:none; cursor:pointer;
-          font-family:'Cinzel',serif; font-size:0.65rem;
-          color:rgba(245,234,208,0.3); letter-spacing:0.05em;">
-          Neues Spiel starten
-        </button>
-      `;
-      // Einfügen nach den Buttons im App-Lock Screen
-      const lockContent = document.querySelector('#screen-applock > div');
-      if (lockContent) lockContent.appendChild(hint);
+      // Kurz warten dann auto-unlock versuchen
+      setTimeout(() => checkAppCode(), 800);
     } else {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById('screen-applock').classList.add('active');
-      state.activeScreen = 'applock';
     }
+    state.activeScreen = 'applock';
   }
 
-  // Enter-Key für App-Code
   document.getElementById('applock-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') checkAppCode();
   });
 });
 
 async function restoreAndContinue() {
-  const restored = await restoreGameState();
-  if (!restored) {
-    toast('Spielstand konnte nicht geladen werden');
-    clearGameState();
+  const code = localStorage.getItem(APP_CODE_KEY);
+  if (!code) return;
+  currentBookingCode = code;
+  const savedState = await checkForSavedGame(code);
+  if (savedState) {
+    await restoreGameState(savedState);
+  } else {
+    toast('Kein Spielstand gefunden');
   }
 }
 </script>
