@@ -1500,6 +1500,76 @@ function showHintLevel(level) {
   if (btn) btn.disabled = true;
 }
 
+// ─── SPIELSTAND SPEICHERN / LADEN ────────────────────────
+const GAME_STATE_KEY = 'rb_game_state';
+
+function saveGameState() {
+  if (!game) return;
+  const stateToSave = {
+    currentStation: state.currentStation,
+    solvedStations: state.solvedStations,
+    totalScore: state.totalScore,
+    hintsUsed: state.hintsUsed,
+    startTime: state.startTime,
+    activeScreen: state.activeScreen,
+    gameTitle: game.title,
+    savedAt: Date.now()
+  };
+  localStorage.setItem(GAME_STATE_KEY, JSON.stringify(stateToSave));
+}
+
+function clearGameState() {
+  localStorage.removeItem(GAME_STATE_KEY);
+  localStorage.removeItem(APP_CODE_KEY);
+}
+
+function hasSavedGame() {
+  const saved = localStorage.getItem(GAME_STATE_KEY);
+  if (!saved) return false;
+  try {
+    const s = JSON.parse(saved);
+    // Spielstand nur gültig wenn weniger als 4 Stunden alt
+    const age = (Date.now() - s.savedAt) / (1000 * 60 * 60);
+    return age < 4;
+  } catch(e) { return false; }
+}
+
+async function restoreGameState() {
+  const saved = localStorage.getItem(GAME_STATE_KEY);
+  if (!saved) return false;
+  try {
+    const s = JSON.parse(saved);
+
+    // Spiel aus Cache laden
+    const cached = localStorage.getItem('rb_game_cache');
+    if (!cached) return false;
+    game = JSON.parse(cached);
+
+    // Zustand wiederherstellen
+    state.currentStation = s.currentStation || 0;
+    state.solvedStations = s.solvedStations || [];
+    state.totalScore = s.totalScore || 0;
+    state.hintsUsed = s.hintsUsed || 0;
+    state.hintsLevel = 0;
+    state.attempts = 0;
+    state.startTime = s.startTime || Date.now(); // Originalzeit!
+
+    startTimer(); // Timer mit originaler Startzeit
+    showScreen('station');
+    renderStation(state.currentStation);
+    setTimeout(initSecretTexts, 500);
+
+    // Toast mit vergangener Zeit
+    const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+    const m = Math.floor(elapsed / 60);
+    toast(`Willkommen zurück! Station ${state.currentStation + 1} · ${m} Min. gespielt`);
+    return true;
+  } catch(e) {
+    console.error('Spielstand laden Fehler:', e);
+    return false;
+  }
+}
+
 function startGame(g) {
   game = g;
   state.currentStation = 0;
@@ -1510,6 +1580,7 @@ function startGame(g) {
   state.attempts = 0;
   state.startTime = Date.now();
 
+  saveGameState(); // Sofort speichern
   startTimer();
   showScreen('station');
   renderStation(0);
@@ -1829,6 +1900,7 @@ function checkAnswer() {
     const earned = Math.max(Math.floor(basePoints * (1 - state.attempts * 0.15)), Math.floor(basePoints * 0.4));
     state.totalScore += earned;
     state.solvedStations.push(state.currentStation);
+    saveGameState(); // Punkte und gelöste Stationen speichern
 
     showSolvedOverlay(state.currentStation, earned);
   } else {
@@ -1886,12 +1958,14 @@ function nextStation() {
   const next = state.currentStation + 1;
 
   if (next >= game.stations.length) {
+    clearGameState(); // Spielstand löschen bei Spielende
     showFinale();
     return;
   }
 
   state.currentStation = next;
   state.attempts = 0;
+  saveGameState(); // Nach jedem Stationswechsel speichern
   renderStation(next);
   showScreen('station');
   renderProgress('topbar-progress-station', next);
@@ -1976,10 +2050,48 @@ document.addEventListener('DOMContentLoaded', () => {
   const isDemo = urlParams.get('demo') === '1';
 
   if (!isDemo) {
-    // Alle Screens deaktivieren, App-Lock aktivieren
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-applock').classList.add('active');
-    state.activeScreen = 'applock';
+    // Gespeicherten Spielstand prüfen
+    if (hasSavedGame()) {
+      // App-Code Screen überspringen und direkt wiederherstellen
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-applock').classList.add('active');
+      state.activeScreen = 'applock';
+
+      // Hinweis auf gespeicherten Spielstand im App-Code Screen zeigen
+      const hint = document.createElement('div');
+      hint.style.cssText = `margin-top:1rem; padding:0.75rem 1rem; background:rgba(201,168,76,0.1);
+        border:1px solid rgba(201,168,76,0.25); border-radius:6px; text-align:center;`;
+      hint.innerHTML = `
+        <div style="font-family:'Cinzel',serif; font-size:0.65rem; color:var(--gold); letter-spacing:0.08em; margin-bottom:0.4rem;">
+          SPIELSTAND GEFUNDEN
+        </div>
+        <div style="font-size:0.82rem; color:rgba(245,234,208,0.7); margin-bottom:0.6rem; line-height:1.5;">
+          Ihr habt ein laufendes Spiel. Weitermachen?
+        </div>
+        <button onclick="restoreAndContinue()" style="
+          width:100%; padding:0.75rem;
+          background:linear-gradient(135deg,#8b6914,#c9a84c);
+          border:none; border-radius:4px; cursor:pointer;
+          font-family:'Cinzel',serif; font-size:0.78rem; font-weight:700;
+          letter-spacing:0.06em; color:#1a120b;">
+          <i class="fa-solid fa-play mr-2"></i> Weiterspielen
+        </button>
+        <button onclick="clearGameState(); this.parentElement.remove();" style="
+          margin-top:0.4rem; width:100%; padding:0.5rem;
+          background:transparent; border:none; cursor:pointer;
+          font-family:'Cinzel',serif; font-size:0.65rem;
+          color:rgba(245,234,208,0.3); letter-spacing:0.05em;">
+          Neues Spiel starten
+        </button>
+      `;
+      // Einfügen nach den Buttons im App-Lock Screen
+      const lockContent = document.querySelector('#screen-applock > div');
+      if (lockContent) lockContent.appendChild(hint);
+    } else {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-applock').classList.add('active');
+      state.activeScreen = 'applock';
+    }
   }
 
   // Enter-Key für App-Code
@@ -1987,6 +2099,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') checkAppCode();
   });
 });
+
+async function restoreAndContinue() {
+  const restored = await restoreGameState();
+  if (!restored) {
+    toast('Spielstand konnte nicht geladen werden');
+    clearGameState();
+  }
+}
 </script>
 </body>
 </html>
