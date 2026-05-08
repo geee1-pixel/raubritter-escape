@@ -33,15 +33,23 @@
       const isStandalone =
         window.matchMedia('(display-mode: standalone)').matches ||
         window.navigator.standalone === true;
-      const dismissed = sessionStorage.getItem('install-overlay-dismissed');
+      const dismissed = localStorage.getItem('install-overlay-dismissed');
 
       if (isStandalone || dismissed) {
-        // Bereits installiert oder weggeklickt – Overlay sofort verstecken
         const overlay = document.getElementById('install-overlay');
         if (overlay) overlay.style.display = 'none';
       }
-      // Sonst bleibt er sichtbar (display:flex vom HTML)
     });
+
+    function closeInstallOverlay() {
+      const overlay = document.getElementById('install-overlay');
+      if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => overlay.style.display = 'none', 300);
+      }
+      localStorage.setItem('install-overlay-dismissed', '1');
+    }
 
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
@@ -730,8 +738,8 @@
       Den <strong style="color:rgba(201,168,76,0.8);">App-Code</strong> findet ihr auf dem Zettel im Schrank.
     </p>
     <div style="width:100%; max-width:300px;">
-      <input id="applock-input" type="text" inputmode="numeric" placeholder="App-Code"
-        maxlength="8" autocomplete="off"
+      <input id="applock-input" type="text" inputmode="text" placeholder="App-Code"
+        maxlength="8" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false"
         style="width:100%; background:rgba(0,0,0,0.3); border:1px solid rgba(201,168,76,0.3);
           color:#f5ead0; border-radius:6px; padding:1rem; font-family:'Cinzel',serif;
           font-size:1.6rem; letter-spacing:0.4em; text-align:center; outline:none; margin-bottom:0.6rem;">
@@ -1333,7 +1341,8 @@ async function verifyAppCodeFromSupabase(code, errEl) {
 
   } catch(e) {
     console.error('Supabase Fehler:', e);
-    errEl.textContent = 'Verbindungsfehler – bitte Internetverbindung prüfen';
+    // Zeige echten Fehler für Debugging
+    errEl.textContent = 'Fehler: ' + (e.message || 'Unbekannt') + ' – Code: ' + code;
   }
 }
 
