@@ -1,1587 +1,1655 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Raubritter Escape – Spiel-Editor</title>
-  <style>
-    #editor-lock {
-      position: fixed; inset: 0; z-index: 9999;
-      background: linear-gradient(180deg, #0d2b14 0%, #1a120b 100%);
-      display: flex; align-items: center; justify-content: center;
-      flex-direction: column; gap: 1.5rem; padding: 2rem;
-    }
-    #editor-lock.unlocked { display: none; }
-    #lock-input {
-      background: rgba(0,0,0,0.4); border: 1px solid rgba(201,168,76,0.35);
-      color: #f5ead0; border-radius: 4px; padding: 0.85rem 1.25rem;
-      font-size: 1.1rem; width: 100%; max-width: 300px; text-align: center;
-      letter-spacing: 0.2em; font-family: 'Cinzel', serif;
-    }
-    #lock-input:focus { outline: none; border-color: #c9a84c; }
-    #lock-btn {
-      background: linear-gradient(135deg, #8b6914, #c9a84c);
-      border: none; border-radius: 4px; color: #1a120b;
-      font-family: 'Cinzel', serif; font-weight: 700; font-size: 0.85rem;
-      letter-spacing: 0.08em; padding: 0.85rem 2.5rem; cursor: pointer;
-      width: 100%; max-width: 300px;
-    }
-    #lock-error { color: #f87171; font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.06em; min-height: 1rem; }
-  </style>
-  <script>
-    // ── EDITOR PASSWORT ──────────────────────────────────
-    // Hier dein gewünschtes Passwort eintragen:
-    const EDITOR_PASSWORD = 'raubritter2026';
-    // ────────────────────────────────────────────────────
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raubritter Escape – Editor v3</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --parch:#f5ead6;--parch2:#e8d5b0;--ink:#2a1a08;--inkl:#5c3d1e;
+  --blood:#8b1a1a;--gold:#c9922a;--goldl:#e8b84b;
+  --stone:#6b6055;--stonel:#9e8f82;
+  --bg:#0e0a05;--panel:#1a1108;--panel2:#211508;--border:#3a2015;
+  --green:#2d6a3f;--greenl:#4a9e63;
+  --blue:#1a3a5c;--bluel:#4a8ad4;
+  --red:#6b1212;--redl:#c04040;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--parch);font-family:'EB Garamond',Georgia,serif;font-size:15px;line-height:1.7;min-height:100vh;}
 
-    // ── SUPABASE ─────────────────────────────────────────
-    const SUPABASE_URL = 'https://uulpxvyjevnvggvamhha.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1bHB4dnlqZXZudmdndmFtaGhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODA5MjIsImV4cCI6MjA5Mjk1NjkyMn0.XJWbivvaWU4WVD-48_-Pnlr5XfKkjSHuIvVqdpq-bH4';
+/* HEADER */
+.hdr{background:var(--panel);border-bottom:2px solid var(--gold);padding:0 1.4rem;height:50px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;left:0;right:0;z-index:300;}
+.logo{font-family:'Cinzel',serif;font-size:1rem;color:var(--gold);letter-spacing:.07em;}
+.logo em{color:var(--blood);font-style:normal;}
+.hdr-right{display:flex;align-items:center;gap:.6rem;}
 
-    // ── WOCHENCODE SYSTEM ────────────────────────────────
-    // Salt: geheimer Zusatz damit der Code nicht erratbar ist
-    const WEEK_CODE_SALT = 'RB2026LICHTENBERG';
+/* TIMER */
+.tw{display:flex;align-items:center;gap:.4rem;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:7px;padding:.25rem .7rem;}
+.td{font-family:'Cinzel',serif;font-size:1.05rem;color:var(--goldl);letter-spacing:.1em;min-width:72px;}
+.td.run{color:#5d5;}
+.tb{background:none;border:1px solid var(--border);border-radius:4px;color:var(--stonel);font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.05em;padding:.2rem .5rem;cursor:pointer;transition:all .15s;}
+.tb:hover{border-color:var(--gold);color:var(--gold);}
+.tb.grn{border-color:rgba(77,158,99,.5);color:var(--greenl);}
 
-    function getWeekNumber(date) {
-      const d = new Date(date);
-      d.setHours(0,0,0,0);
-      d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-      const week1 = new Date(d.getFullYear(), 0, 4);
-      return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-    }
+/* LAYOUT */
+.app{display:flex;height:calc(100vh - 50px);margin-top:50px;}
+.sidebar{width:252px;min-width:200px;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;}
+.content{flex:1;overflow-y:auto;}
+.inner{padding:1.4rem 1.8rem;max-width:1000px;}
 
-    function generateWeekCode(date) {
-      // Deterministischer 4-stelliger Code aus KW + Jahr + Salt
-      const kw = getWeekNumber(date);
-      const year = date.getFullYear();
-      const seed = `${WEEK_CODE_SALT}-${year}-${kw}`;
-      // Einfacher Hash → 4-stellige Zahl zwischen 1000-9999
-      let hash = 0;
-      for (let i = 0; i < seed.length; i++) {
-        hash = ((hash << 5) - hash) + seed.charCodeAt(i);
-        hash |= 0;
-      }
-      const code = String(Math.abs(hash) % 9000 + 1000);
-      return code;
-    }
+/* TABS */
+.tabs{display:flex;background:var(--panel2);border-bottom:1px solid var(--border);padding:0 1.5rem;overflow-x:auto;flex-shrink:0;position:sticky;top:0;z-index:100;}
+.tbtn{background:none;border:none;border-bottom:3px solid transparent;color:var(--stonel);font-family:'Cinzel',serif;font-size:.66rem;letter-spacing:.07em;padding:.65rem .85rem;cursor:pointer;white-space:nowrap;transition:all .2s;}
+.tbtn:hover{color:var(--parch);}
+.tbtn.on{color:var(--gold);border-bottom-color:var(--gold);}
 
-    function getWeekRange(date) {
-      const d = new Date(date);
-      const day = d.getDay() || 7;
-      const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
-      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-      const fmt = (x) => x.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
-      return `${fmt(mon)} – ${fmt(sun)}`;
-    }
-    function unlockEditor() {
-      const val = document.getElementById('lock-input').value;
-      if (val === EDITOR_PASSWORD) {
-        document.getElementById('editor-lock').classList.add('unlocked');
-        sessionStorage.setItem('editor-unlocked', '1');
-      } else {
-        const err = document.getElementById('lock-error');
-        err.textContent = 'Falsches Passwort';
-        document.getElementById('lock-input').value = '';
-        document.getElementById('lock-input').focus();
-        setTimeout(() => err.textContent = '', 2500);
-      }
-    }
-    document.addEventListener('DOMContentLoaded', () => {
-      if (sessionStorage.getItem('editor-unlocked') === '1') {
-        document.getElementById('editor-lock').classList.add('unlocked');
-      }
-      document.getElementById('lock-input').addEventListener('keydown', e => {
-        if (e.key === 'Enter') unlockEditor();
-      });
-    });
-  </script>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-  <style>
-    :root {
-      --gold: #c9a84c;
-      --gold-dark: #8b6914;
-      --parchment: #f5ead0;
-      --ink: #1a120b;
-      --forest: #0d2b14;
-      --forest-mid: #1a4a24;
-      --stone: #2d2520;
-      --stone-mid: #3d342e;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Crimson Text', Georgia, serif;
-      background: var(--ink);
-      color: var(--parchment);
-      min-height: 100vh;
-    }
-    .font-display { font-family: 'Cinzel', serif; }
+/* SIDEBAR */
+.si{display:flex;align-items:center;gap:7px;padding:.45rem .6rem;border-radius:5px;border:1px solid transparent;cursor:pointer;transition:all .15s;margin-bottom:2px;}
+.si:hover{background:rgba(201,146,42,.07);border-color:var(--border);}
+.si.on{background:rgba(201,146,42,.13);border-color:var(--gold);}
+.sn{font-family:'Cinzel',serif;font-size:.75rem;color:var(--gold);min-width:18px;}
+.snm{font-size:.75rem;color:var(--parch2);flex:1;line-height:1.2;}
+.ssym{font-size:.95rem;}
 
-    /* ── LAYOUT ── */
-    .app-shell {
-      display: grid;
-      grid-template-columns: 280px 1fr 340px;
-      grid-template-rows: 56px calc(100vh - 56px);
-      height: 100vh;
-      overflow: hidden;
-    }
-    @media (max-width: 1100px) {
-      .app-shell { grid-template-columns: 240px 1fr; }
-      .sidebar-right { display: none; }
-    }
-    @media (max-width: 900px) {
-      .app-shell { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; overflow: auto; }
-      .sidebar-left, .sidebar-right { display: none; }
-    }
+/* CARDS */
+.card{background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:1.3rem;margin-bottom:1.1rem;}
+.ct{font-family:'Cinzel',serif;font-size:.95rem;color:var(--gold);margin-bottom:.25rem;display:flex;align-items:center;gap:.5rem;}
+.cs{font-size:.75rem;color:var(--stonel);font-style:italic;margin-bottom:.9rem;}
+.sect{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.13em;color:var(--stonel);text-transform:uppercase;margin:.9rem 0 .4rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);}
+hr.dv{border:none;border-top:1px solid var(--border);margin:.9rem 0;}
 
-    /* ── TOPBAR ── */
-    .topbar {
-      grid-column: 1 / -1;
-      background: var(--forest);
-      border-bottom: 1px solid rgba(201,168,76,0.25);
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 1.5rem; gap: 1rem;
-    }
-    .topbar-title { font-family: 'Cinzel', serif; font-size: 0.9rem; color: var(--gold); letter-spacing: 0.1em; }
-    .topbar-actions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+/* FORM */
+label{display:block;font-size:.62rem;letter-spacing:.1em;color:var(--stonel);text-transform:uppercase;margin-bottom:.28rem;font-family:'Cinzel',serif;}
+input[type=text],input[type=url],input[type=number],textarea,select{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:5px;color:var(--parch);font-family:'EB Garamond',Georgia,serif;font-size:.9rem;padding:.4rem .65rem;margin-bottom:.7rem;transition:border-color .2s;}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--gold);}
+textarea{resize:vertical;}
+select{cursor:pointer;}
+select option{background:#1a1108;}
 
-    /* ── SIDEBARS ── */
-    .sidebar-left {
-      background: var(--stone);
-      border-right: 1px solid rgba(201,168,76,0.15);
-      overflow-y: auto;
-      padding: 1rem 0;
-      height: 100%;
-    }
-    .sidebar-right {
-      background: var(--stone);
-      border-left: 1px solid rgba(201,168,76,0.15);
-      overflow-y: auto;
-      padding: 1.25rem;
-      height: 100%;
-    }
+/* BUTTONS */
+.btn{font-family:'Cinzel',serif;font-size:.67rem;letter-spacing:.06em;padding:.45rem 1.1rem;border-radius:5px;border:1px solid;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.btn-g{background:var(--gold);border-color:var(--gold);color:var(--ink);}
+.btn-g:hover{background:var(--goldl);}
+.btn-o{background:transparent;border-color:var(--border);color:var(--stonel);}
+.btn-o:hover{border-color:var(--gold);color:var(--gold);}
+.btn-r{background:transparent;border-color:rgba(139,26,26,.45);color:var(--redl);}
+.btn-r:hover{background:rgba(139,26,26,.14);}
+.btn-b{background:transparent;border-color:rgba(26,58,92,.5);color:var(--bluel);}
+.btn-b:hover{background:rgba(26,58,92,.18);}
+.brow{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.5rem;}
 
-    /* ── MAIN ── */
-    .main-content {
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 1.5rem 2.5rem;
-      background: #211810;
-      height: 100%;
-    }
+/* INFO BOXES */
+.ib{border-left:3px solid var(--gold);background:rgba(201,146,42,.055);padding:.6rem .85rem;border-radius:0 5px 5px 0;margin:.55rem 0;font-size:.86rem;}
+.ib.lore{border-color:var(--blood);background:rgba(139,26,26,.055);font-style:italic;}
+.ib.puzz{border-color:#4a9e63;background:rgba(40,100,60,.065);}
+.ib.res{border-color:#7a8ab8;background:rgba(80,100,180,.065);}
+.ib.warn{border-color:#c09030;background:rgba(192,144,48,.07);}
 
-    /* ── KARTEN DESKTOP BREITE ── */
-    .card { max-width: 100% !important; }
-    #pane-game .card,
-    #pane-admin .card { max-width: 860px !important; }
-    #pane-station .card { max-width: 100%; }
+/* GRID */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;}
 
-    /* ── STATION LIST (left sidebar) ── */
-    .station-item {
-      display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.7rem 1rem; cursor: pointer;
-      border-left: 3px solid transparent;
-      transition: all 0.15s;
-      position: relative;
-    }
-    .station-item:hover { background: rgba(201,168,76,0.06); }
-    .station-item.active {
-      background: rgba(201,168,76,0.1);
-      border-left-color: var(--gold);
-    }
-    .station-num {
-      width: 22px; height: 22px; border-radius: 50%;
-      background: var(--gold-dark); color: var(--parchment);
-      font-family: 'Cinzel', serif; font-size: 0.65rem; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-    .station-num.solved { background: var(--forest-mid); color: var(--gold); }
-    .station-name-label { font-size: 0.88rem; line-height: 1.3; flex: 1; min-width: 0; }
-    .station-name-label span { display: block; font-size: 0.7rem; opacity: 0.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .drag-handle { color: rgba(201,168,76,0.25); font-size: 0.75rem; cursor: grab; }
-    .drag-handle:active { cursor: grabbing; }
+/* TAGS */
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin:.4rem 0;}
+.tag{font-size:.62rem;padding:1px 7px;border-radius:10px;font-family:'Cinzel',serif;}
+.tag-haptic{background:rgba(139,26,26,.16);color:#e88;border:1px solid rgba(139,26,26,.3);}
+.tag-chiffre{background:rgba(201,146,42,.12);color:var(--goldl);border:1px solid rgba(201,146,42,.25);}
+.tag-digital{background:rgba(26,58,92,.18);color:#7ab;border:1px solid rgba(26,58,92,.35);}
+.tag-gps{background:rgba(40,100,60,.18);color:#8c8;border:1px solid rgba(40,100,60,.3);}
+.tag-qr{background:rgba(80,40,120,.18);color:#b8a;border:1px solid rgba(80,40,120,.3);}
+.tag-text{background:rgba(80,70,40,.18);color:#c8a;border:1px solid rgba(80,70,40,.3);}
+.tag-puzzle{background:rgba(30,60,100,.18);color:#89c;border:1px solid rgba(30,60,100,.3);}
 
-    /* ── SIDEBAR META ── */
-    .meta-section { margin-bottom: 1.25rem; }
-    .meta-label { font-family: 'Cinzel', serif; font-size: 0.62rem; letter-spacing: 0.1em; opacity: 0.45; margin-bottom: 0.4rem; }
-    .meta-value { font-size: 0.92rem; line-height: 1.5; }
-    .badge {
-      display: inline-flex; align-items: center; gap: 0.3rem;
-      padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.72rem;
-      font-family: 'Cinzel', serif; letter-spacing: 0.05em;
-    }
-    .badge-ok { background: rgba(13,43,20,0.8); border: 1px solid rgba(74,222,128,0.3); color: #4ade80; }
-    .badge-warn { background: rgba(120,60,0,0.4); border: 1px solid rgba(201,168,76,0.3); color: var(--gold); }
-    .badge-err { background: rgba(120,30,30,0.5); border: 1px solid rgba(220,60,60,0.3); color: #f87171; }
+/* STAT BOXES */
+.srow{display:grid;grid-template-columns:repeat(4,1fr);gap:.65rem;margin-bottom:1.1rem;}
+.sb{background:rgba(201,146,42,.05);border:1px solid var(--border);border-radius:7px;padding:.65rem;text-align:center;}
+.sv{font-family:'Cinzel',serif;font-size:1.35rem;color:var(--gold);display:block;}
+.sl{font-size:.62rem;color:var(--stonel);letter-spacing:.07em;}
 
-    /* ── FORM ELEMENTS ── */
-    label.field-label {
-      display: block; font-family: 'Cinzel', serif;
-      font-size: 0.62rem; letter-spacing: 0.1em; opacity: 0.5;
-      margin-bottom: 0.35rem; margin-top: 1rem;
-    }
-    label.field-label:first-child { margin-top: 0; }
-    input[type=text], input[type=url], textarea, select {
-      width: 100%; background: rgba(0,0,0,0.35);
-      border: 1px solid rgba(201,168,76,0.25);
-      color: var(--parchment); border-radius: 3px;
-      padding: 0.6rem 0.8rem;
-      font-family: 'Crimson Text', serif; font-size: 1rem;
-      transition: border-color 0.2s;
-      resize: vertical;
-    }
-    input:focus, textarea:focus, select:focus {
-      outline: none; border-color: var(--gold);
-    }
-    input::placeholder, textarea::placeholder { color: rgba(245,234,208,0.3); }
-    select option { background: var(--ink); }
+/* HERO */
+.hero{background:var(--panel2);border:1px solid var(--gold);border-radius:9px;padding:1.8rem;margin-bottom:1.3rem;position:relative;overflow:hidden;}
+.hero::before{content:'⚔';position:absolute;right:.8rem;top:.3rem;font-size:5rem;opacity:.045;}
+.hy{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.18em;color:var(--gold);margin-bottom:.35rem;}
+.ht{font-family:'Cinzel',serif;font-size:1.5rem;color:var(--parch);line-height:1.3;}
+.hsub{font-style:italic;color:var(--stonel);font-size:.88rem;margin-top:.25rem;}
 
-    .input-hint { font-size: 0.8rem; opacity: 0.4; margin-top: 0.3rem; line-height: 1.4; }
+/* LOCK ROWS */
+.lrow{display:flex;align-items:center;gap:.6rem;padding:.45rem .65rem;border:1px solid var(--border);border-radius:5px;margin-bottom:3px;font-size:.82rem;}
+.lstatus{font-size:.62rem;padding:2px 7px;border-radius:3px;}
+.lok{background:rgba(40,100,60,.2);color:#6d6;}
+.lcl{background:rgba(139,26,26,.17);color:#d88;}
 
-    /* ── TABS ── */
-    .tab-bar {
-      display: flex; gap: 0; margin-bottom: 1.25rem;
-      border-bottom: 1px solid rgba(201,168,76,0.15);
-    }
-    .tab {
-      padding: 0.5rem 1rem; cursor: pointer;
-      font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.08em;
-      color: rgba(245,234,208,0.4); border-bottom: 2px solid transparent;
-      transition: all 0.15s; margin-bottom: -1px;
-    }
-    .tab:hover { color: rgba(245,234,208,0.7); }
-    .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+/* HINT SYSTEM */
+.hbox{border:1px solid var(--border);border-radius:7px;overflow:hidden;margin-bottom:.5rem;}
+.hhdr{display:flex;align-items:center;gap:.5rem;padding:.5rem .8rem;cursor:pointer;background:rgba(255,255,255,.015);transition:background .2s;}
+.hhdr:hover{background:rgba(201,146,42,.055);}
+.hlvl{font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.07em;}
+.hlvl1{color:#4a9e63;}.hlvl2{color:var(--goldl);}.hlvl3{color:var(--redl);}
+.hbody{padding:.6rem .85rem;border-top:1px solid var(--border);font-size:.86rem;display:none;}
+.hbody.open{display:block;}
+.hreveal{font-family:'Cinzel',serif;font-size:.62rem;padding:.25rem .7rem;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--stonel);cursor:pointer;transition:all .2s;}
+.hreveal:hover{border-color:var(--gold);color:var(--gold);}
+.hused{font-size:.6rem;padding:1px 6px;border-radius:8px;background:rgba(139,26,26,.18);color:var(--redl);border:1px solid rgba(139,26,26,.28);}
 
-    /* ── CARD ── */
-    .card {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(201,168,76,0.12);
-      border-radius: 4px; padding: 1.25rem; margin-bottom: 1rem;
-    }
-    .card-title {
-      font-family: 'Cinzel', serif; font-size: 0.75rem;
-      letter-spacing: 0.08em; color: var(--gold); margin-bottom: 0.75rem;
-      display: flex; align-items: center; gap: 0.5rem;
-    }
+/* IMAGE GALLERY */
+.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:.6rem;margin-top:.5rem;}
+.icard{border:1px solid var(--border);border-radius:6px;overflow:hidden;position:relative;background:rgba(255,255,255,.025);}
+.icard img{width:100%;height:90px;object-fit:cover;display:block;}
+.imeta{padding:.35rem .45rem;}
+.iname{font-size:.67rem;color:var(--parch2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.icat{font-size:.62rem;color:var(--stonel);}
+.idel{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.72);border:1px solid rgba(139,26,26,.5);border-radius:3px;color:var(--redl);font-size:.6rem;padding:1px 5px;cursor:pointer;opacity:0;transition:opacity .2s;}
+.icard:hover .idel{opacity:1;}
+.iup{border:2px dashed var(--border);border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;height:120px;cursor:pointer;transition:all .2s;color:var(--stonel);font-size:.72rem;gap:.25rem;}
+.iup:hover{border-color:var(--gold);color:var(--gold);}
+.iup input{display:none;}
 
-    /* ── BUTTONS ── */
-    .btn {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      padding: 0.5rem 1rem; border-radius: 3px; cursor: pointer;
-      font-family: 'Cinzel', serif; font-size: 0.72rem;
-      letter-spacing: 0.05em; border: none; transition: all 0.15s;
-    }
-    .btn-gold {
-      background: linear-gradient(135deg, #8b6914, #c9a84c, #8b6914);
-      background-size: 200%; background-position: right;
-      color: var(--ink); font-weight: 700;
-    }
-    .btn-gold:hover { background-position: left; transform: translateY(-1px); }
-    .btn-outline {
-      background: transparent; color: var(--gold);
-      border: 1px solid rgba(201,168,76,0.35);
-    }
-    .btn-outline:hover { border-color: var(--gold); background: rgba(201,168,76,0.08); }
-    .btn-ghost {
-      background: transparent; color: rgba(245,234,208,0.5);
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-    .btn-ghost:hover { color: var(--parchment); border-color: rgba(255,255,255,0.2); }
-    .btn-danger {
-      background: rgba(120,30,30,0.4); color: #f87171;
-      border: 1px solid rgba(220,60,60,0.2);
-    }
-    .btn-danger:hover { background: rgba(150,40,40,0.6); }
-    .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.65rem; }
+/* QR UPLOAD */
+.qr-upload-area{border:2px dashed var(--border);border-radius:8px;padding:1.5rem;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+.qr-upload-area:hover{border-color:var(--gold);}
+.qr-upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.qr-preview-img{max-width:180px;max-height:180px;border-radius:6px;border:1px solid var(--border);display:block;margin:.8rem auto 0;}
 
-    /* ── QR MAPPING ── */
-    .qr-row {
-      display: flex; align-items: center; gap: 0.5rem;
-      padding: 0.5rem 0; border-bottom: 1px solid rgba(201,168,76,0.08);
-    }
-    .qr-row:last-child { border-bottom: none; }
-    .qr-code-val {
-      font-family: monospace; font-size: 0.78rem;
-      background: rgba(0,0,0,0.35); padding: 0.25rem 0.5rem;
-      border-radius: 2px; border: 1px solid rgba(201,168,76,0.15);
-      color: var(--gold); flex: 1; overflow: hidden;
-      text-overflow: ellipsis; white-space: nowrap;
-    }
+/* CHECKLIST */
+.chk-item{display:flex;align-items:flex-start;gap:.7rem;padding:.5rem .7rem;border:1px solid var(--border);border-radius:6px;margin-bottom:.35rem;cursor:pointer;transition:all .2s;}
+.chk-item:hover{border-color:rgba(201,146,42,.3);background:rgba(201,146,42,.03);}
+.chk-item.done{opacity:.55;}
+.chk-item.done .chk-label{text-decoration:line-through;color:var(--stonel);}
+.chk-cb{width:16px;height:16px;flex-shrink:0;margin-top:.15rem;accent-color:var(--gold);cursor:pointer;}
+.chk-label{font-size:.83rem;color:var(--parch2);flex:1;line-height:1.4;}
+.chk-prio{font-size:.6rem;padding:1px 6px;border-radius:8px;flex-shrink:0;font-family:'Cinzel',serif;}
+.prio-h{background:rgba(139,26,26,.18);color:var(--redl);border:1px solid rgba(139,26,26,.28);}
+.prio-m{background:rgba(201,146,42,.12);color:var(--goldl);border:1px solid rgba(201,146,42,.22);}
+.prio-l{background:rgba(40,100,60,.15);color:#6d6;border:1px solid rgba(40,100,60,.25);}
+.chk-prog{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin:.3rem 0;}
+.chk-progf{height:100%;background:var(--gold);border-radius:3px;transition:width .35s;}
+.chk-cat-title{font-family:'Cinzel',serif;font-size:.7rem;letter-spacing:.12em;color:var(--gold);text-transform:uppercase;margin:1rem 0 .5rem;display:flex;align-items:center;gap:.5rem;}
 
-    /* ── PREVIEW PHONE ── */
-    .phone-frame {
-      width: 200px; margin: 0 auto;
-      background: #0a0a0a; border: 6px solid #1a1a1a;
-      border-radius: 2rem; overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-    }
-    .phone-notch {
-      height: 18px; background: #111;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .phone-notch-bar { width: 50px; height: 4px; background: #333; border-radius: 2px; }
-    .phone-screen {
-      background: linear-gradient(180deg, #0d2b14 0%, #1a120b 100%);
-      min-height: 380px; display: flex; flex-direction: column;
-    }
-    .phone-header {
-      padding: 0.6rem 0.75rem; border-bottom: 1px solid rgba(201,168,76,0.2);
-      display: flex; align-items: center; gap: 0.5rem;
-    }
-    .phone-body { flex: 1; padding: 0.75rem; overflow: hidden; }
-    .phone-story-text {
-      font-style: italic; font-size: 0.6rem; line-height: 1.6;
-      color: rgba(245,234,208,0.85); margin-bottom: 0.75rem;
-    }
-    .phone-puzzle-box {
-      background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.25);
-      border-radius: 3px; padding: 0.5rem;
-    }
-    .phone-label { font-family: 'Cinzel', serif; font-size: 0.42rem; letter-spacing: 0.08em; color: var(--gold); margin-bottom: 0.3rem; }
-    .phone-puzzle-text { font-size: 0.5rem; line-height: 1.5; color: rgba(245,234,208,0.75); margin-bottom: 0.5rem; }
-    .phone-input-mock {
-      background: rgba(0,0,0,0.4); border: 1px solid rgba(201,168,76,0.3);
-      border-radius: 2px; padding: 0.3rem 0.5rem; font-size: 0.48rem;
-      color: rgba(245,234,208,0.5); margin-bottom: 0.4rem;
-    }
-    .phone-btn-mock {
-      background: linear-gradient(135deg, #8b6914, #c9a84c);
-      border-radius: 2px; padding: 0.3rem;
-      text-align: center; font-family: 'Cinzel', serif;
-      font-size: 0.42rem; color: var(--ink); font-weight: 700;
-    }
-    .phone-nav {
-      display: grid; grid-template-columns: 1fr 1fr 1fr;
-      border-top: 1px solid rgba(201,168,76,0.15); padding: 0.4rem 0;
-    }
-    .phone-nav-item {
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-      font-size: 0.38rem; font-family: 'Cinzel', serif;
-      color: rgba(245,234,208,0.35); padding: 0.1rem;
-    }
-    .phone-nav-item.active { color: var(--gold); }
+/* PLAYER TABLE */
+.ptable{width:100%;border-collapse:collapse;font-size:.83rem;}
+.ptable th{font-family:'Cinzel',serif;font-size:.62rem;letter-spacing:.08em;color:var(--stonel);padding:.4rem .7rem;text-align:left;border-bottom:1px solid var(--border);}
+.ptable td{padding:.45rem .7rem;border-bottom:1px solid rgba(58,32,21,.4);color:var(--parch2);}
+.ptable tr:hover td{background:rgba(201,146,42,.04);}
 
-    /* ── DIVIDERS ── */
-    .section-divider {
-      height: 1px; margin: 1.25rem 0;
-      background: linear-gradient(to right, transparent, rgba(201,168,76,0.2), transparent);
-    }
+/* PROG */
+.prog{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin:.35rem 0;}
+.progf{height:100%;background:var(--gold);border-radius:3px;transition:width .4s;}
 
-    /* ── TEST MODE ── */
-    #test-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.92); z-index: 200;
-      align-items: center; justify-content: center;
-      flex-direction: column; gap: 1rem;
-    }
-    #test-overlay.open { display: flex; }
-    .test-phone { max-width: 340px; width: 100%; }
+/* CIPHER */
+#cipherCanvas{border-radius:50%;border:2px solid rgba(58,32,21,.6);}
 
-    /* ── SCROLLBAR ── */
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 3px; }
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;display:none;align-items:center;justify-content:center;}
+.overlay.open{display:flex;}
+.modal{background:var(--panel2);border:1px solid var(--gold);border-radius:11px;padding:1.6rem;max-width:440px;width:92%;position:relative;}
+.mcl{position:absolute;top:.7rem;right:.7rem;background:none;border:none;color:var(--stonel);font-size:1.1rem;cursor:pointer;}
+.mcl:hover{color:var(--redl);}
+.mt{font-family:'Cinzel',serif;font-size:.95rem;color:var(--gold);margin-bottom:.9rem;}
 
-    /* ── EXPORT JSON ── */
-    #json-output {
-      font-family: monospace; font-size: 0.72rem;
-      background: rgba(0,0,0,0.5); border: 1px solid rgba(201,168,76,0.2);
-      border-radius: 3px; padding: 1rem; white-space: pre-wrap;
-      word-break: break-all; max-height: 300px; overflow-y: auto;
-      color: rgba(245,234,208,0.8);
-    }
+/* LAP */
+.lap{display:flex;justify-content:space-between;font-size:.78rem;padding:.28rem 0;border-bottom:1px solid var(--border);}
+.lap:last-child{border:none;}
 
-    /* ── PROGRESS BAR ── */
-    .progress-bar-wrap { background: rgba(255,255,255,0.07); border-radius: 10px; height: 6px; }
-    .progress-bar-fill { height: 100%; border-radius: 10px; background: linear-gradient(to right, var(--gold-dark), var(--gold)); transition: width 0.4s; }
+/* SCROLL */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 
-    /* ── NOTIFICATION ── */
-    #toast {
-      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 300;
-      padding: 0.75rem 1.25rem; border-radius: 4px;
-      background: var(--forest-mid); border: 1px solid rgba(201,168,76,0.35);
-      font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.05em;
-      color: var(--gold); transform: translateY(120%);
-      transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
-      display: flex; align-items: center; gap: 0.5rem;
-    }
-    #toast.show { transform: translateY(0); }
+/* LOCK SCREEN */
+#editor-lock{position:fixed;inset:0;z-index:9999;background:linear-gradient(180deg,#0d2b14 0%,#0e0a05 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1.5rem;padding:2rem;}
+#editor-lock.unlocked{display:none;}
+#lock-input{background:rgba(0,0,0,.4);border:1px solid rgba(201,146,42,.35);color:#f5ead6;border-radius:5px;padding:.85rem 1.25rem;font-size:1.1rem;width:100%;max-width:300px;text-align:center;letter-spacing:.2em;font-family:'Cinzel',Georgia,serif;}
+#lock-input:focus{outline:none;border-color:#c9922a;}
+#lock-btn{background:linear-gradient(135deg,#7a6010,#c9922a);border:none;border-radius:5px;color:#1a1108;font-family:'Cinzel',Georgia,serif;font-weight:700;font-size:.85rem;letter-spacing:.08em;padding:.85rem 2.5rem;cursor:pointer;width:100%;max-width:300px;}
+#lock-error{color:#c04040;font-family:Georgia,serif;font-size:.82rem;min-height:1rem;}
+/* TOAST */
+#toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel);border:1px solid var(--gold);border-radius:7px;padding:.6rem 1.25rem;font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold);letter-spacing:.05em;opacity:0;transition:all .3s;pointer-events:none;z-index:2000;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+/* ADMIN TAB */
+.admin-card{background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:1.3rem;margin-bottom:1.1rem;}
+.week-code-box{background:rgba(201,146,42,.06);border:1px solid rgba(201,146,42,.2);border-radius:7px;padding:1rem;text-align:center;}
+.week-code-val{font-family:'Cinzel',serif;font-size:2.5rem;font-weight:900;color:var(--goldl);letter-spacing:.25em;}
+.booking-row{display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:center;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:.85rem 1rem;margin-bottom:.4rem;}
+.booking-code-badge{text-align:center;background:rgba(13,43,20,.6);border:1px solid rgba(201,146,42,.25);border-radius:5px;padding:.5rem .85rem;min-width:120px;}
 
-    .empty-state {
-      text-align: center; padding: 3rem 1rem; opacity: 0.35;
-    }
-    .empty-state i { font-size: 2.5rem; margin-bottom: 0.75rem; color: var(--gold); display: block; }
-    .empty-state p { font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.08em; }
-
-    .inline-btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
-    .hint-tag {
-      display: inline-block; padding: 0.15rem 0.5rem; border-radius: 20px; font-size: 0.72rem;
-      background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.2);
-      color: var(--gold); margin-right: 0.3rem; margin-bottom: 0.3rem; cursor: pointer;
-      transition: background 0.15s;
-    }
-    .hint-tag:hover { background: rgba(201,168,76,0.2); }
-  </style>
 </head>
 <body>
 
+<!-- PASSWORD LOCK -->
 <div id="editor-lock">
-  <div style="text-align:center;">
-    <i class="fa-solid fa-shield-halved" style="font-size:2.5rem; color:#c9a84c; margin-bottom:0.75rem; display:block;"></i>
-    <div style="font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.15em; color:#c9a84c; margin-bottom:0.25rem;">RAUBRITTER ESCAPE</div>
-    <div style="font-family:'Cinzel',serif; font-size:1.1rem; color:#f5ead0; font-weight:700;">Spiel-Editor</div>
-  </div>
-  <input type="password" id="lock-input" placeholder="Passwort" autocomplete="current-password">
+  <div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.25em;color:rgba(201,146,42,.7);margin-bottom:.5rem;">RAUBRITTER ESCAPE</div>
+  <div style="font-family:'Cinzel',serif;font-size:1.6rem;color:#f5ead6;margin-bottom:.5rem;">Editor</div>
+  <div style="font-size:.88rem;color:rgba(245,234,214,.45);margin-bottom:1rem;font-style:italic;">Passwort eingeben um fortzufahren</div>
+  <input id="lock-input" type="password" placeholder="••••••••••">
   <div id="lock-error"></div>
-  <button id="lock-btn" onclick="unlockEditor()">
-    <i class="fa-solid fa-unlock mr-2"></i> Entsperren
-  </button>
-  <div style="font-family:'Cinzel',serif; font-size:0.6rem; color:rgba(245,234,208,0.25); letter-spacing:0.08em; margin-top:1rem;">
-    Nur für autorisierte Nutzer
-  </div>
-</div>
-
-<div class="app-shell">
-
-  <!-- ══════════ TOPBAR ══════════ -->
-  <div class="topbar">
-    <div style="display:flex; align-items:center; gap:1rem;">
-      <div class="topbar-title"><i class="fa-solid fa-shield-halved mr-2" style="color:var(--gold);"></i>Raubritter Escape · Spiel-Editor</div>
-      <div id="game-title-display" style="font-size:0.8rem; opacity:0.5;">Unbenanntes Spiel</div>
-    </div>
-    <div class="topbar-actions">
-      <span id="save-indicator" style="font-size:0.7rem; opacity:0.4; font-family:'Cinzel',serif; letter-spacing:0.05em;">
-        <i class="fa-solid fa-circle-check mr-1" style="color:#4ade80;"></i>Auto-gespeichert
-      </span>
-      <button class="btn btn-ghost btn-sm" onclick="openTestMode()">
-        <i class="fa-solid fa-play"></i> Testen
-      </button>
-      <button class="btn btn-outline btn-sm" onclick="showExport()">
-        <i class="fa-solid fa-download"></i> Export
-      </button>
-      <button class="btn btn-gold btn-sm" onclick="showImport()">
-        <i class="fa-solid fa-upload"></i> In App laden
-      </button>
-    </div>
-  </div>
-
-  <!-- ══════════ LEFT SIDEBAR – Station List ══════════ -->
-  <div class="sidebar-left">
-    <div style="padding: 0 1rem 0.75rem; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(201,168,76,0.1);">
-      <div class="font-display" style="font-size:0.65rem; letter-spacing:0.1em; opacity:0.5;">STATIONEN</div>
-      <button class="btn btn-gold btn-sm" onclick="addStation()"><i class="fa-solid fa-plus"></i></button>
-    </div>
-    <div id="station-list"></div>
-    <div style="padding: 0.75rem 1rem; border-top:1px solid rgba(201,168,76,0.1); margin-top:0.5rem;">
-      <div style="font-size:0.72rem; opacity:0.4; text-align:center; font-family:'Cinzel',serif; letter-spacing:0.05em;" id="station-count">0 Stationen</div>
-    </div>
-  </div>
-
-  <!-- ══════════ MAIN CONTENT ══════════ -->
-  <div class="main-content">
-
-    <!-- Spiel-Einstellungen Tab -->
-    <div class="tab-bar">
-      <div class="tab active" onclick="switchTab('station',this)" id="tab-station">Station</div>
-      <div class="tab" onclick="switchTab('game',this)" id="tab-game">Spiel-Einstellungen</div>
-      <div class="tab" onclick="switchTab('qr',this)" id="tab-qr">QR-Mapping</div>
-      <div class="tab" onclick="switchTab('admin',this)" id="tab-admin" style="background:rgba(201,168,76,0.1); border-bottom:2px solid transparent;">
-        <i class="fa-solid fa-shield-halved" style="margin-right:0.3rem; font-size:0.7rem;"></i>Admin
-      </div>
-    </div>
-
-    <!-- ── TAB: STATION EDITOR ── -->
-    <div id="pane-station">
-      <div id="station-editor-empty" class="empty-state">
-        <i class="fa-solid fa-map-pin"></i>
-        <p>Wähle eine Station links aus<br>oder erstelle eine neue</p>
-      </div>
-      <div id="station-editor-form" style="display:none;">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
-
-          <!-- LINKS: Story & Rätsel -->
-          <div>
-            <div class="card">
-              <div class="card-title"><i class="fa-solid fa-scroll"></i> Story & Atmosphäre</div>
-              <label class="field-label">NAME DER STATION</label>
-              <input type="text" id="f-station-name" placeholder="z.B. Der alte Bergfried">
-
-              <label class="field-label">STORY-TEXT (erscheint nach dem Scan)</label>
-              <textarea id="f-story" rows="4" placeholder="Die alten Mauern sprechen zu euch. Ein vergilbtes Pergament klemmt zwischen den Steinen …"></textarea>
-              <div class="input-hint">Erzählt die Atmosphäre, baut Spannung auf. Wird dem Spieler angezeigt sobald er die Station scannt.</div>
-            </div>
-
-            <div class="card">
-              <div class="card-title"><i class="fa-solid fa-puzzle-piece"></i> Rätsel</div>
-              <label class="field-label">RÄTSEL-AUFGABE</label>
-              <textarea id="f-puzzle" rows="3" placeholder="Wie viele Fenster hat der Bergfried? Zählt alle, auch die zugemauerten."></textarea>
-
-              <label class="field-label">ANTWORT (Groß-/Kleinschreibung egal)</label>
-              <input type="text" id="f-answer" placeholder="z.B. 7 oder sieben">
-              <div class="input-hint">Spieler müssen exakt diese Antwort eingeben. Tipp: Zahlen als Zahl eintragen, dann wird auch das ausgeschriebene Wort akzeptiert.</div>
-
-              <label class="field-label" style="margin-top:1rem;">HINWEIS (optional, erscheint nach 3 Fehlversuchen)</label>
-              <input type="text" id="f-hint" placeholder="Zählt auch die kleinen Schlitzfenster ganz oben …">
-
-              <label class="field-label" style="margin-top:1rem;">PUNKTE FÜR DIESE STATION</label>
-              <input type="text" id="f-points" placeholder="100" style="max-width:120px;">
-            </div>
-          </div>
-
-          <!-- RECHTS: Location & QR -->
-          <div>
-            <div class="card">
-              <div class="card-title"><i class="fa-solid fa-location-dot"></i> Location & Wegfindung</div>
-
-              <label class="field-label">FOTO-URL DER LOCATION</label>
-              <input type="url" id="f-photo" placeholder="https://… (Unsplash, eigenes Hosting, …)">
-              <div class="input-hint">Ein echtes Foto des Ortes. Die Spieler sehen es als Hinweis zur nächsten Station.</div>
-
-              <label class="field-label">WEGBESCHREIBUNG</label>
-              <textarea id="f-directions" rows="3" placeholder="Vom Outdoor-Schrank geradeaus Richtung Bergfried. Vor dem alten Burgtor links …"></textarea>
-
-              <label class="field-label">KOORDINATEN (optional)</label>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
-                <input type="text" id="f-lat" placeholder="Breitengrad z.B. 50.3456">
-                <input type="text" id="f-lng" placeholder="Längengrad z.B. 11.6789">
-              </div>
-              <div class="input-hint">Tipp: Google Maps → Pin setzen → Rechtsklick → Koordinaten kopieren</div>
-            </div>
-
-            <div class="card">
-              <div class="card-title"><i class="fa-solid fa-qrcode"></i> QR-Code Verknüpfung</div>
-              <div style="font-size:0.88rem; opacity:0.65; line-height:1.6; margin-bottom:0.75rem;">
-                Scanne einen vorhandenen QR-Code (Flasche, Schild, Aufkleber …) mit dem Scan-Button unten, um ihn mit dieser Station zu verknüpfen. Der Inhalt des Codes ist egal – nur die ID zählt.
-              </div>
-              <div id="qr-linked-display" style="margin-bottom:0.75rem;"></div>
-              <button class="btn btn-outline" onclick="simulateScan()">
-                <i class="fa-solid fa-camera"></i> QR-Code scannen & verknüpfen
-              </button>
-              <div class="input-hint">Im Demo-Modus wird ein Test-Code generiert. In der echten App öffnet sich die Kamera.</div>
-
-              <div class="section-divider"></div>
-              <label class="field-label">ODER CODE-WERT MANUELL EINGEBEN</label>
-              <div style="display:flex; gap:0.5rem;">
-                <input type="text" id="f-qr-manual" placeholder="QR-Code-Inhalt einfügen …" style="flex:1;">
-                <button class="btn btn-outline btn-sm" onclick="linkManualQR()">Verknüpfen</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem; padding-top:1rem; border-top:1px solid rgba(201,168,76,0.1);">
-          <button class="btn btn-danger btn-sm" onclick="deleteStation()">
-            <i class="fa-solid fa-trash"></i> Station löschen
-          </button>
-          <div style="display:flex; gap:0.5rem;">
-            <button class="btn btn-ghost btn-sm" onclick="previewStation()">
-              <i class="fa-solid fa-eye"></i> Vorschau
-            </button>
-            <button class="btn btn-gold btn-sm" onclick="saveStation()">
-              <i class="fa-solid fa-floppy-disk"></i> Speichern
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── TAB: SPIEL-EINSTELLUNGEN ── -->
-    <div id="pane-game" style="display:none; max-width:600px;">
-      <div class="card">
-        <div class="card-title"><i class="fa-solid fa-scroll"></i> Spieltitel & Story</div>
-        <label class="field-label">SPIELTITEL</label>
-        <input type="text" id="g-title" placeholder="Raubritter Escape – Der Fluch des Bergfrieds">
-
-        <label class="field-label">INTRO-TEXT (erscheint beim Start)</label>
-        <textarea id="g-intro" rows="5" placeholder="Das Jahr ist 1347. Der Raubritter von Lichtenberg hat einen Fluch über die Burg gelegt …"></textarea>
-
-        <label class="field-label">OUTRO / ABSCHLUSS-TEXT</label>
-        <textarea id="g-outro" rows="4" placeholder="Ihr habt den Fluch gebrochen! Der Schatz des Raubritters liegt nun frei …"></textarea>
-      </div>
-
-      <div class="card">
-        <div class="card-title"><i class="fa-solid fa-clock"></i> Spielregeln</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-          <div>
-            <label class="field-label">ZEITLIMIT (Minuten, 0 = kein Limit)</label>
-            <input type="text" id="g-timelimit" placeholder="120">
-          </div>
-          <div>
-            <label class="field-label">MAX. FEHLVERSUCHE PRO RÄTSEL</label>
-            <input type="text" id="g-maxattempts" placeholder="5">
-          </div>
-        </div>
-        <label class="field-label" style="margin-top:1rem;">REIHENFOLGE</label>
-        <select id="g-order">
-          <option value="linear">Linear – Stationen müssen der Reihe nach gelöst werden</option>
-          <option value="free">Frei – Spieler können Stationen in beliebiger Reihenfolge lösen</option>
-        </select>
-      </div>
-
-      <div class="card">
-        <div class="card-title"><i class="fa-solid fa-palette"></i> Erscheinungsbild</div>
-        <label class="field-label">THEMA</label>
-        <select id="g-theme">
-          <option value="raubritter">Raubritter (Standard – Dunkelgrün & Gold)</option>
-          <option value="krimi">Stadtkrimi (Dunkel & Rot)</option>
-          <option value="fantasy">Fantasy (Lila & Silber)</option>
-          <option value="nature">Natur (Hellgrün & Braun)</option>
-        </select>
-        <label class="field-label">BUCHUNGSSEITE-URL (für den „Jetzt buchen"-Link in der App)</label>
-        <input type="url" id="g-booking-url" placeholder="https://raubritter-escape.netlify.app/#kalender">
-      </div>
-
-      <div class="inline-btn-row">
-        <button class="btn btn-gold" onclick="saveGameSettings()"><i class="fa-solid fa-floppy-disk"></i> Einstellungen speichern</button>
-      </div>
-    </div>
-
-    <!-- ── TAB: QR-MAPPING ── -->
-    <div id="pane-qr" style="display:none;">
-      <div class="card" style="max-width:700px;">
-        <div class="card-title"><i class="fa-solid fa-qrcode"></i> Alle QR-Code Verknüpfungen</div>
-        <div style="font-size:0.88rem; opacity:0.65; line-height:1.6; margin-bottom:1rem;">
-          Hier siehst du alle verknüpften QR-Codes auf einen Blick. Du kannst sie bearbeiten, löschen oder neue hinzufügen. Ein QR-Code kann immer nur einer Station zugewiesen sein.
-        </div>
-        <div id="qr-mapping-list"></div>
-        <div class="section-divider"></div>
-        <div style="display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:wrap;">
-          <div style="flex:1; min-width:200px;">
-            <label class="field-label" style="margin-top:0;">NEUEN CODE HINZUFÜGEN</label>
-            <input type="text" id="new-qr-val" placeholder="QR-Code-Wert …">
-          </div>
-          <div style="flex:1; min-width:160px;">
-            <label class="field-label" style="margin-top:0;">STATION</label>
-            <select id="new-qr-station"></select>
-          </div>
-          <button class="btn btn-outline" onclick="addQRMapping()"><i class="fa-solid fa-plus"></i> Hinzufügen</button>
-        </div>
-      </div>
-
-      <div class="card" style="max-width:700px;">
-        <div class="card-title"><i class="fa-solid fa-circle-info"></i> Welche QR-Codes eignen sich?</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; font-size:0.9rem; line-height:1.7;">
-          <div>
-            <div style="color:var(--gold); font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.08em; margin-bottom:0.4rem;">✓ GUT GEEIGNET</div>
-            <ul style="opacity:0.75; space-y:0.25rem;">
-              <li>QR-Codes auf Infotafeln / Schildern</li>
-              <li>Aufkleber an Objekten</li>
-              <li>Codes auf Verpackungen & Flaschen</li>
-              <li>Eigene gedruckte Aufkleber</li>
-              <li>Laminierte Karten (wetterfest)</li>
-            </ul>
-          </div>
-          <div>
-            <div style="color:#f87171; font-family:'Cinzel',serif; font-size:0.7rem; letter-spacing:0.08em; margin-bottom:0.4rem;">✗ WENIGER GEEIGNET</div>
-            <ul style="opacity:0.75;">
-              <li>Codes die sich oft ändern (z.B. Werbung)</li>
-              <li>Sehr kleine oder beschädigte Codes</li>
-              <li>Codes in stark reflektierenden Materialien</li>
-              <li>Passwortgeschützte URLs als Code-Inhalt</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /main-content -->
-
-  <!-- ══════════ ADMIN TAB ══════════ -->
-  <div id="pane-admin" style="display:none;">
-
-    <!-- WOCHENCODE -->
-    <div class="card" style="max-width:700px; border:1px solid rgba(201,168,76,0.3);">
-      <div class="card-title"><i class="fa-solid fa-lock"></i> Wochencode – Schließfach</div>
-      <p style="font-size:0.88rem; opacity:0.65; line-height:1.6; margin-bottom:1.25rem;">
-        Der Schrank-Code ändert sich automatisch jede Woche. Jeden Montag kurz den Code ablesen und am Schloss einstellen – das wars.
-      </p>
-      <div id="week-codes-list"></div>
-      <div style="margin-top:1rem; padding:0.75rem; background:rgba(201,168,76,0.06); border:1px solid rgba(201,168,76,0.15); border-radius:4px; font-size:0.82rem; opacity:0.65; line-height:1.6;">
-        <i class="fa-solid fa-circle-info" style="color:var(--gold); margin-right:0.4rem;"></i>
-        Der Code wird aus der Kalenderwoche berechnet – kein Speichern nötig. Nur du kennst den Salt.
-      </div>
-    </div>
-
-    <!-- BUCHUNGEN HEUTE -->
-    <div class="card" style="max-width:700px; margin-top:1.25rem;">
-      <div class="card-title"><i class="fa-solid fa-calendar-day"></i> Buchungen heute</div>
-      <div id="bookings-today-list">
-        <div style="text-align:center; padding:2rem; opacity:0.4;">
-          <i class="fa-solid fa-spinner fa-spin" style="margin-bottom:0.5rem; display:block; font-size:1.5rem;"></i>
-          Lade Buchungen…
-        </div>
-      </div>
-      <div style="margin-top:0.75rem;">
-        <button class="btn" onclick="loadTodayBookings()" style="font-size:0.78rem; padding:0.5rem 1rem;">
-          <i class="fa-solid fa-rotate mr-1"></i> Aktualisieren
-        </button>
-      </div>
-    </div>
-
-    <!-- ALLE BUCHUNGEN -->
-    <div class="card" style="max-width:700px; margin-top:1.25rem;">
-      <div class="card-title"><i class="fa-solid fa-list"></i> Alle Buchungen</div>
-      <div style="display:flex; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
-        <input type="date" id="filter-date" style="background:rgba(0,0,0,0.2); border:1px solid rgba(201,168,76,0.2); color:#f5ead0; border-radius:4px; padding:0.4rem 0.75rem; font-size:0.85rem;">
-        <select id="filter-status" style="background:rgba(0,0,0,0.2); border:1px solid rgba(201,168,76,0.2); color:#f5ead0; border-radius:4px; padding:0.4rem 0.75rem; font-size:0.85rem;">
-          <option value="">Alle Status</option>
-          <option value="paid">Bezahlt</option>
-          <option value="cancelled">Storniert</option>
-        </select>
-        <button class="btn btn-gold" onclick="loadAllBookings()" style="font-size:0.78rem; padding:0.5rem 1rem;">
-          <i class="fa-solid fa-search mr-1"></i> Suchen
-        </button>
-      </div>
-      <div id="bookings-all-list"></div>
-    </div>
-
-  </div>
-
-  <!-- ══════════ RIGHT SIDEBAR – Live-Preview & Stats ══════════ -->
-  <div class="sidebar-right">
-    <div class="font-display" style="font-size:0.65rem; letter-spacing:0.1em; opacity:0.45; margin-bottom:1rem;">LIVE-VORSCHAU</div>
-
-    <!-- Phone Preview -->
-    <div class="phone-frame" id="preview-phone">
-      <div class="phone-notch"><div class="phone-notch-bar"></div></div>
-      <div class="phone-screen">
-        <div class="phone-header">
-          <i class="fa-solid fa-shield-halved" style="color:var(--gold); font-size:0.6rem;"></i>
-          <span style="color:var(--gold); font-size:0.48rem; font-family:'Cinzel',serif; letter-spacing:0.08em;">RAUBRITTER ESCAPE</span>
-        </div>
-        <div class="phone-body" id="preview-body">
-          <div class="empty-state" style="padding:2rem 0.5rem;">
-            <i class="fa-solid fa-eye" style="font-size:1.5rem; margin-bottom:0.5rem;"></i>
-            <p style="font-size:0.55rem; font-family:'Cinzel',serif; letter-spacing:0.06em; opacity:0.5;">Station auswählen<br>für Vorschau</p>
-          </div>
-        </div>
-        <div class="phone-nav">
-          <div class="phone-nav-item"><i class="fa-solid fa-location-dot" style="font-size:0.8rem;"></i>Hinweis</div>
-          <div class="phone-nav-item active"><i class="fa-solid fa-camera" style="font-size:0.8rem;"></i>Scan</div>
-          <div class="phone-nav-item"><i class="fa-solid fa-scroll" style="font-size:0.8rem;"></i>Story</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section-divider"></div>
-
-    <!-- Spiel-Statistiken -->
-    <div class="meta-section">
-      <div class="meta-label">SPIELÜBERSICHT</div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.75rem;">
-        <div class="card" style="padding:0.75rem; text-align:center; margin-bottom:0;">
-          <div style="font-family:'Cinzel',serif; font-size:1.3rem; font-weight:700; color:var(--gold);" id="stat-stations">0</div>
-          <div style="font-size:0.62rem; opacity:0.45; font-family:'Cinzel',serif; letter-spacing:0.05em;">STATIONEN</div>
-        </div>
-        <div class="card" style="padding:0.75rem; text-align:center; margin-bottom:0;">
-          <div style="font-family:'Cinzel',serif; font-size:1.3rem; font-weight:700; color:var(--gold);" id="stat-qr">0</div>
-          <div style="font-size:0.62rem; opacity:0.45; font-family:'Cinzel',serif; letter-spacing:0.05em;">QR-CODES</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Vollständigkeit -->
-    <div class="meta-section">
-      <div class="meta-label">VOLLSTÄNDIGKEIT</div>
-      <div class="progress-bar-wrap" style="margin-bottom:0.4rem;">
-        <div class="progress-bar-fill" id="completeness-bar" style="width:0%;"></div>
-      </div>
-      <div style="font-size:0.72rem; opacity:0.5;" id="completeness-label">0 %</div>
-    </div>
-
-    <!-- Checkliste -->
-    <div class="meta-section">
-      <div class="meta-label">CHECKLISTE</div>
-      <div id="checklist" style="display:flex; flex-direction:column; gap:0.4rem; font-size:0.82rem;"></div>
-    </div>
-
-    <div class="section-divider"></div>
-
-    <!-- Schnellaktionen -->
-    <div class="meta-label">SCHNELLAKTIONEN</div>
-    <div style="display:flex; flex-direction:column; gap:0.4rem;">
-      <button class="btn btn-outline btn-sm" onclick="addStation()" style="justify-content:flex-start;">
-        <i class="fa-solid fa-plus"></i> Neue Station
-      </button>
-      <button class="btn btn-outline btn-sm" onclick="duplicateStation()" style="justify-content:flex-start;">
-        <i class="fa-solid fa-copy"></i> Station duplizieren
-      </button>
-      <button class="btn btn-ghost btn-sm" onclick="openTestMode()" style="justify-content:flex-start;">
-        <i class="fa-solid fa-play"></i> Spiel testen
-      </button>
-    </div>
-  </div>
-
-</div><!-- /app-shell -->
-
-<!-- ══════════ TEST MODE OVERLAY ══════════ -->
-<div id="test-overlay">
-  <div style="text-align:center; margin-bottom:1rem;">
-    <div class="font-display" style="color:var(--gold); font-size:0.75rem; letter-spacing:0.15em; margin-bottom:0.25rem;">SPIELTEST-MODUS</div>
-    <div style="font-size:0.85rem; opacity:0.5;">So sieht die App für die Spieler aus</div>
-  </div>
-  <div class="test-phone">
-    <div class="phone-frame" style="width:100%; max-width:320px; margin:0 auto;">
-      <div class="phone-notch"><div class="phone-notch-bar"></div></div>
-      <div class="phone-screen" style="min-height:520px;">
-        <div class="phone-header">
-          <i class="fa-solid fa-shield-halved" style="color:var(--gold); font-size:0.7rem;"></i>
-          <span style="color:var(--gold); font-size:0.55rem; font-family:'Cinzel',serif; letter-spacing:0.08em;" id="test-game-title">RAUBRITTER ESCAPE</span>
-          <div style="margin-left:auto; display:flex; gap:0.5rem; align-items:center;">
-            <span style="font-size:0.5rem; opacity:0.5;" id="test-station-counter">0/0</span>
-          </div>
-        </div>
-        <div id="test-body" style="padding:0.75rem; flex:1; overflow-y:auto; min-height:420px; display:flex; flex-direction:column; gap:0.75rem;">
-        </div>
-        <div class="phone-nav">
-          <div class="phone-nav-item"><i class="fa-solid fa-location-dot" style="font-size:0.8rem;"></i>Hinweis</div>
-          <div class="phone-nav-item active"><i class="fa-solid fa-camera" style="font-size:0.8rem;"></i>Scan</div>
-          <div class="phone-nav-item"><i class="fa-solid fa-scroll" style="font-size:0.8rem;"></i>Story</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div style="display:flex; gap:0.75rem; margin-top:1rem;">
-    <button class="btn btn-ghost" onclick="testPrevStation()"><i class="fa-solid fa-arrow-left"></i> Zurück</button>
-    <button class="btn btn-gold" onclick="testNextStation()">Nächste Station <i class="fa-solid fa-arrow-right"></i></button>
-    <button class="btn btn-ghost" onclick="closeTestMode()"><i class="fa-solid fa-xmark"></i> Schließen</button>
-  </div>
-</div>
-
-<!-- ══════════ EXPORT MODAL ══════════ -->
-<div id="export-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:200; align-items:center; justify-content:center; padding:1rem;">
-  <div style="background:var(--stone); border:1px solid rgba(201,168,76,0.3); border-radius:4px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto; padding:1.5rem;">
-    <div class="font-display" style="color:var(--gold); font-size:0.85rem; letter-spacing:0.1em; margin-bottom:1rem;">EXPORT · JSON-DATEN</div>
-    <div style="font-size:0.88rem; opacity:0.6; margin-bottom:1rem; line-height:1.6;">
-      Diese JSON-Datei enthält dein komplettes Spiel. Speichere sie und lade sie in Supabase oder übergib sie dem Entwickler der App.
-    </div>
-    <div id="json-output"></div>
-    <div style="display:flex; gap:0.75rem; margin-top:1rem;">
-      <button class="btn btn-gold" onclick="downloadJSON()"><i class="fa-solid fa-download"></i> Als JSON speichern</button>
-      <button class="btn btn-outline" onclick="copyJSON()"><i class="fa-solid fa-copy"></i> Kopieren</button>
-      <button class="btn btn-ghost" onclick="closeExport()"><i class="fa-solid fa-xmark"></i> Schließen</button>
-    </div>
-  </div>
+  <button id="lock-btn" onclick="unlockEditor()">Eintreten</button>
 </div>
 
 <!-- TOAST -->
-<div id="toast"><i class="fa-solid fa-circle-check"></i> <span id="toast-msg"></span></div>
+<div id="toast"></div>
 
-<!-- ══════════════════════════════════════════════════════
-     JAVASCRIPT
-══════════════════════════════════════════════════════ -->
+<!-- HEADER -->
+<div class="hdr">
+  <div class="logo">Raubritter <em>Escape</em><span style="color:var(--stonel);font-size:.7rem;margin-left:.6rem;">· Spiel 1 · v3</span></div>
+  <div class="hdr-right">
+    <div id="plBadge" style="display:none;align-items:center;gap:.4rem;background:rgba(201,146,42,.08);border:1px solid rgba(201,146,42,.2);border-radius:5px;padding:.25rem .65rem;font-size:.78rem;">
+      <span>⚔</span><span style="font-family:'Cinzel',serif;color:var(--gold);" id="plName">–</span>
+    </div>
+    <div class="tw">
+      <div class="td" id="tdisp">00:00:00</div>
+      <button class="tb grn" id="tbStart" onclick="tStart()">START</button>
+      <button class="tb" id="tbPause" onclick="tPause()" style="display:none">PAUSE</button>
+      <button class="tb" id="tbLap" onclick="tLap()" style="display:none">RUNDE</button>
+      <button class="tb" style="border-color:rgba(139,26,26,.4);color:var(--redl);" onclick="tReset()">⟳</button>
+    </div>
+    <button class="btn btn-r" onclick="openReset()">⚠ RESET</button>
+    <button class="btn btn-g" onclick="saveToSupabase()" id="btnSaveSupabase" style="font-size:.65rem;">☁ Supabase</button>
+  </div>
+</div>
+
+<div class="app">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div style="padding:.7rem;border-bottom:1px solid var(--border);">
+    <div class="sect" style="margin-top:0;margin-bottom:.4rem;">Stationen</div>
+    <div id="sList"></div>
+  </div>
+  <div style="padding:.5rem .7rem;border-bottom:1px solid var(--border);">
+    <div class="sect" style="margin-top:0;">Schlösser</div>
+    <div id="lSide"></div>
+  </div>
+  <div class="sstats">
+    <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--stonel);margin-bottom:.25rem;">
+      <span>Fortschritt</span><span id="progTxt">0/7</span>
+    </div>
+    <div class="prog"><div class="progf" id="progBar" style="width:0%"></div></div>
+    <div style="font-size:.68rem;color:var(--stonel);margin-top:.25rem;" id="hUsed">Hinweise: 0</div>
+    <div style="font-size:.68rem;color:var(--stonel);" id="chkDone">Checkliste: 0%</div>
+  </div>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+  <div class="tabs">
+    <button class="tbtn on"  onclick="showTab('overview',this)">Übersicht</button>
+    <button class="tbtn"     onclick="showTab('story',this)">Geschichte</button>
+    <button class="tbtn"     onclick="showTab('stations',this)">Stationen</button>
+    <button class="tbtn"     onclick="showTab('rucksack',this)">Rucksack</button>
+    <button class="tbtn"     onclick="showTab('qr',this)">QR & GPS</button>
+    <button class="tbtn"     onclick="showTab('cipher',this)">Chiffrenscheibe</button>
+    <button class="tbtn"     onclick="showTab('hints',this)">Hinweise</button>
+    <button class="tbtn"     onclick="showTab('players',this)">Spieler</button>
+    <button class="tbtn"     onclick="showTab('timer',this)">Zeiten</button>
+    <button class="tbtn"     onclick="showTab('checklist',this)">Checkliste</button>
+    <button class="tbtn"     onclick="showTab('export',this)">Export</button>
+    <button class="tbtn"     onclick="showTab('admin',this)" style="color:var(--goldl);">⚙ Admin</button>
+  </div>
+
+  <div class="inner">
+
+    <!-- ÜBERSICHT -->
+    <div class="tp on" id="tp-overview">
+      <div class="hero">
+        <div class="hy">◆ ANNO DOMINI 1337 ◆ LICHTENBERG, FRANKENWALD ◆</div>
+        <div class="ht">Das Vermächtnis des Raubritters</div>
+        <div class="hsub">Ein Geheimnis, sieben Schlösser, eine Wahrheit – 688 Jahre verborgen.</div>
+      </div>
+      <div class="srow" id="ovStats"></div>
+      <div class="card">
+        <div class="ct">⚔ Gruppe einrichten & Spielstart</div>
+        <div class="g2">
+          <div>
+            <label>Gruppenname</label>
+            <input type="text" id="grpName" placeholder="z.B. Die Waldenfels-Jäger">
+            <label>Anzahl Spieler</label>
+            <input type="number" id="grpCount" value="4" min="1" max="20">
+          </div>
+          <div>
+            <label>Schwierigkeit</label>
+            <select id="grpDiff">
+              <option value="easy">Leicht – Hinweise sofort</option>
+              <option value="normal" selected>Normal – 5 Min Sperre</option>
+              <option value="hard">Schwer – 10 Min Sperre</option>
+              <option value="expert">Experte – Keine Hinweise</option>
+            </select>
+            <label>Notiz</label>
+            <input type="text" id="grpNote" placeholder="Wetter, Besonderheiten...">
+          </div>
+        </div>
+        <div class="brow">
+          <button class="btn btn-g" onclick="startGame()">⚔ Spiel starten & Timer</button>
+          <button class="btn btn-o" onclick="addPlayerOnly()">+ Nur Gruppe speichern</button>
+        </div>
+      </div>
+      <div id="ovGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.75rem;"></div>
+    </div>
+
+    <!-- GESCHICHTE -->
+    <div class="tp" id="tp-story">
+      <div class="card">
+        <div class="ct">📜 Rahmengeschichte</div>
+        <div class="ib lore" id="storyPrev" style="font-size:.88rem;line-height:1.85;"></div>
+        <hr class="dv">
+        <div class="sect">Einleitungstext</div>
+        <textarea id="storyTA" style="min-height:170px;"></textarea>
+        <div class="sect">Geheimnis (nur Spielleiter)</div>
+        <textarea id="secretTA" style="min-height:80px;"></textarea>
+        <div class="brow">
+          <button class="btn btn-g" onclick="saveStory()">Speichern</button>
+          <button class="btn btn-o" onclick="resetStory()">Zurücksetzen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATIONEN -->
+    <div class="tp" id="tp-stations">
+      <div id="stDetail"></div>
+    </div>
+
+    <!-- RUCKSACK -->
+    <div class="tp" id="tp-rucksack">
+      <div class="card">
+        <div class="ct">🎒 Der Rucksack</div>
+        <div class="cs">Startcode: <strong style="color:var(--gold);">1337</strong></div>
+        <div class="ib">7 verschlossene Fächer. Jedes Schloss trägt ein graviertes Symbol, das auf der Routenkarte markiert ist.</div>
+        <div class="sect">Sofortiger Inhalt</div>
+        <div id="packList"></div>
+        <div class="sect" style="margin-top:1rem;">Verschlossene Fächer</div>
+        <div id="lockFull"></div>
+        <hr class="dv">
+        <div class="sect">Schloss-Status</div>
+        <div id="lockMgmt"></div>
+      </div>
+    </div>
+
+    <!-- QR & GPS -->
+    <div class="tp" id="tp-qr">
+      <div class="card">
+        <div class="ct">📱 QR-Code Upload</div>
+        <div class="cs">Bereits gedruckten QR-Code als Bild hochladen und Station zuordnen</div>
+        <div class="g2">
+          <div>
+            <label>Station zuordnen</label>
+            <select id="qrStation">
+              <option value="6">Station 6 – Der QR-Code des Mönchs</option>
+              <option value="1">Station 1 – Marktplatz</option>
+              <option value="2">Station 2 – Zunfttafel</option>
+              <option value="3">Station 3 – Nordmauer</option>
+              <option value="4">Station 4 – Galgenberg</option>
+              <option value="5">Station 5 – Burgruine</option>
+              <option value="7">Station 7 – Sonnenbräu</option>
+              <option value="8">Station 8 – Schlossbergturm</option>
+            </select>
+            <label>Beschreibung / Wo ist der QR platziert?</label>
+            <input type="text" id="qrDesc" placeholder="z.B. Kirchenmauer rechts vom Eingang">
+            <label>Verlinkter Inhalt (URL oder Beschreibung)</label>
+            <input type="text" id="qrLink" placeholder="https://... oder 'Handschrift-Bild mit 5 roten Wörtern'">
+            <div class="brow">
+              <button class="btn btn-g" onclick="saveQRMeta()">Speichern</button>
+            </div>
+          </div>
+          <div>
+            <label>QR-Code Bild hochladen</label>
+            <div class="qr-upload-area" id="qrUploadArea">
+              <input type="file" accept="image/*" onchange="uploadQR(this)">
+              <div style="font-size:2rem;color:var(--stonel);">📷</div>
+              <div style="font-size:.78rem;color:var(--stonel);margin-top:.3rem;">QR-Bild hier ablegen<br>oder klicken zum Auswählen</div>
+            </div>
+            <img id="qrPreviewImg" class="qr-preview-img" style="display:none;" alt="QR-Code">
+            <div id="qrMeta" style="font-size:.72rem;color:var(--stonel);margin-top:.4rem;"></div>
+          </div>
+        </div>
+        <hr class="dv">
+        <div class="sect">Gespeicherte QR-Codes</div>
+        <div id="qrList"></div>
+      </div>
+
+      <div class="card">
+        <div class="ct">🗺 GPS-Koordinaten</div>
+        <div class="cs">Heute vor Ort einmessen – hier eintragen</div>
+        <div id="gpsList"></div>
+        <div class="brow">
+          <button class="btn btn-o" onclick="copyGPS()">Koordinaten kopieren</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHIFFRENSCHEIBE -->
+    <div class="tp" id="tp-cipher">
+      <div class="card">
+        <div class="ct">☯ Chiffrenscheibe</div>
+        <div class="cs">Reihenfolge: 4 – 3 – 6 – 8 – 2 – 7 – 1 – 5</div>
+        <div class="ib">Alle 8 Symbole in richtiger Reihenfolge → Lösungswort erscheint → Flasche öffnen.</div>
+        <div style="display:flex;gap:1.8rem;align-items:flex-start;flex-wrap:wrap;">
+          <div style="display:flex;justify-content:center;padding:.8rem 0;flex-shrink:0;">
+            <canvas id="cipherCanvas" width="280" height="280"></canvas>
+          </div>
+          <div style="flex:1;min-width:200px;">
+            <label>Lösungswort (8 Zeichen)</label>
+            <input type="text" id="solWord" value="WALDENFELS" maxlength="10">
+            <label>Symbol-Reihenfolge</label>
+            <input type="text" value="4 – 3 – 6 – 8 – 2 – 7 – 1 – 5" readonly style="color:var(--stonel);">
+            <div class="brow"><button class="btn btn-g" onclick="drawCipher()">Aktualisieren</button></div>
+            <div class="sect" style="margin-top:1rem;">Zuordnung</div>
+            <div id="cipherList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HINWEISE -->
+    <div class="tp" id="tp-hints">
+      <div class="card">
+        <div class="ct">💡 Hinweissystem</div>
+        <div class="cs">3 gestufte Hinweise · Spielleiter-Sicht</div>
+        <div class="ib warn" style="margin-bottom:.8rem;">
+          <strong style="font-family:'Cinzel',serif;font-size:.68rem;color:var(--goldl);">REGELN</strong><br>
+          H1 = Richtung. H2 = Konkrete Hilfe. H3 = Fast die Lösung.
+          Sperrzeit: <span id="hPenDisp">5 Min</span>
+        </div>
+        <label>Station</label>
+        <select id="hStSel" onchange="renderHintView()">
+          <option value="">– Station wählen –</option>
+        </select>
+        <div id="hView"></div>
+        <hr class="dv">
+        <div class="sect">Alle Hinweise bearbeiten</div>
+        <div id="hEdit"></div>
+      </div>
+    </div>
+
+    <!-- SPIELER -->
+    <div class="tp" id="tp-players">
+      <div class="card">
+        <div class="ct">👥 Spieler & Gruppen</div>
+        <div class="cs">Alle bisherigen Durchläufe</div>
+        <div id="playerTable"></div>
+        <hr class="dv">
+        <div class="sect">Neue Gruppe manuell hinzufügen</div>
+        <div class="g2">
+          <div>
+            <label>Name</label>
+            <input type="text" id="pNewName" placeholder="Gruppenname">
+            <label>Spieler</label>
+            <input type="number" id="pNewCount" value="2" min="1">
+          </div>
+          <div>
+            <label>Zeit (mm:ss oder hh:mm:ss)</label>
+            <input type="text" id="pNewTime" placeholder="z.B. 01:23:45">
+            <label>Hinweise benutzt</label>
+            <input type="number" id="pNewHints" value="0" min="0">
+          </div>
+        </div>
+        <label>Notiz</label>
+        <input type="text" id="pNewNote" placeholder="Besondere Ereignisse...">
+        <div class="brow">
+          <button class="btn btn-g" onclick="addPlayerManual()">Eintrag hinzufügen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ZEITEN -->
+    <div class="tp" id="tp-timer">
+      <div class="card">
+        <div class="ct">⏱ Zeitprotokoll</div>
+        <div class="g3" style="margin-bottom:1rem;">
+          <div class="sb"><span class="sv" id="totTime">00:00:00</span><span class="sl">Gesamtzeit</span></div>
+          <div class="sb"><span class="sv" id="lapCnt">0</span><span class="sl">Rundenzeiten</span></div>
+          <div class="sb"><span class="sv" id="hTot">0</span><span class="sl">Hinweise</span></div>
+        </div>
+        <div class="sect">Rundenzeiten</div>
+        <div id="lapList"><div style="color:var(--stonel);font-size:.8rem;font-style:italic;">Timer starten → bei jeder Station RUNDE klicken.</div></div>
+        <hr class="dv">
+        <div class="sect">Stationen manuell abhaken</div>
+        <div id="manSt"></div>
+      </div>
+    </div>
+
+    <!-- CHECKLISTE -->
+    <div class="tp" id="tp-checklist">
+      <div class="card">
+        <div class="ct">✅ Spielleiter-Checkliste</div>
+        <div class="cs">Alles was vorbereitet werden muss – abhakbar</div>
+        <div class="g3" id="chkStats" style="margin-bottom:1rem;"></div>
+        <div id="chkContent"></div>
+        <hr class="dv">
+        <div class="brow">
+          <button class="btn btn-o" onclick="resetChecklist()">Alle zurücksetzen</button>
+          <button class="btn btn-b" onclick="copyChecklist()">Als Text kopieren</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="tp" id="tp-export">
+      <div class="card">
+        <div class="ct">📦 Export</div>
+        <div class="brow" style="margin-bottom:1rem;">
+          <button class="btn btn-g" onclick="exportJSON()">JSON speichern</button>
+          <button class="btn btn-o" onclick="exportText()">Volltext</button>
+          <button class="btn btn-b" onclick="window.print()">🖨 Drucken</button>
+        </div>
+        <div id="expOut" style="display:none;">
+          <textarea id="expTA" style="min-height:220px;font-family:monospace;font-size:.72rem;"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div class="tp" id="tp-admin">
+
+      <!-- WOCHENCODE -->
+      <div class="admin-card">
+        <div class="ct">🔒 Wochencode – Schließfach</div>
+        <div class="cs">Automatisch generiert · Jeden Montag am Schloss einstellen</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem;" id="weekCodes"></div>
+        <div style="margin-top:.75rem;font-size:.78rem;color:var(--stonel);font-style:italic;">
+          Gleicher Algorithmus wie in der Spieltags-E-Mail. Salt: RB2026LICHTENBERG
+        </div>
+      </div>
+
+      <!-- BUCHUNGEN HEUTE -->
+      <div class="admin-card">
+        <div class="ct">📅 Buchungen heute</div>
+        <div class="cs">Alle heutigen Buchungen mit App-Code</div>
+        <div id="bookingsToday"><div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Lade…</div></div>
+        <div class="brow" style="margin-top:.75rem;">
+          <button class="btn btn-o" onclick="loadTodayBookings()">↻ Aktualisieren</button>
+        </div>
+      </div>
+
+      <!-- ALLE BUCHUNGEN -->
+      <div class="admin-card">
+        <div class="ct">📋 Alle Buchungen</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem;">
+          <input type="date" id="filterDate" style="background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.35rem .65rem;font-size:.82rem;">
+          <select id="filterStatus" style="background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.35rem .65rem;font-size:.82rem;">
+            <option value="">Alle Status</option>
+            <option value="paid">Bezahlt</option>
+            <option value="cancelled">Storniert</option>
+          </select>
+          <button class="btn btn-g" onclick="loadAllBookings()" style="font-size:.65rem;">Suchen</button>
+        </div>
+        <div id="bookingsAll"></div>
+      </div>
+
+      <!-- SUPABASE SPIELE -->
+      <div class="admin-card">
+        <div class="ct">☁ Supabase – Spielverwaltung</div>
+        <div class="cs">Gespeicherte Spiele · Das aktive Spiel lädt die Spieler-App</div>
+        <div id="supabaseGames"><div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Lade…</div></div>
+        <div class="brow" style="margin-top:.75rem;">
+          <button class="btn btn-g" onclick="saveToSupabase()">☁ Aktuellen Stand speichern</button>
+          <button class="btn btn-o" onclick="loadSupabaseGames()">↻ Aktualisieren</button>
+        </div>
+      </div>
+
+    </div><!-- /tp-admin -->
+
+  </div><!-- /inner -->
+</div><!-- /content -->
+</div><!-- /app -->
+
+<!-- RESET MODAL -->
+<div class="overlay" id="rstOverlay">
+  <div class="modal">
+    <button class="mcl" onclick="closeReset()">✕</button>
+    <div class="mt">⚠ Notfall-Reset</div>
+    <p style="font-size:.85rem;color:var(--parch2);margin-bottom:.9rem;">Wähle was zurückgesetzt werden soll:</p>
+    <div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:1.1rem;">
+      <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;font-size:.83rem;text-transform:none;letter-spacing:0;color:var(--parch2);"><input type="checkbox" id="rl" checked> 🔐 Alle Schlösser schließen</label>
+      <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;font-size:.83rem;text-transform:none;letter-spacing:0;color:var(--parch2);"><input type="checkbox" id="rt"> ⏱ Timer zurücksetzen</label>
+      <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;font-size:.83rem;text-transform:none;letter-spacing:0;color:var(--parch2);"><input type="checkbox" id="rh"> 💡 Benutzte Hinweise löschen</label>
+      <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;font-size:.83rem;text-transform:none;letter-spacing:0;color:var(--parch2);"><input type="checkbox" id="rp"> 👥 Aktiven Spieler löschen</label>
+      <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;font-size:.83rem;text-transform:none;letter-spacing:0;color:var(--parch2);"><input type="checkbox" id="rc"> ✅ Checkliste zurücksetzen</label>
+    </div>
+    <div class="brow">
+      <button class="btn btn-r" onclick="doReset()">Zurücksetzen</button>
+      <button class="btn btn-o" onclick="closeReset()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <script>
-// ─── DATEN-MODELL ──────────────────────────────────────
-let game = {
-  title: 'Raubritter Escape',
-  intro: '',
-  outro: '',
-  timelimit: 120,
-  maxattempts: 5,
-  order: 'linear',
-  theme: 'raubritter',
-  bookingUrl: '',
-  stations: [],
-  qrMappings: {}  // { "qr-code-value": stationIndex }
+// ============================================================
+// DATA
+// ============================================================
+const BASE = {
+  solutionWord:"WALDENFELS",
+  symbolOrder:[4,3,6,8,2,7,1,5],
+  storyIntro:`Das Jahr 1337. Friedrich II. von Orlamünde verleiht dem Bergstädtchen Lichtenberg seine Stadtrechte – und mit ihnen das Recht auf Brau, Markt und Handelsweg. Doch was die Urkunde verschweigt: Noch in derselben Nacht stirbt der alte Vogt Gernot von Waldeck unter mysteriösen Umständen in den Kellern der Burg.
+
+In seinem letzten Brief, verborgen in sieben Teilen, soll Gernot die Wahrheit niedergeschrieben haben. Man sagt, wer alle sieben Teile zusammenfügt, erfährt, warum die Lichtenberger im Winter 1444 ihre eigene Stadt anzündeten – und was wirklich in jenen Kellern vergraben liegt.
+
+Euer Auftrag: Findet alle sieben Fragmente. Öffnet alle Schlösser. Lüftet das Geheimnis des Raubritters.`,
+  storySecret:`Lösungswort: WALDENFELS. Die Familie von Waldenfels erwarb Lichtenberg 1427 durch fragwürdige Mittel. Gernot war Zeuge und wurde beseitigt. In der Flasche: Urkunde + Zertifikat.`,
+  stations:[
+    {id:1,name:"Das Schließfach des Vogts",loc:"Marktplatz",sym:"🔑",types:["haptic"],
+     atm:"Der Marktplatz Lichtenbergs – seit 1337 Treffpunkt von Händlern, Rittern und Bauern.",
+     lore:"Im Jahre 1337 teilte Gernot von Waldeck sein Wissen in sieben Teile auf.",
+     puzzle:"Das Schließfach trägt vier Ziffern. Die Lösung ist das Gründungsjahr auf der Tafel am Marktplatz.\n\nCode: 1337\n\nRucksack-Inhalt: Chiffrenscheibe, Hinweiskarte, 3 Schriftstücke, Holzpuzzle (versiegelt), Schieferplatte, Lupe, Raubritter-Dunkel-Flasche (versiegelt), 7 verschlossene Fächer.",
+     result:"Rucksack erhalten. Spiel beginnt.",lockOpens:"Start",
+     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     hints:["Schaut am Marktplatz nach einer Jahreszahl – in Stein gemeißelt.","Die Jahreszahl steht auf der Informationstafel am Marktbrunnen.","Code: 1337 – das Gründungsjahr Lichtenbergs."],
+     hintsUsed:[false,false,false]},
+    {id:2,name:"Die drei Schriftrollen",loc:"Zunfttafel / Rathaus",sym:"📜",types:["haptic","text"],
+     atm:"Das alte Rathaus mit der Zunfttafel von 1560.",
+     lore:"Drei Zeugen, jeder mit einem Teil der Wahrheit. Erst wer alle drei kombiniert, versteht.",
+     puzzle:"Im Rucksack: 3 Schriftstücke. Wort für Wort abwechselnd lesen (A1→B1→C1→A2→...).\nBotschaft: 'DER STEIN AN DER NORDMAUER TRÄGT DAS ZEICHEN'\nAkrostichon in Text B: Anfangsbuchstaben = BURG",
+     result:"Code: BURG. Schloss A öffnet sich.",lockOpens:"Fach A – Holzpuzzle-Teil 1",
+     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     hints:["Lest die drei Texte nicht nacheinander – abwechselnd, Wort für Wort.","Text A Wort 1 → Text B Wort 1 → Text C Wort 1 → weiter...","Schaut auf die Anfangsbuchstaben jeder Zeile in Text B."],
+     hintsUsed:[false,false,false]},
+    {id:3,name:"Das Nordtor-Rätsel",loc:"Nordmauer / Stadtbefestigung",sym:"🏰",types:["haptic","puzzle"],
+     atm:"Die mittelalterliche Stadtbefestigung. Steine die Belagerungen überstanden.",
+     lore:"1430 hielt Lichtenberg den Hussiten stand. Caspar von Waldenfels gravierte ein Geheimzeichen ein.",
+     puzzle:"Holzpuzzle zeigt mittelalterlichen Stadtplan mit 8 Punkten.\nPunkte von Nord nach Süd: Ziffern 4-7-2 → Code 472\nSymbol an der Mauer = Symbol auf Schloss B.",
+     result:"Code 472. Schloss B öffnet sich.",lockOpens:"Fach B – Schieferplatte + Lupe",
+     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     hints:["Puzzle zeigt einen Stadtplan. Welche Punkte sind von Nord nach Süd nummeriert?","Lest die Zahlen an den Punkten von oben nach unten.","Code: 472"],
+     hintsUsed:[false,false,false]},
+    {id:4,name:"Der Galgenberg",loc:"Weg zum Freizeitsee",sym:"⚖",types:["haptic","gps"],
+     atm:"Der Galgenberg – hier wurde im Mittelalter Recht vollstreckt.",
+     lore:"Hans von Waldenfels ließ 1441 drei Kaufleute hängen. Sie hatten verbotene Dokumente gesehen.",
+     puzzle:"GPS zu verstecktem Behälter (Magnetbox, heute einmessen!).\nHolzplättchen + Rätselkarte: Schulden-Summe aus Schriftstück C = Code.",
+     result:"Code 1441. Schloss C öffnet sich.",lockOpens:"Fach C – Holzmedaillon",
+     gps:"N 50°18.XXX / E 011°28.XXX",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     hints:["Folgt den GPS-Koordinaten genau. Das Versteck liegt etwas abseits des Weges.","Sucht an Bäumen oder Steinen nahe der Koordinaten nach einem kleinen Behälter.","Code: 1441 – das Jahr der Hinrichtungen."],
+     hintsUsed:[false,false,false]},
+    {id:5,name:"Die falschen Koordinaten",loc:"Burgruine / Schlossberg",sym:"🧭",types:["chiffre","haptic"],
+     atm:"Die Burgruine – 1634 niedergebrannt. Gewaltige Kelleranlagen.",
+     lore:"Caspar von Waldenfels entwickelte eine Schrift, die wie Koordinaten aussah – aber keine war.",
+     puzzle:"Schieferplatte (Fach B):\nN 50°18.472 / E 011°28.163\nN 50°18.115 / E 011°28.944\nN 50°18.338 / E 011°28.227\n→ KEINE echten GPS-Daten!\nNachkommastellen N: 472, 115, 338 → mit Scheibe: W-A-L-D-E-N\nMit Lupe: Mikrotext = Code 382",
+     result:"Code 382. Schloss D öffnet sich.",lockOpens:"Fach D – Rollenkarte",
+     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     hints:["Die Zahlen auf der Schieferplatte sind KEINE echten Koordinaten. Was haben die Stellen nach dem Komma gemeinsam?","Nehmt die Lupe und sucht nach sehr kleinem eingravierten Text auf der Schieferplatte.","Die Lupe zeigt eine 3-stellige Zahl. Das ist der Code."],
+     hintsUsed:[false,false,false]},
+    {id:6,name:"Der QR-Code des Mönchs",loc:"Kirche / historisches Gebäude",sym:"✝",types:["qr","digital","haptic"],
+     atm:"Lichtenbergs Kirche – seit dem Mittelalter Träger von Wissen und Geheimnissen.",
+     lore:"Bruder Konrad hinterließ 1337 eine verschlüsselte Botschaft für die Zukunft.",
+     puzzle:"QR-Code an/bei der Kirche (heute platzieren!)\nScannen → Webseite mit Handschrift-Bild\n5 rote Wörter → Hinweis auf Station 7\nNach 30 Sek erscheint Zahl am Rand: 1634",
+     result:"Code 1634. Schloss E öffnet sich.",lockOpens:"Fach E – Holzwürfel",
+     gps:"",qrImg:null,qrDesc:"An der Kirchenmauer, Südseite",qrLink:"https://raubritter-escape.de/station6",images:[],
+     hints:["Scannt den QR-Code und schaut die Webseite genau an – auch die Ränder.","Auf der Webseite erscheint nach einer Weile eine Zahl. Wartet mindestens 30 Sekunden.","Code: 1634 – Jahr des Burgbrands im Dreißigjährigen Krieg."],
+     hintsUsed:[false,false,false]},
+    {id:7,name:"Der Sonnenbräu-Keller",loc:"Brauerei Sonnenbräu / Nailaer Str.",sym:"🍺",types:["haptic","chiffre"],
+     atm:"Die Sonnenbräu seit 1904 – Braurechte zurück bis 1337.",
+     lore:"Die Brauer wussten immer mehr als sie sagten.",
+     puzzle:"Holzmedaillon (Fach C) in Aussparung am Gebäude.\nCaesar-Chiffre +7: 'WLK ZRSK NHLSK' → 'DER ALTE MEISTER'\nUnter markiertem Stein: Zahl 1904",
+     result:"Code 1904. Schloss F öffnet sich.",lockOpens:"Fach F – Gernots Geständnis (Brief 1+2)",
+     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     hints:["Das Medaillon aus Fach C passt irgendwo am Gebäude. Sucht nach einer passenden Aussparung.","Die Inschrift ist Caesar-verschlüsselt. Verschiebt jeden Buchstaben um 7 Stellen zurück.","Sucht nach einem Stein oder Gegenstand in der Nähe des Gebäudes. Darunter liegt die Zahl."],
+     hintsUsed:[false,false,false]},
+    {id:8,name:"Das letzte Siegel",loc:"Schlossbergturm / Burgruine",sym:"👁",types:["haptic","chiffre"],
+     atm:"Schlossbergturm, 558m. Blick bis nach Thüringen. Hier endet die Reise.",
+     lore:"Im Fundament liegt der Stein, den Gernot von Waldeck persönlich setzte.",
+     puzzle:"Rollenkarte (Fach D) zeigt markierten Stein am Turm.\nHolzwürfel (Fach E) ausrichten → Auge 👁 oben.\nChiffrenscheibe: 4-3-6-8-2-7-1-5 einstellen.\nLösungswort: WALDENFELS → Flasche öffnen!",
+     result:"WALDENFELS → Raubritter-Dunkel-Flasche geöffnet. SPIEL GELÖST!",lockOpens:"Raubritter-Dunkel-Flasche",
+     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     hints:["Schaut auf die Rollenkarte: welcher Stein am Turm ist markiert?","Stellt den Holzwürfel so auf, dass das Auge nach oben zeigt.","Chiffrenscheibe: 4. Symbol, dann 3., dann 6., 8., 2., 7., 1., 5. Was lest ihr?"],
+     hintsUsed:[false,false,false]}
+  ],
+  locks:[
+    {id:"A",sym:"🗡",name:"Dolch",by:2,code:"BURG",open:false},
+    {id:"B",sym:"🧱",name:"Stein",by:3,code:"472",open:false},
+    {id:"C",sym:"⚖",name:"Waage",by:4,code:"1441",open:false},
+    {id:"D",sym:"🗺",name:"Karte",by:5,code:"382",open:false},
+    {id:"E",sym:"✝",name:"Kreuz",by:6,code:"1634",open:false},
+    {id:"F",sym:"🍺",name:"Krug",by:7,code:"1904",open:false},
+    {id:"G",sym:"👁",name:"Auge (Flasche)",by:8,code:"WALDENFELS",open:false}
+  ],
+  pack:["Chiffrenscheibe (Holz, 2 Ringe, graviert)","Routenkarte (laminiert)","3 Schriftstücke (vergilbt)","Holzpuzzle (Schloss A versiegelt)","Schieferplatte (Schloss B versiegelt)","Messing-Lupe","Raubritter-Dunkel-Flasche (Schloss G)","Fächer A–G (7 Schlösser)"],
+  players:[],
+  checklist:[
+    {cat:"Heute vor Ort",items:[
+      {t:"Alle 8 Stationen ablaufen & fotografieren",done:false,p:"h"},
+      {t:"GPS-Koordinaten Station 4 (Galgenberg) einmessen",done:false,p:"h"},
+      {t:"Magnetbox-Versteck Station 4 festlegen & Plättchen einlegen",done:false,p:"h"},
+      {t:"QR-Code Station 6 platzieren & Position notieren",done:false,p:"h"},
+      {t:"QR-Code in Editor hochladen (Tab QR & GPS)",done:false,p:"h"},
+      {t:"Holzmedaillon-Aussparung Station 7 markieren",done:false,p:"h"},
+      {t:"Rollenkarte-Stein am Schlossbergturm festlegen",done:false,p:"h"},
+      {t:"Alle Schlösser-Symbole auf Routenkarte einzeichnen",done:false,p:"h"}
+    ]},
+    {cat:"Physische Materialien",items:[
+      {t:"Holz-Chiffrenscheibe (2 Ringe, graviert)",done:false,p:"h"},
+      {t:"7 Schlösser mit eingravierten Symbolen",done:false,p:"h"},
+      {t:"Rucksack mit beschrifteten Fächern A–G",done:false,p:"h"},
+      {t:"Raubritter-Dunkel-Flasche (verschlossen)",done:false,p:"h"},
+      {t:"3 Schriftstücke auf Pergamentpapier",done:false,p:"m"},
+      {t:"Holzpuzzle (Stadtplan, 8 Punkte)",done:false,p:"m"},
+      {t:"Schieferplatte mit gravierten Falsch-Koordinaten",done:false,p:"m"},
+      {t:"Holzmedaillon mit Caesar-Chiffre",done:false,p:"m"},
+      {t:"Holzwürfel mit 6 Symbolen",done:false,p:"m"},
+      {t:"Rollenkarte (Pergament, gerollt)",done:false,p:"m"},
+      {t:"Messing-Lupe (Rucksack)",done:false,p:"l"},
+      {t:"Magnetbox für Versteck Station 4",done:false,p:"m"},
+      {t:"Hinweiskarte (laminiert, 1× pro Gruppe)",done:false,p:"h"},
+      {t:"Schreibblock + Stift",done:false,p:"l"}
+    ]},
+    {cat:"Digital & Technik",items:[
+      {t:"QR-Code für Station 6 erstellen & drucken",done:false,p:"h"},
+      {t:"Landingpage / URL für QR einrichten",done:false,p:"h"},
+      {t:"Handschrift-Bild auf Webseite hochladen (5 rote Wörter)",done:false,p:"h"},
+      {t:"30-Sek-Timer auf Webseite programmieren (zeigt Code 1634)",done:false,p:"h"},
+      {t:"Schließfach-Code 1337 hinterlegen",done:false,p:"h"},
+      {t:"App konfigurieren (falls genutzt)",done:false,p:"l"},
+      {t:"Lösungsurkunde + Zertifikat drucken (für Flasche)",done:false,p:"m"}
+    ]},
+    {cat:"Am Spieltag",items:[
+      {t:"Rucksack packen & Schlösser kontrollieren",done:false,p:"h"},
+      {t:"Alle Verstecke nochmals prüfen",done:false,p:"h"},
+      {t:"Wetter-Check",done:false,p:"m"},
+      {t:"Backup-Hinweise griffbereit",done:false,p:"m"},
+      {t:"Spieler-Gruppe empfangen & Einweisung",done:false,p:"h"},
+      {t:"Timer starten (Editor-Header)",done:false,p:"m"},
+      {t:"Raubritter-Dunkel bereitstellen (fürs Foto nach dem Lösen)",done:false,p:"l"}
+    ]}
+  ]
 };
 
-let activeStation = null;
-let testStationIndex = 0;
+let gd = JSON.parse(JSON.stringify(BASE));
+let curSt = 1;
+let tSec=0,tRun=false,tInt=null;
+let laps=[];
+let hPenMin=5;
+let hTimers={};
+let qrImages={};
 
-// ─── INIT ──────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', () => {
-  loadFromLocalStorage();
-  renderAll();
-
-  // Auto-save alle 10 Sekunden
-  setInterval(() => {
-    saveToLocalStorage();
-    showSaveIndicator();
-  }, 10000);
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded',()=>{
+  renderSidebar();renderOv();renderStory();renderSt(1);
+  renderRucksack();renderQR();renderGPS();drawCipher();
+  renderHintTab();renderPlayers();renderTimerTab();
+  renderChecklist();populateHSel();
 });
 
-// ─── PERSISTENZ ───────────────────────────────────────
-function saveToLocalStorage() {
-  localStorage.setItem('raubritter-editor-game', JSON.stringify(game));
-}
-function loadFromLocalStorage() {
-  const saved = localStorage.getItem('raubritter-editor-game');
-  if (saved) {
-    try { game = { ...game, ...JSON.parse(saved) }; } catch(e) {}
-  }
-  // Demo-Daten wenn leer
-  if (game.stations.length === 0) {
-    game.stations = [
-      {
-        name: 'Der Outdoor-Schrank',
-        story: 'Ein schweres eisenbeschlagenes Holzschloss sichert den Schrank. Ihr habt ihn geöffnet – das Abenteuer beginnt.',
-        puzzle: 'Welches Jahr steht auf der Gedenktafel am Eingang der Burg?',
-        answer: '1398',
-        hint: 'Schaut euch die Bronzetafel rechts neben dem Burgtor an.',
-        points: 100,
-        photo: 'https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=400&q=80',
-        directions: 'Ihr startet am Parkplatz Burgstraße. Den Wanderweg Richtung Burg nehmen, nach ca. 200m rechts am alten Brunnen.',
-        lat: '50.3456',
-        lng: '11.6789',
-        qrCode: 'demo-qr-station-1'
-      },
-      {
-        name: 'Der Bergfried',
-        story: 'Die Mauern tragen noch die Rußspuren des großen Brandes von 1626. Hier oben pfiff einst der Wind durch die Schießscharten.',
-        puzzle: 'Wie viele Stufen hat die Treppe zum Bergfried-Plateau?',
-        answer: '47',
-        hint: 'Fangt unten beim steinernen Bogen an zu zählen.',
-        points: 150,
-        photo: '',
-        directions: 'Vom Schrank geradeaus dem Mauerweg folgen bis zum Bergfried.',
-        lat: '', lng: '',
-        qrCode: ''
-      }
-    ];
-    game.qrMappings = { 'demo-qr-station-1': 0 };
-    saveToLocalStorage();
-  }
-}
-function showSaveIndicator() {
-  const el = document.getElementById('save-indicator');
-  el.innerHTML = '<i class="fa-solid fa-circle-check mr-1" style="color:#4ade80;"></i>Auto-gespeichert';
+// ============================================================
+// TABS
+// ============================================================
+function showTab(id,btn){
+  document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('tp-'+id).classList.add('on');
+  if(btn) btn.classList.add('on');
+  if(id==='stations') renderSt(curSt);
+  if(id==='cipher') drawCipher();
+  if(id==='checklist') renderChecklist();
 }
 
-// ─── RENDER ALLE KOMPONENTEN ──────────────────────────
-function renderAll() {
-  renderStationList();
-  renderQRMappingList();
-  updateStats();
-  updateGameTitleDisplay();
-  loadGameSettingsIntoForm();
-  if (activeStation !== null) renderStationForm(activeStation);
+// ============================================================
+// SIDEBAR
+// ============================================================
+function renderSidebar(){
+  document.getElementById('sList').innerHTML=gd.stations.map(s=>`
+    <div class="si ${s.id===curSt?'on':''}" onclick="goSt(${s.id})">
+      <span class="sn">${s.id}</span><span class="snm">${s.name}</span><span class="ssym">${s.sym}</span>
+    </div>`).join('');
+  document.getElementById('lSide').innerHTML=gd.locks.map(l=>`
+    <div class="lrow" style="padding:.28rem .5rem;margin-bottom:2px;">
+      <span style="font-size:.9rem;">${l.sym}</span>
+      <span class="lname" style="font-size:.7rem;">Fach ${l.id}</span>
+      <span class="lstatus ${l.open?'lok':'lcl'}">${l.open?'✓':'✗'}</span>
+    </div>`).join('');
+  const open=gd.locks.filter(l=>l.open).length;
+  const hused=gd.stations.reduce((a,s)=>a+s.hintsUsed.filter(Boolean).length,0);
+  document.getElementById('progBar').style.width=((open/7)*100)+'%';
+  document.getElementById('progTxt').textContent=open+'/7';
+  document.getElementById('hUsed').textContent='Hinweise: '+hused;
+  // checklist progress
+  const allChk=gd.checklist.flatMap(c=>c.items);
+  const donePct=allChk.length?Math.round((allChk.filter(i=>i.done).length/allChk.length)*100):0;
+  document.getElementById('chkDone').textContent='Checkliste: '+donePct+'%';
+}
+function goSt(id){curSt=id;renderSidebar();showTab('stations',document.querySelectorAll('.tbtn')[2]);}
+
+// ============================================================
+// OVERVIEW
+// ============================================================
+function renderOv(){
+  document.getElementById('ovStats').innerHTML=`
+    <div class="sb"><span class="sv">8</span><span class="sl">Stationen</span></div>
+    <div class="sb"><span class="sv">~2h</span><span class="sl">Spielzeit</span></div>
+    <div class="sb"><span class="sv">7</span><span class="sl">Schlösser</span></div>
+    <div class="sb"><span class="sv">1337</span><span class="sl">Startcode</span></div>`;
+  document.getElementById('ovGrid').innerHTML=gd.stations.map(s=>`
+    <div style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:.9rem;cursor:pointer;transition:all .2s;" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'" onclick="goSt(${s.id})">
+      <div style="font-family:'Cinzel',serif;font-size:.58rem;color:var(--stonel);letter-spacing:.12em;">STATION ${s.id}</div>
+      <div style="font-size:1.5rem;margin:.25rem 0;">${s.sym}</div>
+      <div style="font-family:'Cinzel',serif;font-size:.82rem;color:var(--parch);">${s.name}</div>
+      <div style="font-size:.7rem;color:var(--stonel);font-style:italic;margin-top:.15rem;">${s.loc}</div>
+      <div class="tags" style="margin-top:.4rem;">${s.types.map(t=>`<span class="tag tag-${t}">${tl(t)}</span>`).join('')}</div>
+    </div>`).join('');
 }
 
-function updateGameTitleDisplay() {
-  document.getElementById('game-title-display').textContent = game.title || 'Unbenanntes Spiel';
-  document.getElementById('test-game-title').textContent = (game.title || 'Spiel').toUpperCase();
+function startGame(){
+  const n=document.getElementById('grpName').value||'Gruppe '+Date.now();
+  const d=document.getElementById('grpDiff').value;
+  hPenMin=d==='easy'?0:d==='hard'?10:d==='expert'?999:5;
+  document.getElementById('plName').textContent=n;
+  document.getElementById('plBadge').style.display='flex';
+  document.getElementById('hPenDisp').textContent=hPenMin===999?'Gesperrt':hPenMin+' Min';
+  tReset();tStart();
+  gd.players.push({name:n,count:parseInt(document.getElementById('grpCount').value)||1,
+    diff:d,note:document.getElementById('grpNote').value,start:new Date().toLocaleTimeString(),time:'–',hints:0});
+  renderPlayers();
+  alert(`Spiel gestartet für "${n}"!\nTimer läuft – viel Erfolg, Raubritter!`);
 }
 
-// ─── STATIONEN LISTE ──────────────────────────────────
-function renderStationList() {
-  const list = document.getElementById('station-list');
-  const count = document.getElementById('station-count');
-  count.textContent = game.stations.length + ' Station' + (game.stations.length !== 1 ? 'en' : '');
+function addPlayerOnly(){
+  const n=document.getElementById('grpName').value||'Gruppe';
+  gd.players.push({name:n,count:parseInt(document.getElementById('grpCount').value)||1,
+    diff:document.getElementById('grpDiff').value,note:document.getElementById('grpNote').value,start:new Date().toLocaleTimeString(),time:'–',hints:0});
+  renderPlayers();
+  alert('Gruppe gespeichert.');
+}
 
-  if (game.stations.length === 0) {
-    list.innerHTML = '<div class="empty-state" style="padding:2rem 1rem;"><i class="fa-solid fa-map-pin"></i><p>Noch keine Stationen.<br>Erstelle die erste!</p></div>';
-    return;
-  }
+// ============================================================
+// STORY
+// ============================================================
+function renderStory(){
+  document.getElementById('storyPrev').innerHTML=gd.storyIntro.replace(/\n\n/g,'<br><br>');
+  document.getElementById('storyTA').value=gd.storyIntro;
+  document.getElementById('secretTA').value=gd.storySecret;
+}
+function saveStory(){
+  gd.storyIntro=document.getElementById('storyTA').value;
+  gd.storySecret=document.getElementById('secretTA').value;
+  document.getElementById('storyPrev').innerHTML=gd.storyIntro.replace(/\n\n/g,'<br><br>');
+  alert('Gespeichert.');
+}
+function resetStory(){gd.storyIntro=BASE.storyIntro;gd.storySecret=BASE.storySecret;renderStory();}
 
-  list.innerHTML = game.stations.map((s, i) => `
-    <div class="station-item ${activeStation === i ? 'active' : ''}" onclick="selectStation(${i})">
-      <span class="drag-handle"><i class="fa-solid fa-grip-lines-vertical"></i></span>
-      <div class="station-num ${s.qrCode ? 'solved' : ''}">${i + 1}</div>
-      <div class="station-name-label">
-        ${s.name || '<em style="opacity:0.5">Unbenannte Station</em>'}
-        <span>${s.puzzle ? s.puzzle.substring(0, 35) + '…' : 'Kein Rätsel'}</span>
+// ============================================================
+// STATION DETAIL
+// ============================================================
+function renderSt(id){
+  const s=gd.stations.find(x=>x.id===id); if(!s) return;
+  const lock=gd.locks.find(l=>l.by===id);
+  document.getElementById('stDetail').innerHTML=`
+    <div class="card">
+      <div style="display:flex;align-items:flex-start;gap:1rem;margin-bottom:.9rem;">
+        <div style="font-size:2.2rem;line-height:1;">${s.sym}</div>
+        <div style="flex:1;">
+          <h2 style="font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold);">Station ${s.id}: ${s.name}</h2>
+          <div style="font-size:.75rem;color:var(--stonel);font-style:italic;">${s.loc}</div>
+          <div class="tags">${s.types.map(t=>`<span class="tag tag-${t}">${tl(t)}</span>`).join('')}</div>
+        </div>
+        ${id>1?`<button class="btn btn-o" style="padding:.3rem .7rem;font-size:.62rem;" onclick="navSt(${id-1})">◀</button>`:''}
+        ${id<8?`<button class="btn btn-o" style="padding:.3rem .7rem;font-size:.62rem;" onclick="navSt(${id+1})">▶</button>`:''}
       </div>
-      ${s.qrCode ? '<i class="fa-solid fa-qrcode" style="color:var(--gold); font-size:0.7rem; opacity:0.6;"></i>' : ''}
+      <div class="ib lore"><strong style="font-family:'Cinzel',serif;font-size:.67rem;color:var(--gold);">ATMOSPHÄRE</strong><br>${s.atm}</div>
+      <div class="ib lore"><strong style="font-family:'Cinzel',serif;font-size:.67rem;color:var(--gold);">LEGENDE</strong><br>${s.lore}</div>
+      <div class="ib puzz"><strong style="font-family:'Cinzel',serif;font-size:.67rem;color:#4a9e63;">RÄTSEL</strong><br><pre style="white-space:pre-wrap;font-family:inherit;font-size:.82rem;margin-top:.35rem;line-height:1.65;">${s.puzzle}</pre></div>
+      <div class="g2" style="margin-top:.7rem;">
+        <div class="ib res"><strong style="font-family:'Cinzel',serif;font-size:.65rem;color:#7a8ab8;">ERGEBNIS</strong><br>${s.result}</div>
+        <div class="ib res"><strong style="font-family:'Cinzel',serif;font-size:.65rem;color:#7a8ab8;">ÖFFNET</strong><br>${s.lockOpens}</div>
+      </div>
+
+      <!-- BILDER -->
+      <div class="sect">Bildmaterial</div>
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem;">
+        <select id="icat-${id}" style="width:auto;margin:0;font-size:.78rem;">
+          <option value="loc">📍 Standortfoto</option>
+          <option value="mat">🪵 Rätselmaterial</option>
+          <option value="sol">🔓 Lösung (Spielleiter)</option>
+          <option value="hint">💡 Hinweis-Foto</option>
+        </select>
+        <label style="text-transform:none;letter-spacing:0;font-size:.78rem;cursor:pointer;color:var(--bluel);border:1px solid rgba(26,58,92,.4);border-radius:4px;padding:.28rem .7rem;transition:all .2s;" onmouseover="this.style.borderColor='var(--bluel)'" onmouseout="this.style.borderColor='rgba(26,58,92,.4)'">
+          + Bilder hochladen
+          <input type="file" accept="image/*" multiple style="display:none;" onchange="uploadImgs(${id},this)">
+        </label>
+      </div>
+      <div class="igrid" id="ig-${id}">
+        ${(s.images||[]).map((img,i)=>`
+          <div class="icard">
+            <img src="${img.data}" alt="${img.name}">
+            <div class="imeta"><div class="iname">${img.name}</div><div class="icat">${iCatLbl(img.cat)}</div></div>
+            <button class="idel" onclick="delImg(${id},${i})">✕</button>
+          </div>`).join('')}
+      </div>
+
+      <hr class="dv">
+      <div class="sect">Bearbeiten</div>
+      <div class="g2">
+        <div>
+          <label>Name</label><input type="text" id="en-${id}" value="${s.name}">
+          <label>Ort</label><input type="text" id="el-${id}" value="${s.loc}">
+          <label>Symbol</label><input type="text" id="es-${id}" value="${s.sym}" maxlength="2">
+        </div>
+        <div>
+          <label>Schloss-Code</label><input type="text" id="ec-${id}" value="${lock?lock.code:'–'}">
+          <label>GPS</label><input type="text" id="eg-${id}" value="${s.gps||''}" placeholder="N 50°18.XXX / E 011°28.XXX">
+        </div>
+      </div>
+      <label>Atmosphäre</label><textarea id="ea-${id}">${s.atm}</textarea>
+      <label>Rätsel</label><textarea id="ep-${id}" style="min-height:100px;">${s.puzzle}</textarea>
+      ${lock?`<label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.8rem;text-transform:none;letter-spacing:0;color:var(--parch2);margin-bottom:.5rem;">
+        <input type="checkbox" ${lock.open?'checked':''} onchange="toggleLock('${lock.id}')">
+        ${lock.sym} Schloss ${lock.id} als geöffnet markieren</label>`:''}
+      <div class="brow">
+        <button class="btn btn-g" onclick="saveSt(${id})">Speichern</button>
+      </div>
+    </div>`;
+}
+
+function navSt(id){curSt=id;renderSidebar();renderSt(id);}
+
+function saveSt(id){
+  const s=gd.stations.find(x=>x.id===id);
+  s.name=document.getElementById('en-'+id).value;
+  s.loc=document.getElementById('el-'+id).value;
+  s.sym=document.getElementById('es-'+id).value;
+  s.atm=document.getElementById('ea-'+id).value;
+  s.puzzle=document.getElementById('ep-'+id).value;
+  s.gps=document.getElementById('eg-'+id).value;
+  const lock=gd.locks.find(l=>l.by===id);
+  if(lock) lock.code=document.getElementById('ec-'+id).value;
+  renderSidebar();renderOv();renderGPS();
+  alert('Station '+id+' gespeichert!');
+}
+
+function toggleLock(lid){
+  const l=gd.locks.find(x=>x.id===lid);
+  if(l){l.open=!l.open;renderSidebar();renderRucksack();renderTimerTab();}
+}
+
+// IMAGES
+function uploadImgs(sid,inp){
+  const s=gd.stations.find(x=>x.id===sid);
+  const cat=document.getElementById('icat-'+sid)?.value||'loc';
+  Array.from(inp.files).forEach(f=>{
+    const r=new FileReader();
+    r.onload=e=>{s.images.push({name:f.name,cat,data:e.target.result});renderSt(sid);};
+    r.readAsDataURL(f);
+  });
+}
+function delImg(sid,idx){const s=gd.stations.find(x=>x.id===sid);s.images.splice(idx,1);renderSt(sid);}
+function iCatLbl(c){return{loc:'📍 Standort',mat:'🪵 Material',sol:'🔓 Lösung',hint:'💡 Hinweis'}[c]||c;}
+
+// ============================================================
+// RUCKSACK
+// ============================================================
+function renderRucksack(){
+  document.getElementById('packList').innerHTML=gd.pack.map((x,i)=>`
+    <div class="lrow"><span style="color:var(--gold);font-family:'Cinzel',serif;font-size:.7rem;min-width:16px;">${i+1}.</span><span class="lname">${x}</span></div>`).join('');
+  document.getElementById('lockFull').innerHTML=gd.locks.map(l=>`
+    <div class="lrow">
+      <span style="font-size:.95rem;">${l.sym}</span>
+      <div style="flex:1;"><div style="font-size:.8rem;">${l.name}-Schloss (Fach ${l.id})</div>
+      <div style="font-size:.7rem;color:var(--stonel);">Station ${l.by} · Code: <code style="background:rgba(255,255,255,.04);padding:1px 5px;border-radius:3px;">${l.code}</code></div></div>
+      <span class="lstatus ${l.open?'lok':'lcl'}">${l.open?'Offen':'Zu'}</span>
+    </div>`).join('');
+  document.getElementById('lockMgmt').innerHTML=gd.locks.map(l=>`
+    <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;margin-bottom:.4rem;font-size:.8rem;text-transform:none;letter-spacing:0;color:var(--parch2);">
+      <input type="checkbox" ${l.open?'checked':''} onchange="toggleLock('${l.id}')">
+      ${l.sym} Fach ${l.id} – ${l.name} – Code: <strong>${l.code}</strong>
+    </label>`).join('');
+}
+
+// ============================================================
+// QR UPLOAD
+// ============================================================
+function renderQR(){
+  renderQRList();
+}
+
+function uploadQR(inp){
+  const f=inp.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const sid=parseInt(document.getElementById('qrStation').value)||6;
+    const img=document.getElementById('qrPreviewImg');
+    img.src=e.target.result;img.style.display='block';
+    qrImages[sid]=e.target.result;
+    document.getElementById('qrMeta').textContent=`Hochgeladen: ${f.name} (${(f.size/1024).toFixed(1)} KB)`;
+  };
+  r.readAsDataURL(f);
+}
+
+function saveQRMeta(){
+  const sid=parseInt(document.getElementById('qrStation').value)||6;
+  const s=gd.stations.find(x=>x.id===sid);
+  if(s){
+    s.qrDesc=document.getElementById('qrDesc').value;
+    s.qrLink=document.getElementById('qrLink').value;
+    if(qrImages[sid]) s.qrImg=qrImages[sid];
+  }
+  renderQRList();
+  alert('QR-Code Daten gespeichert!');
+}
+
+function renderQRList(){
+  const el=document.getElementById('qrList'); if(!el) return;
+  const stWithQR=gd.stations.filter(s=>s.qrImg||s.qrLink);
+  if(!stWithQR.length){el.innerHTML='<div style="color:var(--stonel);font-size:.8rem;font-style:italic;">Noch keine QR-Codes hochgeladen.</div>';return;}
+  el.innerHTML=stWithQR.map(s=>`
+    <div class="lrow" style="align-items:flex-start;gap:.8rem;padding:.7rem;">
+      ${s.qrImg?`<img src="${s.qrImg}" style="width:60px;height:60px;object-fit:contain;background:#fff;border-radius:4px;padding:3px;">`
+        :`<div style="width:60px;height:60px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;">📱</div>`}
+      <div style="flex:1;">
+        <div style="font-family:'Cinzel',serif;font-size:.78rem;color:var(--gold);">Station ${s.id}: ${s.name}</div>
+        <div style="font-size:.75rem;color:var(--parch2);margin-top:.2rem;">${s.qrDesc||'–'}</div>
+        <div style="font-size:.7rem;color:var(--bluel);word-break:break-all;">${s.qrLink||'–'}</div>
+      </div>
+      <button class="btn btn-r" style="padding:.25rem .6rem;font-size:.6rem;" onclick="clearQR(${s.id})">✕</button>
+    </div>`).join('');
+}
+
+function clearQR(sid){
+  const s=gd.stations.find(x=>x.id===sid);
+  if(s){s.qrImg=null;s.qrDesc='';s.qrLink='';}
+  delete qrImages[sid];
+  renderQRList();
+}
+
+// GPS
+function renderGPS(){
+  const el=document.getElementById('gpsList'); if(!el) return;
+  el.innerHTML=gd.stations.map(s=>`
+    <div class="lrow" style="margin-bottom:.3rem;">
+      <span style="font-size:.95rem;">${s.sym}</span>
+      <span class="lname" style="font-size:.78rem;color:var(--parch2);">${s.id}. ${s.name}</span>
+      <input type="text" id="gps-${s.id}" value="${s.gps||''}" placeholder="N 50°18.XXX / E 011°28.XXX"
+        style="width:230px;margin:0;font-size:.75rem;padding:.28rem .55rem;" onblur="saveGPS(${s.id})">
+    </div>`).join('');
+}
+
+function saveGPS(id){const s=gd.stations.find(x=>x.id===id);const el=document.getElementById('gps-'+id);if(s&&el)s.gps=el.value;}
+
+function copyGPS(){
+  let t='GPS-KOORDINATEN – RAUBRITTER ESCAPE\n\n';
+  gd.stations.forEach(s=>{t+=`Station ${s.id}: ${s.name}\n${s.gps||'(noch nicht eingemessen)'}\n\n`;});
+  navigator.clipboard.writeText(t).then(()=>alert('Kopiert!')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('Kopiert!');
+  });
+}
+
+// ============================================================
+// CIPHER
+// ============================================================
+function drawCipher(){
+  const cv=document.getElementById('cipherCanvas'); if(!cv) return;
+  const ctx=cv.getContext('2d');
+  const cx=140,cy=140,R1=128,R2=85,R3=48;
+  ctx.clearRect(0,0,280,280);
+  const syms=gd.symbolOrder.map(i=>gd.stations[i-1].sym);
+  const word=(document.getElementById('solWord')?.value||gd.solutionWord).toUpperCase().split('');
+  for(let i=0;i<8;i++){
+    const a=(i/8)*Math.PI*2-Math.PI/2,b=((i+1)/8)*Math.PI*2-Math.PI/2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R1,a,b);ctx.closePath();
+    ctx.fillStyle=i%2?'rgba(201,146,42,.07)':'rgba(201,146,42,.13)';ctx.fill();
+    ctx.strokeStyle='rgba(201,146,42,.32)';ctx.lineWidth=1;ctx.stroke();
+    const m=a+Math.PI/8;
+    ctx.font='16px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(syms[i],cx+Math.cos(m)*R1*.73,cy+Math.sin(m)*R1*.73);
+  }
+  for(let i=0;i<8;i++){
+    const a=(i/8)*Math.PI*2-Math.PI/2,b=((i+1)/8)*Math.PI*2-Math.PI/2;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,R2,a,b);ctx.closePath();
+    ctx.fillStyle=i%2?'rgba(139,26,26,.06)':'rgba(139,26,26,.12)';ctx.fill();
+    ctx.strokeStyle='rgba(139,26,26,.3)';ctx.lineWidth=.7;ctx.stroke();
+    const m=a+Math.PI/8;
+    ctx.font='500 12px Cinzel,serif';ctx.fillStyle='#e8d5b0';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(word[i]||'?',cx+Math.cos(m)*R2*.67,cy+Math.sin(m)*R2*.67);
+  }
+  ctx.beginPath();ctx.arc(cx,cy,R3,0,Math.PI*2);
+  ctx.fillStyle='#0e0a05';ctx.fill();ctx.strokeStyle='rgba(201,146,42,.5)';ctx.lineWidth=1.8;ctx.stroke();
+  ctx.font='500 8.5px Cinzel,serif';ctx.fillStyle='#c9922a';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('RAUBRITTER',cx,cy-6);ctx.fillText('ESCAPE',cx,cy+6);
+  renderCipherList();
+}
+function renderCipherList(){
+  const el=document.getElementById('cipherList'); if(!el) return;
+  const w=(document.getElementById('solWord')?.value||gd.solutionWord).toUpperCase();
+  el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:.78rem;">
+    <tr style="color:var(--stonel);font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.07em;">
+      <td style="padding:3px 5px;">POS</td><td style="padding:3px 5px;">STATION</td><td style="padding:3px 5px;">SYM</td><td style="padding:3px 5px;">BUCHST.</td>
+    </tr>
+    ${gd.symbolOrder.map((sid,i)=>{const s=gd.stations.find(x=>x.id===sid);return`<tr style="border-top:1px solid var(--border);">
+      <td style="padding:3px 5px;font-family:'Cinzel',serif;color:var(--gold);">${i+1}</td>
+      <td style="padding:3px 5px;">${s.id}: ${s.name}</td>
+      <td style="padding:3px 5px;font-size:.95rem;">${s.sym}</td>
+      <td style="padding:3px 5px;font-family:'Cinzel',serif;color:var(--goldl);font-size:.95rem;">${w[i]||'?'}</td>
+    </tr>`;}).join('')}
+  </table>`;
+}
+
+// ============================================================
+// HINTS
+// ============================================================
+function populateHSel(){
+  const sel=document.getElementById('hStSel'); if(!sel) return;
+  gd.stations.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=`${s.id}. ${s.name}`;sel.appendChild(o);});
+}
+function renderHintTab(){renderHintEdit();}
+
+function renderHintView(){
+  const id=parseInt(document.getElementById('hStSel')?.value)||0;
+  const el=document.getElementById('hView'); if(!el) return;
+  if(!id){el.innerHTML='';return;}
+  const s=gd.stations.find(x=>x.id===id);
+  const lvls=['💚 Hinweis 1 – Sanfter Schubs','🟡 Hinweis 2 – Konkrete Hilfe','🔴 Hinweis 3 – Fast die Lösung'];
+  const cls=['hlvl1','hlvl2','hlvl3'];
+  el.innerHTML=`<div class="sect">Hinweise für: ${s.sym} ${s.name}</div>
+    ${s.hints.map((h,i)=>`
+      <div class="hbox" id="hb-${id}-${i}">
+        <div class="hhdr">
+          <span class="${cls[i]} hlvl">${lvls[i]}</span>
+          ${s.hintsUsed[i]?'<span class="hused">Benutzt</span>':`<button class="hreveal" onclick="revealHint(${id},${i})">Aufdecken</button>`}
+          <span style="margin-left:auto;font-size:.65rem;color:var(--stonel);" id="ht-${id}-${i}"></span>
+        </div>
+        <div class="hbody ${s.hintsUsed[i]?'open':''}">${h}</div>
+      </div>`).join('')}`;
+}
+
+function revealHint(sid,idx){
+  const s=gd.stations.find(x=>x.id===sid);
+  const key=`${sid}-${idx}`;
+  if(hTimers[key]?.blocked){
+    const rem=Math.ceil((hTimers[key].until-Date.now())/1000);
+    if(rem>0){alert(`Bitte noch ${Math.ceil(rem/60)} Min warten.`);return;}
+  }
+  if(!confirm(`Hinweis ${idx+1} für Station ${sid} aufdecken?`)) return;
+  s.hintsUsed[idx]=true;
+  document.getElementById(`hb-${sid}-${idx}`)?.querySelector('.hbody')?.classList.add('open');
+  renderSidebar();
+  if(idx<2&&hPenMin>0&&hPenMin<999){
+    const until=Date.now()+hPenMin*60*1000;
+    hTimers[`${sid}-${idx+1}`]={blocked:true,until};
+    const iv=setInterval(()=>{
+      const rem=Math.ceil((until-Date.now())/1000);
+      const e=document.getElementById(`ht-${sid}-${idx+1}`);
+      if(e) e.textContent=rem>0?`Frei in ${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`:'';
+      if(rem<=0){clearInterval(iv);delete hTimers[`${sid}-${idx+1}`];if(e)e.textContent='';}
+    },1000);
+  }
+  document.getElementById('hTot').textContent=gd.stations.reduce((a,s)=>a+s.hintsUsed.filter(Boolean).length,0);
+  renderHintView();
+}
+
+function renderHintEdit(){
+  const el=document.getElementById('hEdit'); if(!el) return;
+  el.innerHTML=gd.stations.map(s=>`
+    <div style="margin-bottom:.9rem;padding:.7rem;background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:6px;">
+      <div style="font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold);margin-bottom:.4rem;">${s.sym} Station ${s.id}: ${s.name}</div>
+      ${s.hints.map((h,i)=>`
+        <div style="display:flex;gap:.4rem;margin-bottom:.28rem;align-items:flex-start;">
+          <span style="font-size:.65rem;color:${['#4a9e63','#c9922a','#c04040'][i]};min-width:14px;padding-top:.45rem;font-family:'Cinzel',serif;">H${i+1}</span>
+          <textarea id="he-${s.id}-${i}" style="min-height:44px;margin:0;font-size:.8rem;">${h}</textarea>
+        </div>`).join('')}
+      <button class="btn btn-o" style="font-size:.6rem;padding:.28rem .7rem;margin-top:.2rem;" onclick="saveHints(${s.id})">Speichern</button>
+    </div>`).join('');
+}
+function saveHints(sid){
+  const s=gd.stations.find(x=>x.id===sid);
+  for(let i=0;i<3;i++){const e=document.getElementById(`he-${sid}-${i}`);if(e)s.hints[i]=e.value;}
+  alert('Hinweise '+sid+' gespeichert.');
+}
+
+// ============================================================
+// PLAYERS
+// ============================================================
+function renderPlayers(){
+  const el=document.getElementById('playerTable'); if(!el) return;
+  if(!gd.players.length){el.innerHTML='<div style="color:var(--stonel);font-size:.8rem;font-style:italic;">Noch keine Gruppen.</div>';return;}
+  el.innerHTML=`<table class="ptable">
+    <tr><th>Gruppe</th><th>Spieler</th><th>Diff.</th><th>Start</th><th>Zeit</th><th>Hinw.</th><th>Notiz</th><th></th></tr>
+    ${gd.players.map((p,i)=>`<tr>
+      <td style="font-family:'Cinzel',serif;color:var(--gold);">${p.name}</td>
+      <td style="text-align:center;">${p.count}</td>
+      <td>${p.diff}</td>
+      <td>${p.start||'–'}</td>
+      <td style="font-family:'Cinzel',serif;">${p.time}</td>
+      <td style="text-align:center;">${p.hints}</td>
+      <td style="font-size:.72rem;color:var(--stonel);">${p.note||'–'}</td>
+      <td><button class="btn btn-r" style="padding:.2rem .5rem;font-size:.6rem;" onclick="delPlayer(${i})">✕</button></td>
+    </tr>`).join('')}
+  </table>`;
+}
+function addPlayerManual(){
+  gd.players.push({name:document.getElementById('pNewName').value||'Gruppe',count:parseInt(document.getElementById('pNewCount').value)||1,diff:'manual',start:'–',time:document.getElementById('pNewTime').value||'–',hints:parseInt(document.getElementById('pNewHints').value)||0,note:document.getElementById('pNewNote').value});
+  renderPlayers();
+}
+function delPlayer(i){if(confirm('Eintrag löschen?')){gd.players.splice(i,1);renderPlayers();}}
+
+// ============================================================
+// TIMER
+// ============================================================
+function tStart(){
+  if(tRun) return;
+  tRun=true;
+  document.getElementById('tbStart').style.display='none';
+  document.getElementById('tbPause').style.display='';
+  document.getElementById('tbLap').style.display='';
+  document.getElementById('tdisp').classList.add('run');
+  tInt=setInterval(()=>{tSec++;const f=fmtT(tSec);document.getElementById('tdisp').textContent=f;document.getElementById('totTime').textContent=f;},1000);
+}
+function tPause(){
+  if(!tRun) return;
+  tRun=false;clearInterval(tInt);
+  document.getElementById('tbPause').textContent='WEITER';
+  document.getElementById('tbPause').onclick=tStart;
+  document.getElementById('tdisp').classList.remove('run');
+}
+function tReset(){
+  clearInterval(tInt);tRun=false;tSec=0;laps=[];
+  ['tdisp','totTime'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent='00:00:00';});
+  const td=document.getElementById('tdisp');if(td) td.classList.remove('run');
+  document.getElementById('tbStart').style.display='';
+  document.getElementById('tbPause').style.display='none';
+  document.getElementById('tbLap').style.display='none';
+  document.getElementById('tbPause').textContent='PAUSE';
+  document.getElementById('tbPause').onclick=tPause;
+  document.getElementById('lapCnt').textContent='0';
+  renderLaps();
+}
+function tLap(){
+  const s=gd.stations.find(x=>x.id===curSt);
+  laps.push({label:s?`${s.id}. ${s.name}`:`Runde ${laps.length+1}`,t:tSec});
+  document.getElementById('lapCnt').textContent=laps.length;
+  renderLaps();
+  if(gd.players.length){gd.players[gd.players.length-1].time=fmtT(tSec);}
+  renderPlayers();
+}
+function renderLaps(){
+  const el=document.getElementById('lapList');if(!el) return;
+  if(!laps.length){el.innerHTML='<div style="color:var(--stonel);font-size:.78rem;font-style:italic;">Noch keine Rundenzeiten.</div>';return;}
+  let prev=0;
+  el.innerHTML=laps.map((l,i)=>{const sp=l.t-prev;prev=l.t;return`<div class="lap"><span style="color:var(--stonel);font-size:.7rem;">${i+1}.</span><span>${l.label}</span><span style="color:var(--stonel);font-size:.72rem;">(+${fmtT(sp)})</span><span style="font-family:'Cinzel',serif;color:var(--gold);">${fmtT(l.t)}</span></div>`;}).join('');
+}
+function fmtT(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;return[h,m,ss].map(x=>String(x).padStart(2,'0')).join(':');}
+function renderTimerTab(){
+  const el=document.getElementById('manSt');if(!el) return;
+  el.innerHTML=gd.locks.map(l=>`
+    <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer;margin-bottom:.35rem;font-size:.78rem;text-transform:none;letter-spacing:0;color:var(--parch2);">
+      <input type="checkbox" ${l.open?'checked':''} onchange="toggleLock('${l.id}')">
+      ${l.sym} Fach ${l.id} (${l.name}) – Station ${l.by}
+    </label>`).join('');
+}
+
+// ============================================================
+// CHECKLIST
+// ============================================================
+function renderChecklist(){
+  // Stats
+  const all=gd.checklist.flatMap(c=>c.items);
+  const done=all.filter(i=>i.done).length;
+  const h=all.filter(i=>i.p==='h'), hd=h.filter(i=>i.done).length;
+  const m=all.filter(i=>i.p==='m'), md=m.filter(i=>i.done).length;
+  document.getElementById('chkStats').innerHTML=`
+    <div class="sb"><span class="sv">${done}/${all.length}</span><span class="sl">Gesamt</span></div>
+    <div class="sb"><span class="sv">${Math.round((done/all.length)*100)||0}%</span><span class="sl">Erledigt</span></div>
+    <div class="sb"><span class="sv">${hd}/${h.length}</span><span class="sl">Kritisch</span></div>
+    <div class="sb"><span class="sv">${md}/${m.length}</span><span class="sl">Wichtig</span></div>`;
+
+  document.getElementById('chkContent').innerHTML=gd.checklist.map((cat,ci)=>{
+    const cDone=cat.items.filter(i=>i.done).length;
+    return `<div class="chk-cat-title">
+      <span>${cat.cat}</span>
+      <span style="font-family:'EB Garamond',serif;font-size:.75rem;color:var(--stonel);font-weight:400;">${cDone}/${cat.items.length}</span>
     </div>
-  `).join('');
+    <div class="chk-prog"><div class="chk-progf" style="width:${cat.items.length?(cDone/cat.items.length*100):0}%;background:${cDone===cat.items.length?'#4a9e63':'var(--gold)'};"></div></div>
+    ${cat.items.map((item,ii)=>`
+      <div class="chk-item ${item.done?'done':''}" onclick="toggleChk(${ci},${ii})">
+        <input type="checkbox" class="chk-cb" ${item.done?'checked':''} onclick="event.stopPropagation();toggleChk(${ci},${ii})">
+        <span class="chk-label">${item.t}</span>
+        <span class="chk-prio ${item.p==='h'?'prio-h':item.p==='m'?'prio-m':'prio-l'}">${item.p==='h'?'Kritisch':item.p==='m'?'Wichtig':'Optional'}</span>
+      </div>`).join('')}`;
+  }).join('');
 }
 
-// ─── STATION AUSWÄHLEN / EDITOR ───────────────────────
-function selectStation(i) {
-  saveCurrentStationIfDirty();
-  activeStation = i;
-  renderStationList();
-  renderStationForm(i);
-  updatePreview(i);
+function toggleChk(ci,ii){
+  gd.checklist[ci].items[ii].done=!gd.checklist[ci].items[ii].done;
+  renderChecklist();renderSidebar();
+}
+function resetChecklist(){if(confirm('Alle Häkchen entfernen?')){gd.checklist.forEach(c=>c.items.forEach(i=>i.done=false));renderChecklist();renderSidebar();}}
+function copyChecklist(){
+  let t='CHECKLISTE – RAUBRITTER ESCAPE SPIEL 1\n\n';
+  gd.checklist.forEach(cat=>{
+    t+=cat.cat+'\n'+'–'.repeat(40)+'\n';
+    cat.items.forEach(i=>{t+=`[${i.done?'x':' '}] ${i.t} (${i.p==='h'?'KRITISCH':i.p==='m'?'WICHTIG':'Optional'})\n`;});
+    t+='\n';
+  });
+  navigator.clipboard.writeText(t).then(()=>alert('Checkliste kopiert!')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('Kopiert!');
+  });
 }
 
-function renderStationForm(i) {
-  const s = game.stations[i];
-  document.getElementById('station-editor-empty').style.display = 'none';
-  document.getElementById('station-editor-form').style.display = 'block';
-
-  document.getElementById('f-station-name').value = s.name || '';
-  document.getElementById('f-story').value = s.story || '';
-  document.getElementById('f-puzzle').value = s.puzzle || '';
-  document.getElementById('f-answer').value = s.answer || '';
-  document.getElementById('f-hint').value = s.hint || '';
-  document.getElementById('f-points').value = s.points || 100;
-  document.getElementById('f-photo').value = s.photo || '';
-  document.getElementById('f-directions').value = s.directions || '';
-  document.getElementById('f-lat').value = s.lat || '';
-  document.getElementById('f-lng').value = s.lng || '';
-  document.getElementById('f-qr-manual').value = '';
-
-  renderQRLinkedDisplay(s.qrCode);
+// ============================================================
+// RESET MODAL
+// ============================================================
+function openReset(){document.getElementById('rstOverlay').classList.add('open');}
+function closeReset(){document.getElementById('rstOverlay').classList.remove('open');}
+function doReset(){
+  if(document.getElementById('rl').checked) gd.locks.forEach(l=>l.open=false);
+  if(document.getElementById('rt').checked) tReset();
+  if(document.getElementById('rh').checked) gd.stations.forEach(s=>s.hintsUsed=[false,false,false]);
+  if(document.getElementById('rp').checked){document.getElementById('plBadge').style.display='none';}
+  if(document.getElementById('rc').checked) gd.checklist.forEach(c=>c.items.forEach(i=>i.done=false));
+  renderSidebar();renderRucksack();renderTimerTab();renderHintView();renderChecklist();
+  closeReset();alert('Zurückgesetzt!');
 }
 
-function renderQRLinkedDisplay(qrCode) {
-  const el = document.getElementById('qr-linked-display');
-  if (!el) return;
-  if (qrCode) {
-    el.innerHTML = `
-      <div class="qr-row">
-        <i class="fa-solid fa-link" style="color:var(--gold); font-size:0.8rem;"></i>
-        <div class="qr-code-val">${qrCode}</div>
-        <button class="btn btn-danger btn-sm" onclick="unlinkQR()"><i class="fa-solid fa-unlink"></i></button>
-      </div>`;
+// ============================================================
+// EXPORT
+// ============================================================
+function exportJSON(){
+  const safe=JSON.parse(JSON.stringify(gd));
+  // Strip base64 image data for smaller file
+  safe.stations.forEach(s=>{s.images=s.images.map(i=>({name:i.name,cat:i.cat,data:'[base64 entfernt]'}));});
+  const b=new Blob([JSON.stringify(safe,null,2)],{type:'application/json'});
+  const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='raubritter_v3.json';a.click();
+}
+function exportText(){
+  let t='RAUBRITTER ESCAPE – SPIEL 1\n'+'='.repeat(60)+'\n\n';
+  t+=`Lösungswort: ${gd.solutionWord}\n\nGESCHICHTE:\n${gd.storyIntro}\n\n`;
+  t+='STATIONEN:\n'+'='.repeat(60)+'\n\n';
+  gd.stations.forEach(s=>{
+    t+=`STATION ${s.id}: ${s.name}\nOrt: ${s.loc}\nGPS: ${s.gps||'–'}\n`;
+    t+=`Rätsel:\n${s.puzzle}\nErgebnis: ${s.result}\n`;
+    t+=`Hinweise:\n  H1: ${s.hints[0]}\n  H2: ${s.hints[1]}\n  H3: ${s.hints[2]}\n`;
+    t+='\n'+'-'.repeat(40)+'\n\n';
+  });
+  if(gd.players.length){
+    t+='SPIELGRUPPEN:\n'+'='.repeat(40)+'\n';
+    gd.players.forEach(p=>{t+=`${p.name} (${p.count} Spieler) – Zeit: ${p.time} – Hinweise: ${p.hints}\n`;});
+  }
+  document.getElementById('expOut').style.display='block';
+  document.getElementById('expTA').value=t;
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function tl(t){return{haptic:'Haptisch',chiffre:'Chiffre',digital:'Digital',gps:'GPS',qr:'QR-Code',text:'Text',puzzle:'Puzzle'}[t]||t;}
+
+// ============================================================
+// PASSWORT LOCK
+// ============================================================
+const EDITOR_PASSWORD = 'raubritter2026';
+
+function unlockEditor() {
+  const val = document.getElementById('lock-input').value;
+  if (val === EDITOR_PASSWORD) {
+    document.getElementById('editor-lock').classList.add('unlocked');
+    sessionStorage.setItem('editor-unlocked', '1');
   } else {
-    el.innerHTML = '<div style="font-size:0.8rem; opacity:0.4; padding:0.25rem 0;">Noch kein QR-Code verknüpft</div>';
+    const err = document.getElementById('lock-error');
+    err.textContent = 'Falsches Passwort';
+    document.getElementById('lock-input').value = '';
+    setTimeout(() => err.textContent = '', 2500);
   }
 }
-
-function saveCurrentStationIfDirty() {
-  if (activeStation === null || activeStation >= game.stations.length) return;
-  collectAndSaveStation(activeStation);
-}
-
-function collectAndSaveStation(i) {
-  const s = game.stations[i];
-  const old = s.qrCode;
-  s.name = document.getElementById('f-station-name').value.trim();
-  s.story = document.getElementById('f-story').value.trim();
-  s.puzzle = document.getElementById('f-puzzle').value.trim();
-  s.answer = document.getElementById('f-answer').value.trim();
-  s.hint = document.getElementById('f-hint').value.trim();
-  s.points = parseInt(document.getElementById('f-points').value) || 100;
-  s.photo = document.getElementById('f-photo').value.trim();
-  s.directions = document.getElementById('f-directions').value.trim();
-  s.lat = document.getElementById('f-lat').value.trim();
-  s.lng = document.getElementById('f-lng').value.trim();
-  // QR code bleibt wie es ist (wird separat gesetzt)
-}
-
-function saveStation() {
-  if (activeStation === null) return;
-  collectAndSaveStation(activeStation);
-  saveToLocalStorage();
-  renderStationList();
-  updateStats();
-  updatePreview(activeStation);
-  toast('Station gespeichert');
-}
-
-function addStation() {
-  saveCurrentStationIfDirty();
-  game.stations.push({
-    name: '', story: '', puzzle: '', answer: '', hint: '',
-    points: 100, photo: '', directions: '', lat: '', lng: '', qrCode: ''
+document.addEventListener('DOMContentLoaded', () => {
+  if (sessionStorage.getItem('editor-unlocked') === '1') {
+    document.getElementById('editor-lock').classList.add('unlocked');
+  }
+  document.getElementById('lock-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') unlockEditor();
   });
-  saveToLocalStorage();
-  selectStation(game.stations.length - 1);
-  updateStats();
+});
+
+// ============================================================
+// SUPABASE CONFIG
+// ============================================================
+const SUPABASE_URL = 'https://uulpxvyjevnvggvamhha.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1bHB4dnlqZXZudmdndmFtaGhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODA5MjIsImV4cCI6MjA5Mjk1NjkyMn0.XJWbivvaWU4WVD-48_-Pnlr5XfKkjSHuIvVqdpq-bH4';
+let currentGameId = null;
+
+// ============================================================
+// WOCHENCODE
+// ============================================================
+const WEEK_CODE_SALT = 'RB2026LICHTENBERG';
+
+function getWeekNumber(date) {
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
 }
 
-function deleteStation() {
-  if (activeStation === null) return;
-  if (!confirm('Station wirklich löschen?')) return;
-  // Remove QR mappings for this station
-  const qr = game.stations[activeStation].qrCode;
-  if (qr) delete game.qrMappings[qr];
-  // Remap remaining
-  const newMappings = {};
-  Object.entries(game.qrMappings).forEach(([k, v]) => {
-    if (v < activeStation) newMappings[k] = v;
-    else if (v > activeStation) newMappings[k] = v - 1;
-  });
-  game.qrMappings = newMappings;
-  game.stations.splice(activeStation, 1);
-  activeStation = Math.min(activeStation, game.stations.length - 1);
-  if (game.stations.length === 0) activeStation = null;
-  saveToLocalStorage();
-  renderAll();
-  if (activeStation !== null) selectStation(activeStation);
-  else {
-    document.getElementById('station-editor-empty').style.display = '';
-    document.getElementById('station-editor-form').style.display = 'none';
+function generateWeekCode(date) {
+  const kw = getWeekNumber(date);
+  const year = date.getFullYear();
+  const seed = `${WEEK_CODE_SALT}-${year}-${kw}`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+    hash |= 0;
   }
-  toast('Station gelöscht');
+  return String(Math.abs(hash) % 9000 + 1000);
 }
 
-function duplicateStation() {
-  if (activeStation === null || game.stations.length === 0) return;
-  saveCurrentStationIfDirty();
-  const copy = JSON.parse(JSON.stringify(game.stations[activeStation]));
-  copy.name = copy.name + ' (Kopie)';
-  copy.qrCode = ''; // QR nicht duplizieren
-  game.stations.splice(activeStation + 1, 0, copy);
-  saveToLocalStorage();
-  selectStation(activeStation + 1);
-  toast('Station dupliziert');
+function getWeekRange(date) {
+  const d = new Date(date);
+  const day = d.getDay() || 7;
+  const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const fmt = x => x.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
+  return `${fmt(mon)} – ${fmt(sun)}`;
 }
 
-// ─── QR-CODE LOGIK ────────────────────────────────────
-function simulateScan() {
-  // In der echten App: Kamera öffnen, QR scannen
-  // Demo: generiere Test-Code
-  const code = 'qr-' + Math.random().toString(36).substring(2, 10);
-  linkQRToCurrentStation(code);
-  toast('Demo-Code verknüpft: ' + code);
-}
-
-function linkManualQR() {
-  const val = document.getElementById('f-qr-manual').value.trim();
-  if (!val) return;
-  // Check if already used
-  if (game.qrMappings[val] !== undefined && game.qrMappings[val] !== activeStation) {
-    const otherName = game.stations[game.qrMappings[val]]?.name || 'Station ' + (game.qrMappings[val]+1);
-    if (!confirm(`Dieser QR-Code ist bereits mit "${otherName}" verknüpft. Umverknüpfen?`)) return;
-    // Remove old QR from old station
-    game.stations[game.qrMappings[val]].qrCode = '';
-  }
-  linkQRToCurrentStation(val);
-  document.getElementById('f-qr-manual').value = '';
-}
-
-function linkQRToCurrentStation(code) {
-  if (activeStation === null) return;
-  // Remove old mapping
-  const old = game.stations[activeStation].qrCode;
-  if (old) delete game.qrMappings[old];
-  // Set new
-  game.stations[activeStation].qrCode = code;
-  game.qrMappings[code] = activeStation;
-  saveToLocalStorage();
-  renderQRLinkedDisplay(code);
-  renderStationList();
-  updateStats();
-  renderQRMappingList();
-}
-
-function unlinkQR() {
-  if (activeStation === null) return;
-  const old = game.stations[activeStation].qrCode;
-  if (old) delete game.qrMappings[old];
-  game.stations[activeStation].qrCode = '';
-  saveToLocalStorage();
-  renderQRLinkedDisplay('');
-  renderStationList();
-  updateStats();
-  renderQRMappingList();
-  toast('QR-Code entfernt');
-}
-
-function renderQRMappingList() {
-  const list = document.getElementById('qr-mapping-list');
-  const sel = document.getElementById('new-qr-station');
-  if (!list || !sel) return;
-
-  const entries = Object.entries(game.qrMappings);
-  if (entries.length === 0) {
-    list.innerHTML = '<div style="opacity:0.35; font-size:0.85rem; padding:0.5rem 0;">Noch keine QR-Codes verknüpft.</div>';
-  } else {
-    list.innerHTML = entries.map(([code, stIdx]) => {
-      const stName = game.stations[stIdx]?.name || 'Station ' + (stIdx+1);
-      return `<div class="qr-row">
-        <div class="qr-code-val">${code}</div>
-        <div style="font-size:0.78rem; opacity:0.6; white-space:nowrap;">→ ${stName}</div>
-        <button class="btn btn-danger btn-sm" onclick="removeQRMapping('${code}')"><i class="fa-solid fa-trash"></i></button>
-      </div>`;
-    }).join('');
-  }
-
-  sel.innerHTML = game.stations.map((s, i) => `<option value="${i}">${i+1}. ${s.name || 'Station ' + (i+1)}</option>`).join('');
-}
-
-function addQRMapping() {
-  const val = document.getElementById('new-qr-val').value.trim();
-  const idx = parseInt(document.getElementById('new-qr-station').value);
-  if (!val || isNaN(idx)) return;
-
-  if (game.qrMappings[val] !== undefined) {
-    if (!confirm('Dieser Code ist bereits vergeben. Überschreiben?')) return;
-    const old = game.qrMappings[val];
-    if (game.stations[old]) game.stations[old].qrCode = '';
-  }
-  if (game.stations[idx].qrCode) {
-    delete game.qrMappings[game.stations[idx].qrCode];
-  }
-  game.stations[idx].qrCode = val;
-  game.qrMappings[val] = idx;
-  saveToLocalStorage();
-  document.getElementById('new-qr-val').value = '';
-  renderAll();
-  toast('QR-Mapping hinzugefügt');
-}
-
-function removeQRMapping(code) {
-  const idx = game.qrMappings[code];
-  if (game.stations[idx]) game.stations[idx].qrCode = '';
-  delete game.qrMappings[code];
-  saveToLocalStorage();
-  renderAll();
-  toast('QR-Mapping entfernt');
-}
-
-// ─── SPIEL-EINSTELLUNGEN ──────────────────────────────
-function loadGameSettingsIntoForm() {
-  if (document.getElementById('g-title')) {
-    document.getElementById('g-title').value = game.title || '';
-    document.getElementById('g-intro').value = game.intro || '';
-    document.getElementById('g-outro').value = game.outro || '';
-    document.getElementById('g-timelimit').value = game.timelimit || 120;
-    document.getElementById('g-maxattempts').value = game.maxattempts || 5;
-    document.getElementById('g-order').value = game.order || 'linear';
-    document.getElementById('g-theme').value = game.theme || 'raubritter';
-    document.getElementById('g-booking-url').value = game.bookingUrl || '';
-  }
-}
-
-function saveGameSettings() {
-  game.title = document.getElementById('g-title').value.trim();
-  game.intro = document.getElementById('g-intro').value.trim();
-  game.outro = document.getElementById('g-outro').value.trim();
-  game.timelimit = parseInt(document.getElementById('g-timelimit').value) || 120;
-  game.maxattempts = parseInt(document.getElementById('g-maxattempts').value) || 5;
-  game.order = document.getElementById('g-order').value;
-  game.theme = document.getElementById('g-theme').value;
-  game.bookingUrl = document.getElementById('g-booking-url').value.trim();
-  saveToLocalStorage();
-  updateGameTitleDisplay();
-  updateStats();
-  toast('Einstellungen gespeichert');
-}
-
-// ─── PREVIEW ──────────────────────────────────────────
-function updatePreview(i) {
-  const body = document.getElementById('preview-body');
-  if (i === null || !game.stations[i]) {
-    body.innerHTML = '<div class="empty-state" style="padding:2rem 0.5rem;"><i class="fa-solid fa-eye" style="font-size:1.5rem; margin-bottom:0.5rem;"></i><p style="font-size:0.55rem; font-family:\'Cinzel\',serif; letter-spacing:0.06em; opacity:0.5;">Vorschau</p></div>';
-    return;
-  }
-  const s = game.stations[i];
-  body.innerHTML = `
-    ${s.photo ? `<div style="width:100%; height:55px; background:url('${s.photo}') center/cover; border-radius:3px; margin-bottom:0.5rem;"></div>` : ''}
-    <div class="phone-story-text">${s.story || '<em style="opacity:0.4">Kein Story-Text</em>'}</div>
-    ${s.puzzle ? `<div class="phone-puzzle-box">
-      <div class="phone-label">RÄTSEL</div>
-      <div class="phone-puzzle-text">${s.puzzle}</div>
-      <div class="phone-input-mock">Antwort eingeben …</div>
-      <div class="phone-btn-mock">BESTÄTIGEN</div>
-    </div>` : '<div style="font-size:0.55rem; opacity:0.3; text-align:center;">Kein Rätsel eingetragen</div>'}
-  `;
-}
-
-function previewStation() {
-  if (activeStation === null) return;
-  saveCurrentStationIfDirty();
-  updatePreview(activeStation);
-  toast('Vorschau aktualisiert');
-}
-
-// ─── TEST MODE ────────────────────────────────────────
-function openTestMode() {
-  saveCurrentStationIfDirty();
-  if (game.stations.length === 0) { toast('Keine Stationen vorhanden'); return; }
-  testStationIndex = 0;
-  renderTestStation();
-  document.getElementById('test-overlay').classList.add('open');
-}
-function closeTestMode() {
-  document.getElementById('test-overlay').classList.remove('open');
-}
-function testNextStation() {
-  if (testStationIndex < game.stations.length - 1) {
-    testStationIndex++;
-    renderTestStation();
-  } else {
-    renderTestOutro();
-  }
-}
-function testPrevStation() {
-  if (testStationIndex > 0) {
-    testStationIndex--;
-    renderTestStation();
-  }
-}
-function renderTestStation() {
-  const s = game.stations[testStationIndex];
-  const counter = document.getElementById('test-station-counter');
-  counter.textContent = `${testStationIndex + 1}/${game.stations.length}`;
-  const body = document.getElementById('test-body');
-  body.innerHTML = `
-    <div style="font-family:'Cinzel',serif; font-size:0.6rem; letter-spacing:0.1em; color:var(--gold); margin-bottom:0.25rem;">
-      STATION ${testStationIndex + 1} · ${(s.name || 'Unbenannt').toUpperCase()}
-    </div>
-    ${s.photo ? `<div style="width:100%; height:80px; background:url('${s.photo}') center/cover; border-radius:3px;"></div>` : ''}
-    ${s.directions ? `<div style="font-size:0.58rem; opacity:0.6; padding:0.4rem 0.5rem; background:rgba(0,0,0,0.3); border-radius:2px; border-left:2px solid var(--gold-dark);">${s.directions}</div>` : ''}
-    ${s.lat && s.lng ? `<div style="font-size:0.55rem; padding:0.3rem 0.5rem; background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.2); border-radius:2px; display:flex; align-items:center; gap:0.3rem;"><i class="fa-solid fa-diamond-turn-right" style="color:var(--gold); font-size:0.5rem;"></i><span style="color:var(--gold);">In Maps öffnen</span><span style="opacity:0.4;">${s.lat}, ${s.lng}</span></div>` : ''}
-    <div style="font-style:italic; font-size:0.6rem; line-height:1.6; color:rgba(245,234,208,0.85);">${s.story || '(Kein Story-Text)'}</div>
-    ${s.puzzle ? `<div style="background:rgba(201,168,76,0.08); border:1px solid rgba(201,168,76,0.25); border-radius:3px; padding:0.5rem;">
-      <div style="font-family:'Cinzel',serif; font-size:0.45rem; color:var(--gold); letter-spacing:0.08em; margin-bottom:0.3rem;">RÄTSEL</div>
-      <div style="font-size:0.55rem; line-height:1.5; margin-bottom:0.4rem;">${s.puzzle}</div>
-      <div style="background:rgba(0,0,0,0.4); border:1px solid rgba(201,168,76,0.3); padding:0.25rem 0.4rem; font-size:0.5rem; color:rgba(245,234,208,0.4); border-radius:2px; margin-bottom:0.3rem;">Antwort: ${s.answer || '?'}</div>
-      ${s.hint ? `<div style="font-size:0.48rem; opacity:0.5;"><i class="fa-solid fa-lightbulb" style="color:var(--gold);"></i> ${s.hint}</div>` : ''}
-    </div>` : ''}
-    <div style="font-size:0.5rem; opacity:0.4; font-family:'Cinzel',serif; letter-spacing:0.05em;">PUNKTE: ${s.points || 100} · QR: ${s.qrCode || 'nicht verknüpft'}</div>
-  `;
-}
-function renderTestOutro() {
-  const body = document.getElementById('test-body');
-  const total = game.stations.reduce((sum, s) => sum + (s.points || 100), 0);
-  body.innerHTML = `
-    <div style="text-align:center; padding:1rem 0;">
-      <i class="fa-solid fa-trophy" style="color:var(--gold); font-size:1.5rem; margin-bottom:0.5rem; display:block;"></i>
-      <div style="font-family:'Cinzel',serif; font-size:0.7rem; color:var(--gold); letter-spacing:0.1em; margin-bottom:0.5rem;">GESCHAFFT!</div>
-      <div style="font-size:0.6rem; opacity:0.75; margin-bottom:0.75rem; font-style:italic;">${game.outro || 'Ihr habt alle Rätsel gelöst!'}</div>
-      <div style="font-family:'Cinzel',serif; font-size:1rem; color:var(--gold);">${total} Punkte</div>
-    </div>
-  `;
-  document.getElementById('test-station-counter').textContent = '✓ Fertig';
-}
-
-// ─── STATS & CHECKLISTE ───────────────────────────────
-function updateStats() {
-  const n = game.stations.length;
-  const qrCount = Object.keys(game.qrMappings).length;
-  document.getElementById('stat-stations').textContent = n;
-  document.getElementById('stat-qr').textContent = qrCount;
-
-  // Vollständigkeit
-  let score = 0; let total = 0;
-  const checks = [];
-  if (game.title) { score++; } total++;
-  checks.push({ ok: !!game.title, label: 'Spieltitel' });
-  if (game.intro) { score++; } total++;
-  checks.push({ ok: !!game.intro, label: 'Intro-Text' });
-  if (n > 0) { score++; } total++;
-  checks.push({ ok: n > 0, label: 'Mindestens 1 Station' });
-  const allHaveRiddle = n > 0 && game.stations.every(s => s.puzzle && s.answer);
-  if (allHaveRiddle) { score++; } total++;
-  checks.push({ ok: allHaveRiddle, label: 'Alle Rätsel vollständig' });
-  const allHaveQR = n > 0 && game.stations.every(s => s.qrCode);
-  if (allHaveQR) { score++; } total++;
-  checks.push({ ok: allHaveQR, label: 'Alle QR-Codes verknüpft' });
-  if (game.outro) { score++; } total++;
-  checks.push({ ok: !!game.outro, label: 'Abschluss-Text' });
-
-  const pct = total > 0 ? Math.round(score / total * 100) : 0;
-  document.getElementById('completeness-bar').style.width = pct + '%';
-  document.getElementById('completeness-label').textContent = pct + ' % vollständig';
-
-  const cl = document.getElementById('checklist');
-  cl.innerHTML = checks.map(c => `
-    <div style="display:flex; align-items:center; gap:0.4rem;">
-      <i class="fa-solid ${c.ok ? 'fa-circle-check' : 'fa-circle-xmark'}" style="color:${c.ok ? '#4ade80' : '#f87171'}; font-size:0.75rem; flex-shrink:0;"></i>
-      <span style="font-size:0.8rem; opacity:${c.ok ? 0.75 : 0.5};">${c.label}</span>
-    </div>
-  `).join('');
-}
-
-// ─── TABS ──────────────────────────────────────────────
-function switchTab(name, el) {
-  ['station','game','qr','admin'].forEach(t => {
-    const pane = document.getElementById('pane-' + t);
-    const tab = document.getElementById('tab-' + t);
-    if (pane) pane.style.display = 'none';
-    if (tab) tab.classList.remove('active');
-  });
-  const pane = document.getElementById('pane-' + name);
-  if (pane) pane.style.display = '';
-  if (el) el.classList.add('active');
-  if (name === 'qr') renderQRMappingList();
-  if (name === 'game') loadGameSettingsIntoForm();
-  if (name === 'admin') initAdminTab();
-}
-
-// ─── EXPORT ────────────────────────────────────────────
-function showExport() {
-  saveCurrentStationIfDirty();
-  const json = JSON.stringify(game, null, 2);
-  document.getElementById('json-output').textContent = json;
-  document.getElementById('export-overlay').style.display = 'flex';
-}
-function closeExport() {
-  document.getElementById('export-overlay').style.display = 'none';
-}
-function downloadJSON() {
-  const json = JSON.stringify(game, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url;
-  a.download = (game.title || 'raubritter-escape').replace(/\s+/g,'-').toLowerCase() + '-game.json';
-  a.click(); URL.revokeObjectURL(url);
-  toast('JSON heruntergeladen');
-}
-function copyJSON() {
-  const json = JSON.stringify(game, null, 2);
-  navigator.clipboard.writeText(json).then(() => toast('JSON kopiert'));
-}
-function showImport() {
-  const url = prompt('Supabase-URL eingeben (oder leer lassen für lokalen Test):');
-  if (url === null) return;
-  saveCurrentStationIfDirty();
-  const json = JSON.stringify(game, null, 2);
-  navigator.clipboard.writeText(json).then(() => {
-    toast('JSON kopiert – jetzt in Supabase einfügen');
-  });
-}
-
-// ─── ADMIN TAB INITIALISIERUNG ──────────────────────────
-function initAdminTab() {
-  renderWeekCodes();
-  loadTodayBookings();
-}
-
-// ─── WOCHENCODE ANZEIGEN ─────────────────────────────────
 function renderWeekCodes() {
-  const container = document.getElementById('week-codes-list');
+  const container = document.getElementById('weekCodes');
   if (!container) return;
-
   const today = new Date();
-  let html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1rem;">';
-
+  let html = '';
   for (let i = 0; i < 4; i++) {
     const date = new Date(today);
-    date.setDate(today.getDate() + (i * 7));
+    date.setDate(today.getDate() + i * 7);
     const code = generateWeekCode(date);
     const kw = getWeekNumber(date);
     const range = getWeekRange(date);
-    const isCurrentWeek = i === 0;
-
+    const isCurrent = i === 0;
     html += `
-      <div style="background:${isCurrentWeek ? 'rgba(13,43,20,0.6)' : 'rgba(0,0,0,0.2)'};
-        border:1px solid ${isCurrentWeek ? 'rgba(201,168,76,0.4)' : 'rgba(201,168,76,0.15)'};
-        border-radius:6px; padding:1rem; text-align:center; position:relative;">
-        ${isCurrentWeek ? '<div style="position:absolute; top:-8px; left:50%; transform:translateX(-50%); background:#8b6914; color:#1a120b; font-family:\'Cinzel\',serif; font-size:0.55rem; font-weight:700; letter-spacing:0.08em; padding:0.15rem 0.5rem; border-radius:10px;">DIESE WOCHE</div>' : ''}
-        <div style="font-family:'Cinzel',serif; font-size:0.6rem; letter-spacing:0.1em; color:rgba(201,168,76,0.6); margin-bottom:0.4rem;">KW ${kw}</div>
-        <div style="font-family:'Cinzel',serif; font-size:2.2rem; font-weight:900; color:${isCurrentWeek ? '#c9a84c' : 'rgba(245,234,208,0.5)'}; letter-spacing:0.2em;">${code}</div>
-        <div style="font-size:0.72rem; color:rgba(245,234,208,0.4); margin-top:0.3rem;">${range}</div>
-        ${isCurrentWeek ? `<button onclick="navigator.clipboard.writeText('${code}').then(()=>toast('Code kopiert!'))"
-          style="margin-top:0.6rem; background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3);
-          color:var(--gold); font-family:'Cinzel',serif; font-size:0.6rem; padding:0.3rem 0.75rem;
-          border-radius:3px; cursor:pointer; letter-spacing:0.05em;">
-          <i class="fa-solid fa-copy"></i> Kopieren
-        </button>` : ''}
+      <div class="week-code-box" style="${isCurrent ? 'border-color:rgba(201,146,42,.45);' : 'opacity:.55;'}">
+        ${isCurrent ? '<div style="font-family:\'Cinzel\',serif;font-size:.55rem;letter-spacing:.12em;color:var(--goldl);margin-bottom:.25rem;">DIESE WOCHE</div>' : ''}
+        <div style="font-family:\'Cinzel\',serif;font-size:.6rem;color:var(--stonel);margin-bottom:.15rem;">KW ${kw} · ${range}</div>
+        <div class="week-code-val">${code}</div>
+        ${isCurrent ? `<button onclick="navigator.clipboard.writeText('${code}').then(()=>toast('Code kopiert!'))" class="btn btn-o" style="margin-top:.5rem;font-size:.6rem;padding:.25rem .7rem;">Kopieren</button>` : ''}
       </div>`;
   }
-
-  html += '</div>';
-  html += `<div style="font-size:0.82rem; color:rgba(245,234,208,0.5); line-height:1.7;">
-    <i class="fa-solid fa-circle-exclamation" style="color:var(--gold); margin-right:0.4rem;"></i>
-    <strong style="color:rgba(245,234,208,0.8);">Jeden Montag:</strong> Aktuellen Code ablesen und am Schließfach einstellen.
-  </div>`;
-
   container.innerHTML = html;
 }
 
-// ─── BUCHUNGEN HEUTE LADEN ───────────────────────────────
+// ============================================================
+// ADMIN TAB
+// ============================================================
+function initAdminTab() {
+  renderWeekCodes();
+  loadTodayBookings();
+  loadSupabaseGames();
+}
+
 async function loadTodayBookings() {
-  const container = document.getElementById('bookings-today-list');
-  if (!container) return;
-
+  const el = document.getElementById('bookingsToday');
+  if (!el) return;
   const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-
-  container.innerHTML = '<div style="text-align:center; padding:1.5rem; opacity:0.4;"><i class="fa-solid fa-spinner fa-spin"></i></div>';
-
+  const todayStr = today.toISOString().split('T')[0];
+  el.innerHTML = '<div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Lade…</div>';
   try {
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/bookings?select=*&slot_date=eq.${todayStr}&status=eq.paid&order=slot_time.asc`,
-      { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
     );
-    const bookings = await res.json();
-
-    if (!bookings.length) {
-      container.innerHTML = '<div style="text-align:center; padding:2rem; opacity:0.4; font-size:0.88rem;">Keine Buchungen heute</div>';
-      return;
-    }
-
-    container.innerHTML = bookings.map(b => renderBookingCard(b, true)).join('');
-  } catch(e) {
-    container.innerHTML = '<div style="color:#f87171; font-size:0.85rem; padding:1rem;">Verbindungsfehler – Supabase nicht erreichbar</div>';
-  }
+    const data = await res.json();
+    if (!data.length) { el.innerHTML = '<div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Keine Buchungen heute.</div>'; return; }
+    el.innerHTML = data.map(b => renderBookingRow(b, true)).join('');
+  } catch(e) { el.innerHTML = '<div style="color:var(--redl);font-size:.82rem;">Verbindungsfehler</div>'; }
 }
 
-// ─── ALLE BUCHUNGEN LADEN ────────────────────────────────
 async function loadAllBookings() {
-  const container = document.getElementById('bookings-all-list');
-  if (!container) return;
-
-  const dateFilter = document.getElementById('filter-date').value;
-  const statusFilter = document.getElementById('filter-status').value;
-
-  container.innerHTML = '<div style="text-align:center; padding:1.5rem; opacity:0.4;"><i class="fa-solid fa-spinner fa-spin"></i></div>';
-
+  const el = document.getElementById('bookingsAll');
+  if (!el) return;
+  const dateFilter = document.getElementById('filterDate').value;
+  const statusFilter = document.getElementById('filterStatus').value;
+  el.innerHTML = '<div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Lade…</div>';
   let url = `${SUPABASE_URL}/rest/v1/bookings?select=*&order=slot_date.desc,slot_time.asc&limit=50`;
   if (dateFilter) url += `&slot_date=eq.${dateFilter}`;
   if (statusFilter) url += `&status=eq.${statusFilter}`;
-
   try {
-    const res = await fetch(url, {
-      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-    });
-    const bookings = await res.json();
-
-    if (!bookings.length) {
-      container.innerHTML = '<div style="text-align:center; padding:2rem; opacity:0.4; font-size:0.88rem;">Keine Buchungen gefunden</div>';
-      return;
-    }
-
-    container.innerHTML = bookings.map(b => renderBookingCard(b, false)).join('');
-  } catch(e) {
-    container.innerHTML = '<div style="color:#f87171; font-size:0.85rem; padding:1rem;">Verbindungsfehler</div>';
-  }
+    const res = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
+    const data = await res.json();
+    if (!data.length) { el.innerHTML = '<div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Keine Buchungen gefunden.</div>'; return; }
+    el.innerHTML = data.map(b => renderBookingRow(b, false)).join('');
+  } catch(e) { el.innerHTML = '<div style="color:var(--redl);font-size:.82rem;">Verbindungsfehler</div>'; }
 }
 
-// ─── BUCHUNGS-KARTE RENDERN ──────────────────────────────
-function renderBookingCard(b, showAppCode) {
-  const date = new Date(b.slot_date);
-  const dateStr = date.toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' });
+function renderBookingRow(b, showCode) {
+  const date = new Date(b.slot_date).toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' });
   const time = (b.slot_time || '').substring(0,5);
-  const statusColor = b.status === 'paid' ? '#4ade80' : b.status === 'cancelled' ? '#f87171' : '#c9a84c';
-  const statusLabel = b.status === 'paid' ? 'Bezahlt' : b.status === 'cancelled' ? 'Storniert' : b.status;
+  const statusCol = b.status === 'paid' ? '#4a9e63' : '#c04040';
   const validFrom = b.valid_from ? new Date(b.valid_from).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : null;
   const validUntil = b.valid_until ? new Date(b.valid_until).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : null;
-
   return `
-    <div style="background:rgba(0,0,0,0.2); border:1px solid rgba(201,168,76,0.12);
-      border-radius:6px; padding:1rem 1.25rem; margin-bottom:0.5rem;
-      display:grid; grid-template-columns:1fr auto; gap:1rem; align-items:center;">
+    <div class="booking-row">
       <div>
-        <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.35rem; flex-wrap:wrap;">
-          <span style="font-family:'Cinzel',serif; font-size:0.95rem; font-weight:700; color:#f5ead0;">${b.name}</span>
-          <span style="font-size:0.65rem; color:${statusColor}; font-family:'Cinzel',serif;
-            background:rgba(0,0,0,0.25); padding:0.1rem 0.5rem; border-radius:10px;
-            border:1px solid ${statusColor}40;">${statusLabel}</span>
-          <span style="font-size:0.82rem; color:var(--gold); font-weight:700;">${b.total_price} €</span>
+        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.25rem;">
+          <span style="font-family:'Cinzel',serif;font-size:.88rem;color:var(--parch);">${b.name}</span>
+          <span style="font-size:.62rem;color:${statusCol};border:1px solid ${statusCol}40;padding:0 .45rem;border-radius:8px;">${b.status === 'paid' ? 'Bezahlt' : 'Storniert'}</span>
+          <span style="color:var(--goldl);font-size:.82rem;">${b.total_price} €</span>
         </div>
-        <div style="display:flex; gap:1.5rem; font-size:0.8rem; color:rgba(245,234,208,0.5); flex-wrap:wrap;">
-          <span><i class="fa-solid fa-calendar" style="opacity:0.4; margin-right:0.3rem;"></i>${dateStr}</span>
-          <span><i class="fa-solid fa-clock" style="opacity:0.4; margin-right:0.3rem;"></i>${time} Uhr</span>
-          <span><i class="fa-solid fa-users" style="opacity:0.4; margin-right:0.3rem;"></i>${b.persons} Person${b.persons>1?'en':''}</span>
-          <span><i class="fa-solid fa-envelope" style="opacity:0.4; margin-right:0.3rem;"></i>${b.email}</span>
-          ${validFrom ? `<span style="color:rgba(201,168,76,0.5);"><i class="fa-solid fa-hourglass-half" style="opacity:0.4; margin-right:0.3rem;"></i>App: ${validFrom}–${validUntil}</span>` : ''}
+        <div style="display:flex;gap:1rem;font-size:.78rem;color:var(--stonel);flex-wrap:wrap;">
+          <span>📅 ${date}</span>
+          <span>🕐 ${time} Uhr</span>
+          <span>👥 ${b.persons} Person${b.persons>1?'en':''}</span>
+          <span>✉ ${b.email}</span>
+          ${validFrom ? `<span style="color:rgba(201,146,42,.6);">⏱ ${validFrom}–${validUntil}</span>` : ''}
         </div>
       </div>
       ${b.booking_code ? `
-      <div style="text-align:center; background:rgba(13,43,20,0.6);
-        border:1px solid rgba(201,168,76,0.25); border-radius:6px;
-        padding:0.6rem 1rem; min-width:130px;">
-        <div style="font-family:'Cinzel',serif; font-size:0.55rem; letter-spacing:0.1em;
-          color:rgba(201,168,76,0.6); margin-bottom:0.25rem;">APP-CODE</div>
-        <div style="font-family:'Cinzel',serif; font-size:1.5rem; font-weight:900;
-          color:#c9a84c; letter-spacing:0.2em; margin-bottom:0.35rem;">${b.booking_code}</div>
-        <button onclick="navigator.clipboard.writeText('${b.booking_code}').then(()=>toast('App-Code kopiert!'))"
-          style="background:rgba(201,168,76,0.15); border:1px solid rgba(201,168,76,0.3);
-          color:var(--gold); font-family:'Cinzel',serif; font-size:0.6rem;
-          padding:0.3rem 0.75rem; border-radius:3px; cursor:pointer; width:100%;">
-          <i class="fa-solid fa-copy mr-1"></i> Kopieren
-        </button>
+      <div class="booking-code-badge">
+        <div style="font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;color:rgba(201,146,42,.6);margin-bottom:.2rem;">APP-CODE</div>
+        <div style="font-family:'Cinzel',serif;font-size:1.35rem;font-weight:900;color:var(--goldl);letter-spacing:.2em;margin-bottom:.3rem;">${b.booking_code}</div>
+        <button onclick="navigator.clipboard.writeText('${b.booking_code}').then(()=>toast('Kopiert!'))" class="btn btn-o" style="font-size:.58rem;padding:.2rem .6rem;width:100%;">Kopieren</button>
       </div>` : '<div></div>'}
     </div>`;
 }
+
+// ============================================================
+// SUPABASE SPIELVERWALTUNG
+// ============================================================
+async function saveToSupabase() {
+  const btn = document.getElementById('btnSaveSupabase');
+  if (btn) { btn.textContent = '⏳ Speichern…'; btn.disabled = true; }
+  const payload = {
+    title: gd.title || 'Raubritter Escape',
+    location: 'lichtenberg',
+    game_data: gd,
+    updated_at: new Date().toISOString(),
+    active: true
+  };
+  try {
+    let res;
+    if (currentGameId) {
+      res = await fetch(`${SUPABASE_URL}/rest/v1/games?id=eq.${currentGameId}`, {
+        method: 'PATCH',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      res = await fetch(`${SUPABASE_URL}/rest/v1/games`, {
+        method: 'POST',
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify(payload)
+      });
+    }
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data[0]) currentGameId = data[0].id;
+      toast('✅ In Supabase gespeichert!');
+      loadSupabaseGames();
+    } else { toast('❌ Fehler beim Speichern'); }
+  } catch(e) { toast('❌ Verbindungsfehler'); }
+  finally { if (btn) { btn.textContent = '☁ Supabase'; btn.disabled = false; } }
 }
 
-// ─── CODE GENERATOR (aktualisiert) ──────────────────────
-// ─── TOAST ─────────────────────────────────────────────
+async function loadSupabaseGames() {
+  const el = document.getElementById('supabaseGames');
+  if (!el) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/games?select=id,title,location,updated_at,active&order=updated_at.desc`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    const games = await res.json();
+    if (!games.length) { el.innerHTML = '<div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Noch keine Spiele gespeichert.</div>'; return; }
+    el.innerHTML = games.map(g => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem .75rem;background:rgba(0,0,0,.2);border:1px solid ${g.active ? 'rgba(201,146,42,.3)' : 'var(--border)'};border-radius:5px;margin-bottom:.35rem;">
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:.82rem;color:${g.active ? 'var(--goldl)' : 'var(--parch2)'};">
+            ${g.title} ${g.active ? '<span style="font-size:.58rem;color:#4a9e63;margin-left:.4rem;">● AKTIV</span>' : ''}
+          </div>
+          <div style="font-size:.7rem;color:var(--stonel);">${new Date(g.updated_at).toLocaleString('de-DE')}</div>
+        </div>
+        <div style="display:flex;gap:.4rem;">
+          <button onclick="loadGameFromSupabase('${g.id}')" class="btn btn-o" style="font-size:.6rem;padding:.25rem .65rem;">Laden</button>
+          <button onclick="setGameActive('${g.id}')" class="btn btn-b" style="font-size:.6rem;padding:.25rem .65rem;">Aktiv</button>
+        </div>
+      </div>`).join('');
+  } catch(e) { el.innerHTML = '<div style="color:var(--redl);font-size:.82rem;">Verbindungsfehler</div>'; }
+}
+
+async function loadGameFromSupabase(id) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/games?id=eq.${id}&select=id,game_data`, {
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+    });
+    const data = await res.json();
+    if (data && data[0] && data[0].game_data) {
+      gd = data[0].game_data;
+      currentGameId = data[0].id;
+      renderSidebar(); renderOv(); renderStory(); renderSt(1);
+      toast('✅ Spiel geladen: ' + (gd.title || 'Unbekannt'));
+    }
+  } catch(e) { toast('❌ Fehler beim Laden'); }
+}
+
+async function setGameActive(id) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/games`, {
+      method: 'PATCH',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: false })
+    });
+    await fetch(`${SUPABASE_URL}/rest/v1/games?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: true })
+    });
+    toast('✅ Spiel als aktiv gesetzt');
+    loadSupabaseGames();
+  } catch(e) { toast('❌ Fehler'); }
+}
+
+// ============================================================
+// TOAST
+// ============================================================
 function toast(msg) {
   const el = document.getElementById('toast');
-  document.getElementById('toast-msg').textContent = msg;
+  el.textContent = msg;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 3000);
 }
-</script>
+
+// Tab-Switch für Admin
+function showTab(id, btn) {
+  document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
+  const panel = document.getElementById('tp-'+id);
+  if (panel) panel.classList.add('on');
+  if (btn) btn.classList.add('on');
+  if (id==='stations') renderSt(curSt);
+  if (id==='cipher') drawCipher();
+  if (id==='checklist') renderChecklist();
+  if (id==='admin') initAdminTab();
+}
+
 </body>
 </html>
