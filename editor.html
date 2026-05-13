@@ -552,8 +552,49 @@ select option{background:#1a1108;}
 
     <!-- ADMIN TAB -->
     <div class="tp" id="tp-admin">
-      <div class="acard">
-        <div class="act">🔒 Wochencode – Schließfach</div>
+      <div class="acard" style="border-color:rgba(74,138,212,.3);">
+        <div class="act" style="color:#7ab8f5;">🧪 Test-Buchung erstellen</div>
+        <div class="acs">Generiert einen echten App-Code in Supabase – zum Testen der Spieler-App</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
+          <div>
+            <div style="font-size:.7rem;color:var(--stonel);margin-bottom:.25rem;">DATUM</div>
+            <input type="date" id="testDate" style="width:100%;background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.4rem .6rem;font-size:.82rem;">
+          </div>
+          <div>
+            <div style="font-size:.7rem;color:var(--stonel);margin-bottom:.25rem;">STARTZEIT</div>
+            <input type="time" id="testTime" style="width:100%;background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.4rem .6rem;font-size:.82rem;">
+          </div>
+          <div>
+            <div style="font-size:.7rem;color:var(--stonel);margin-bottom:.25rem;">SPIELZEIT (Min.)</div>
+            <input type="number" id="testDuration" value="120" min="10" max="480" style="width:100%;background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.4rem .6rem;font-size:.82rem;">
+          </div>
+          <div>
+            <div style="font-size:.7rem;color:var(--stonel);margin-bottom:.25rem;">PUFFER (Min.)</div>
+            <input type="number" id="testBuffer" value="30" min="0" max="120" style="width:100%;background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.4rem .6rem;font-size:.82rem;">
+          </div>
+        </div>
+
+        <!-- Ergebnis -->
+        <div id="testResult" style="display:none;margin-bottom:.75rem;padding:.85rem;background:rgba(13,43,20,.6);border:1px solid rgba(74,138,212,.3);border-radius:6px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.6rem;">
+            <div style="text-align:center;">
+              <div style="font-size:.58rem;color:var(--stonel);letter-spacing:.1em;margin-bottom:.2rem;">APP-CODE</div>
+              <div id="testAppCode" style="font-size:1.6rem;font-weight:900;color:#7ab8f5;letter-spacing:.2em;"></div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:.58rem;color:var(--stonel);letter-spacing:.1em;margin-bottom:.2rem;">GÜLTIG</div>
+              <div id="testValidity" style="font-size:.78rem;color:var(--parch2);line-height:1.5;"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:.5rem;">
+            <button class="btn btn-o" id="testCopyBtn" style="flex:1;font-size:.65rem;">Code kopieren</button>
+            <button class="btn btn-g" id="testOpenBtn" style="flex:1;font-size:.65rem;">App öffnen →</button>
+          </div>
+        </div>
+
+        <button class="btn btn-b" onclick="createTestBooking()" style="width:100%;font-size:.72rem;">🧪 Test-Buchung generieren</button>
+      </div>
         <div class="acs">Automatisch aus KW berechnet · Jeden Montag am Schloss einstellen</div>
         <div class="wkg" id="wkGrid"></div>
       </div>
@@ -1479,12 +1520,99 @@ function renderWkCodes() {
 }
 
 // ============================================================
+// TEST BUCHUNG
+// ============================================================
+function initTestBooking() {
+  // Datum und Zeit auf jetzt setzen
+  var now = new Date();
+  var dateStr = now.toISOString().split('T')[0];
+  var hours = String(now.getHours()).padStart(2,'0');
+  var mins = String(now.getMinutes()).padStart(2,'0');
+  var timeStr = hours + ':' + mins;
+  var dateEl = document.getElementById('testDate');
+  var timeEl = document.getElementById('testTime');
+  if (dateEl && !dateEl.value) dateEl.value = dateStr;
+  if (timeEl && !timeEl.value) timeEl.value = timeStr;
+}
+
+async function createTestBooking() {
+  var date = document.getElementById('testDate').value;
+  var time = document.getElementById('testTime').value;
+  var duration = parseInt(document.getElementById('testDuration').value) || 120;
+  var buffer = parseInt(document.getElementById('testBuffer').value) || 30;
+
+  if (!date || !time) { toast('Bitte Datum und Zeit eingeben'); return; }
+
+  // App-Code generieren
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var code = 'TST';
+  for (var i = 0; i < 3; i++) code += chars[Math.floor(Math.random() * chars.length)];
+
+  // valid_from und valid_until berechnen
+  var slotDateTime = new Date(date + 'T' + time + ':00');
+  var validFrom = slotDateTime.toISOString();
+  var validUntil = new Date(slotDateTime.getTime() + (duration + buffer) * 60000).toISOString();
+
+  try {
+    var res = await fetch(SB_URL + '/rest/v1/bookings', {
+      method: 'POST',
+      headers: {
+        apikey: SB_KEY,
+        Authorization: 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation'
+      },
+      body: JSON.stringify({
+        slot_date: date,
+        slot_time: time,
+        name: 'TEST',
+        email: 'test@raubritter-escape.de',
+        persons: 1,
+        total_price: 0,
+        payment_method: 'test',
+        status: 'paid',
+        booking_code: code,
+        valid_from: validFrom,
+        valid_until: validUntil
+      })
+    });
+
+    if (!res.ok) { toast('Fehler: ' + res.status); return; }
+
+    // Ergebnis anzeigen
+    var fromTime = slotDateTime.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    var untilTime = new Date(validUntil).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    var dateFormatted = new Date(date).toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+    document.getElementById('testAppCode').textContent = code;
+    document.getElementById('testValidity').innerHTML = dateFormatted + '<br>' + fromTime + ' – ' + untilTime + ' Uhr';
+    document.getElementById('testResult').style.display = 'block';
+
+    // Buttons
+    document.getElementById('testCopyBtn').onclick = function() {
+      navigator.clipboard.writeText(code).then(function(){ toast('Code kopiert!'); });
+    };
+    document.getElementById('testOpenBtn').onclick = function() {
+      window.open('https://geee1-pixel.github.io/raubritter-escape/spiel.html', '_blank');
+    };
+
+    toast('Test-Buchung erstellt! Code: ' + code);
+    loadTodayBk(); // Buchungen heute aktualisieren
+
+  } catch(e) {
+    toast('Verbindungsfehler');
+    console.error(e);
+  }
+}
+
+// ============================================================
 // ADMIN INIT
 // ============================================================
 function initAdmin() {
   renderWkCodes();
   loadTodayBk();
   loadSbGames();
+  initTestBooking();
 }
 
 // Event delegation
