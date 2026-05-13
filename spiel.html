@@ -1484,26 +1484,28 @@ function initSecretTexts() {
 function showHintLevel(level) {
   if (!game) return;
   const s = game.stations[state.currentStation];
-  const hints = [s.hint, s.hint2 || s.hint, s.hint3 || s.answer ? `Die Antwort beginnt mit: ${(s.answer||'')[0]}` : s.hint];
+
+  // Normalisierte Hinweise – unterstützt v3 (hints[]) und neues Format (hint/hint2/hint3)
+  const h1 = (s.hints && s.hints[0]) || s.hint  || s._hint1 || '';
+  const h2 = (s.hints && s.hints[1]) || s.hint2 || s._hint2 || h1;
+  const h3 = (s.hints && s.hints[2]) || s.hint3 || s._hint3 || h2;
+  const hints = [h1, h2, h3];
   const hint = hints[level - 1] || hints[0];
 
   state.hintsUsed++;
   state.hintsLevel = level;
 
-  // Punkte-Abzug anzeigen
   const penalty = level === 1 ? 10 : level === 2 ? 25 : 50;
   toast(`Hinweis ${level} genutzt – ${penalty} Punkte Abzug`);
 
-  // Hinweis anzeigen
   const box = document.getElementById('hint-content-box');
   const icon = ['💡','🔍','🔑'][level-1];
   if (box) {
     box.innerHTML = `<span style="opacity:0.6; font-size:0.75rem; font-family:'Cinzel',serif;">
-      ${icon} HINWEIS ${level}</span><br>${hint}`;
+      ${icon} HINWEIS ${level}</span><br>${hint || 'Kein Hinweis verfügbar'}`;
     box.classList.add('visible');
   }
 
-  // Button deaktivieren
   const btn = document.getElementById(`hint-btn-${level}`);
   if (btn) btn.disabled = true;
 }
@@ -1699,10 +1701,34 @@ function renderStation(i) {
   if (!game || i >= game.stations.length) return;
   const s = game.stations[i];
 
+  // Feldnamen normalisieren – unterstützt v3 Editor UND neues Format
+  const storyText   = s.story      || s.atm  || s.lore || '';
+  const directions  = s.directions || s.loc   || '';
+  const puzzleText  = s.puzzle     || '';
+  const answerText  = s.answer     || s.result || '';
+  const hint1       = (s.hints && s.hints[0]) || s.hint  || '';
+  const hint2       = (s.hints && s.hints[1]) || s.hint2 || '';
+  const hint3       = (s.hints && s.hints[2]) || s.hint3 || '';
+  const photoUrl    = s.photo      || (s.images && s.images[0] && s.images[0].data) || '';
+  const lat         = s.lat        || s.gps?.split(',')[0]?.trim() || '';
+  const lng         = s.lng        || s.gps?.split(',')[1]?.trim() || '';
+
+  // Normalisierte Felder zurückschreiben damit der Rest der App sie findet
+  s._story      = storyText;
+  s._directions = directions;
+  s._puzzle     = puzzleText;
+  s._answer     = answerText;
+  s._hint1      = hint1;
+  s._hint2      = hint2;
+  s._hint3      = hint3;
+  s._photo      = photoUrl;
+  s._lat        = lat;
+  s._lng        = lng;
+
   // Photo
   const photoWrap = document.getElementById('station-photo-wrap');
-  if (s.photo) {
-    photoWrap.innerHTML = `<img class="station-photo" src="${s.photo}" alt="${s.name}" loading="lazy">`;
+  if (photoUrl) {
+    photoWrap.innerHTML = `<img class="station-photo" src="${photoUrl}" alt="${s.name}" loading="lazy">`;
   } else {
     photoWrap.innerHTML = `<div class="station-photo-placeholder"><i class="fa-solid fa-dungeon" style="font-size:3rem; color:rgba(201,168,76,0.25);"></i></div>`;
   }
@@ -1713,22 +1739,37 @@ function renderStation(i) {
 
   // Wegbeschreibung
   const dirWrap = document.getElementById('station-directions-wrap');
-  if (s.directions) {
-    const mapsLink = (s.lat && s.lng)
-      ? `<a class="maps-btn" href="https://maps.google.com/?q=${s.lat},${s.lng}" target="_blank"><i class="fa-solid fa-diamond-turn-right"></i> In Maps öffnen</a>`
+  if (directions) {
+    const mapsLink = (lat && lng)
+      ? `<a class="maps-btn" href="https://maps.google.com/?q=${lat},${lng}" target="_blank"><i class="fa-solid fa-diamond-turn-right"></i> In Maps öffnen</a>`
       : '';
     dirWrap.innerHTML = `
       <div class="directions-box">
         <div class="directions-label"><i class="fa-solid fa-signs-post mr-1"></i> WEG ZUR STATION</div>
-        <div class="directions-text">${s.directions}</div>
+        <div class="directions-text">${directions}</div>
         ${mapsLink}
       </div>`;
   } else {
     dirWrap.innerHTML = '';
   }
 
+  // Atmosphäre/Lore wenn vorhanden (v3 hat beide)
+  const atmosWrap = document.getElementById('station-atm-wrap');
+  if (atmosWrap) {
+    const atmText = s.atm || '';
+    const loreText = s.lore || '';
+    if (atmText || loreText) {
+      atmosWrap.innerHTML = `
+        ${atmText ? `<div class="atm-box">${atmText}</div>` : ''}
+        ${loreText ? `<div class="lore-box" style="font-style:italic; opacity:0.7; margin-top:0.5rem;">${loreText}</div>` : ''}`;
+      atmosWrap.style.display = 'block';
+    } else {
+      atmosWrap.style.display = 'none';
+    }
+  }
+
   // Story
-  document.getElementById('station-story-display').textContent = s.story || '';
+  document.getElementById('station-story-display').textContent = storyText;
 
   // Progress in topbar
   renderProgress('topbar-progress-station', i);
@@ -1751,9 +1792,13 @@ function renderStoryScreen() {
   if (!game) return;
   const i = state.currentStation;
   const s = game.stations[Math.min(i, game.stations.length - 1)];
+  const storyText = s._story || s.story || s.atm || s.lore || '';
+  const introText = i === 0 && game.intro ? game.intro : (i === 0 && game.storyIntro ? game.storyIntro : '');
+
   document.getElementById('story-full-text').innerHTML =
-    (i === 0 && game.intro ? `<p style="margin-bottom:1.5rem; opacity:0.9;">${game.intro}</p><hr style="border:none; border-top:1px solid rgba(201,168,76,0.15); margin:1rem 0;">` : '') +
-    `<p>${s.story || ''}</p>`;
+    (introText ? `<p style="margin-bottom:1.5rem; opacity:0.9;">${introText}</p><hr style="border:none; border-top:1px solid rgba(201,168,76,0.15); margin:1rem 0;">` : '') +
+    (s.lore && s.lore !== storyText ? `<p style="font-style:italic; opacity:0.7; margin-bottom:1rem;">${s.lore}</p>` : '') +
+    `<p>${storyText}</p>`;
   document.getElementById('story-chapter-num').textContent = i + 1;
 }
 
@@ -1887,17 +1932,20 @@ function manualCodeEntry() {
   if (code) handleQRScan(code.trim());
 }
 
-// ─── RÄTSEL ──────────────────────────────────────────────
 function openPuzzle(stationIndex) {
   stopCamera();
   const s = game.stations[stationIndex];
   state.attempts = 0;
   state.hintsLevel = 0;
 
+  // Normalisierte Felder nutzen
+  const puzzleText = s._puzzle || s.puzzle || '(Kein Rätsel)';
+  const points = s.points || 100;
+
   document.getElementById('puzzle-station-label').textContent = 'STATION ' + (stationIndex+1);
   document.getElementById('puzzle-station-name').textContent = s.name || '';
-  document.getElementById('puzzle-question').textContent = s.puzzle || '(Kein Rätsel)';
-  document.getElementById('puzzle-points-display').textContent = (s.points || 100) + ' Punkte';
+  document.getElementById('puzzle-question').textContent = puzzleText;
+  document.getElementById('puzzle-points-display').textContent = points + ' Punkte';
   document.getElementById('answer-input').value = '';
   document.getElementById('answer-feedback').textContent = '';
 
@@ -1944,22 +1992,25 @@ function checkAnswer() {
   const s = game.stations[state.currentStation];
   const input = document.getElementById('answer-input');
   const given = input.value.trim().toLowerCase();
-  const correct = (s.answer || '').trim().toLowerCase();
 
-  // Zahl-Toleranz: "sieben" === "7" etc.
+  // Normalisierte Antwort – v3 nutzt s.result, neues Format nutzt s.answer
+  const answerRaw = s._answer || s.answer || s.result || '';
+  // Bei v3: result enthält oft "Code: XXXX" oder ähnliches – ersten Token extrahieren
+  const correct = answerRaw.replace(/^(code|lösung|antwort|loesung):\s*/i, '').split('\n')[0].trim().toLowerCase();
+
+  // Zahl-Toleranz
   const numberWords = ['null','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn'];
   const isCorrect = given === correct
     || (numberWords.indexOf(given) === parseInt(correct))
-    || (numberWords.indexOf(correct) === parseInt(given));
+    || (numberWords.indexOf(correct) === parseInt(given))
+    || (correct.includes(given) && given.length >= 3); // Teilmatch für längere Antworten
 
   if (isCorrect) {
-    // Punkte berechnen (Abzug für Fehlversuche)
     const basePoints = s.points || 100;
     const earned = Math.max(Math.floor(basePoints * (1 - state.attempts * 0.15)), Math.floor(basePoints * 0.4));
     state.totalScore += earned;
     state.solvedStations.push(state.currentStation);
-    saveGameState(); // Punkte und gelöste Stationen speichern
-
+    saveGameState();
     showSolvedOverlay(state.currentStation, earned);
   } else {
     state.attempts++;
@@ -1968,22 +2019,13 @@ function checkAnswer() {
     const maxA = game.maxattempts || 5;
     const remaining = maxA - state.attempts;
 
-    if (state.attempts >= 3 && s.hint) {
-      state.hintsUsed++;
-      document.getElementById('hint-box').classList.add('visible');
-    }
-
     if (state.attempts >= maxA) {
-      // Max Versuche erreicht – Station trotzdem fortsetzen (mit 0 Punkten)
-      document.getElementById('answer-feedback').textContent = `Lösung: ${s.answer}`;
+      document.getElementById('answer-feedback').textContent = `Lösung: ${answerRaw.split('\n')[0]}`;
       document.getElementById('answer-feedback').style.color = 'var(--gold)';
       state.solvedStations.push(state.currentStation);
       setTimeout(() => showSolvedOverlay(state.currentStation, 0), 1200);
       return;
     }
-
-    // Shake + Fehlermeldung
-    input.classList.add('shake');
     setTimeout(() => input.classList.remove('shake'), 500);
     input.value = '';
 
