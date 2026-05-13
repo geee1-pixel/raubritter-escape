@@ -197,37 +197,48 @@ select option{background:#1a1108;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 
-/* LOCK SCREEN */
-#editor-lock{position:fixed;inset:0;z-index:9999;background:linear-gradient(180deg,#0d2b14 0%,#0e0a05 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1.5rem;padding:2rem;}
-#editor-lock.unlocked{display:none;}
-#lock-input{background:rgba(0,0,0,.4);border:1px solid rgba(201,146,42,.35);color:#f5ead6;border-radius:5px;padding:.85rem 1.25rem;font-size:1.1rem;width:100%;max-width:300px;text-align:center;letter-spacing:.2em;font-family:'Cinzel',Georgia,serif;}
-#lock-input:focus{outline:none;border-color:#c9922a;}
-#lock-btn{background:linear-gradient(135deg,#7a6010,#c9922a);border:none;border-radius:5px;color:#1a1108;font-family:'Cinzel',Georgia,serif;font-weight:700;font-size:.85rem;letter-spacing:.08em;padding:.85rem 2.5rem;cursor:pointer;width:100%;max-width:300px;}
-#lock-error{color:#c04040;font-family:Georgia,serif;font-size:.82rem;min-height:1rem;}
-/* TOAST */
-#toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel);border:1px solid var(--gold);border-radius:7px;padding:.6rem 1.25rem;font-family:'Cinzel',serif;font-size:.72rem;color:var(--gold);letter-spacing:.05em;opacity:0;transition:all .3s;pointer-events:none;z-index:2000;}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-/* ADMIN TAB */
-.admin-card{background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:1.3rem;margin-bottom:1.1rem;}
-.week-code-box{background:rgba(201,146,42,.06);border:1px solid rgba(201,146,42,.2);border-radius:7px;padding:1rem;text-align:center;}
-.week-code-val{font-family:'Cinzel',serif;font-size:2.5rem;font-weight:900;color:var(--goldl);letter-spacing:.25em;}
-.booking-row{display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:center;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:6px;padding:.85rem 1rem;margin-bottom:.4rem;}
-.booking-code-badge{text-align:center;background:rgba(13,43,20,.6);border:1px solid rgba(201,146,42,.25);border-radius:5px;padding:.5rem .85rem;min-width:120px;}
 
+/* LOCK */
+#lk{position:fixed;inset:0;z-index:9999;background:linear-gradient(180deg,#0d2b14,#0e0a05);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;padding:2rem;text-align:center;}
+#lk-i{background:rgba(0,0,0,.4);border:1px solid rgba(201,146,42,.4);color:#f5ead6;border-radius:5px;padding:.75rem 1.2rem;font-size:1rem;width:280px;text-align:center;letter-spacing:.15em;font-family:'Cinzel',serif;}
+#lk-i:focus{outline:none;border-color:#c9922a;}
+#lk-b{background:linear-gradient(135deg,#7a6010,#c9922a);border:none;border-radius:5px;color:#1a1108;font-family:'Cinzel',serif;font-weight:700;font-size:.82rem;letter-spacing:.08em;padding:.75rem 0;cursor:pointer;width:280px;}
+#lk-e{color:#c04040;font-size:.78rem;min-height:1.1rem;font-family:'Cinzel',serif;}
+/* TOAST */
+#toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(8px);background:#1a1108;border:1px solid #c9922a;border-radius:5px;padding:.45rem 1.1rem;font-family:'Cinzel',serif;font-size:.68rem;color:#e8b84b;letter-spacing:.05em;opacity:0;transition:all .28s;pointer-events:none;z-index:9000;white-space:nowrap;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+/* ADMIN */
+.acard{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:1.2rem;margin-bottom:1rem;}
+.act{font-family:'Cinzel',serif;font-size:.75rem;color:var(--goldl);letter-spacing:.1em;margin-bottom:.25rem;}
+.acs{font-size:.76rem;color:var(--stonel);font-style:italic;margin-bottom:.8rem;}
+.wkg{display:grid;grid-template-columns:repeat(4,1fr);gap:.55rem;}
+.wkb{background:rgba(201,146,42,.05);border:1px solid rgba(201,146,42,.15);border-radius:6px;padding:.7rem .4rem;text-align:center;}
+.wkb.cur{border-color:rgba(201,146,42,.4);background:rgba(201,146,42,.1);}
+.wkv{font-family:'Cinzel',serif;font-size:2rem;font-weight:900;color:#e8b84b;letter-spacing:.2em;line-height:1;}
+.wkl{font-size:.6rem;color:var(--stonel);margin-top:.2rem;}
+.bkr{display:grid;grid-template-columns:1fr auto;gap:.75rem;align-items:center;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:5px;padding:.7rem .9rem;margin-bottom:.35rem;}
+.bkc{text-align:center;background:rgba(13,43,20,.6);border:1px solid rgba(201,146,42,.25);border-radius:5px;padding:.4rem .7rem;min-width:110px;}
+.bkcv{font-family:'Cinzel',serif;font-size:1.25rem;font-weight:900;color:#e8b84b;letter-spacing:.2em;}
+.sbgr{display:flex;align-items:center;justify-content:space-between;padding:.55rem .75rem;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:5px;margin-bottom:.3rem;}
+
+/* PANELS */
+.tp{display:none;}.tp.on{display:block;}
+
+/* SIDEBAR STATS */
+.sstats{padding:.5rem .7rem;border-top:1px solid var(--border);}
+</style>
 </head>
 <body>
 
-<!-- PASSWORD LOCK -->
-<div id="editor-lock">
-  <div style="font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.25em;color:rgba(201,146,42,.7);margin-bottom:.5rem;">RAUBRITTER ESCAPE</div>
-  <div style="font-family:'Cinzel',serif;font-size:1.6rem;color:#f5ead6;margin-bottom:.5rem;">Editor</div>
-  <div style="font-size:.88rem;color:rgba(245,234,214,.45);margin-bottom:1rem;font-style:italic;">Passwort eingeben um fortzufahren</div>
-  <input id="lock-input" type="password" placeholder="••••••••••">
-  <div id="lock-error"></div>
-  <button id="lock-btn" onclick="unlockEditor()">Eintreten</button>
+<!-- LOCK SCREEN -->
+<div id="lk">
+  <div style="font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.25em;color:rgba(201,146,42,.65);">RAUBRITTER ESCAPE</div>
+  <div style="font-family:'Cinzel',serif;font-size:1.45rem;color:#f5ead6;">Editor</div>
+  <div style="font-size:.85rem;color:rgba(245,234,214,.4);font-style:italic;">Passwort eingeben</div>
+  <input id="lk-i" type="password" placeholder="Passwort" autocomplete="off">
+  <div id="lk-e"></div>
+  <button id="lk-b" onclick="doUnlock()">Eintreten</button>
 </div>
-
-<!-- TOAST -->
 <div id="toast"></div>
 
 <!-- HEADER -->
@@ -245,7 +256,7 @@ select option{background:#1a1108;}
       <button class="tb" style="border-color:rgba(139,26,26,.4);color:var(--redl);" onclick="tReset()">⟳</button>
     </div>
     <button class="btn btn-r" onclick="openReset()">⚠ RESET</button>
-    <button class="btn btn-g" onclick="saveToSupabase()" id="btnSaveSupabase" style="font-size:.65rem;">☁ Supabase</button>
+    <button id="btnSB" class="btn btn-b" onclick="saveToSupabase()" style="font-size:.62rem;">☁ Speichern</button>
   </div>
 </div>
 
@@ -285,7 +296,7 @@ select option{background:#1a1108;}
     <button class="tbtn"     onclick="showTab('timer',this)">Zeiten</button>
     <button class="tbtn"     onclick="showTab('checklist',this)">Checkliste</button>
     <button class="tbtn"     onclick="showTab('export',this)">Export</button>
-    <button class="tbtn"     onclick="showTab('admin',this)" style="color:var(--goldl);">⚙ Admin</button>
+    <button class="tbtn"     onclick="showTab('admin',this)" style="color:#e8b84b;">⚙ Admin</button>
   </div>
 
   <div class="inner">
@@ -538,55 +549,41 @@ select option{background:#1a1108;}
       </div>
     </div>
 
-    <!-- ADMIN -->
+
+    <!-- ADMIN TAB -->
     <div class="tp" id="tp-admin">
-
-      <!-- WOCHENCODE -->
-      <div class="admin-card">
-        <div class="ct">🔒 Wochencode – Schließfach</div>
-        <div class="cs">Automatisch generiert · Jeden Montag am Schloss einstellen</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem;" id="weekCodes"></div>
-        <div style="margin-top:.75rem;font-size:.78rem;color:var(--stonel);font-style:italic;">
-          Gleicher Algorithmus wie in der Spieltags-E-Mail. Salt: RB2026LICHTENBERG
+      <div class="acard">
+        <div class="act">🔒 Wochencode – Schließfach</div>
+        <div class="acs">Automatisch aus KW berechnet · Jeden Montag am Schloss einstellen</div>
+        <div class="wkg" id="wkGrid"></div>
+      </div>
+      <div class="acard">
+        <div class="act">📅 Buchungen heute</div>
+        <div id="bkToday"><div style="color:var(--stonel);font-size:.8rem;font-style:italic;">Lade...</div></div>
+        <div class="brow" style="margin-top:.7rem;">
+          <button class="btn btn-o" onclick="loadTodayBk()">↻ Aktualisieren</button>
         </div>
       </div>
-
-      <!-- BUCHUNGEN HEUTE -->
-      <div class="admin-card">
-        <div class="ct">📅 Buchungen heute</div>
-        <div class="cs">Alle heutigen Buchungen mit App-Code</div>
-        <div id="bookingsToday"><div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Lade…</div></div>
-        <div class="brow" style="margin-top:.75rem;">
-          <button class="btn btn-o" onclick="loadTodayBookings()">↻ Aktualisieren</button>
-        </div>
-      </div>
-
-      <!-- ALLE BUCHUNGEN -->
-      <div class="admin-card">
-        <div class="ct">📋 Alle Buchungen</div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.75rem;">
-          <input type="date" id="filterDate" style="background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.35rem .65rem;font-size:.82rem;">
-          <select id="filterStatus" style="background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.35rem .65rem;font-size:.82rem;">
-            <option value="">Alle Status</option>
-            <option value="paid">Bezahlt</option>
-            <option value="cancelled">Storniert</option>
+      <div class="acard">
+        <div class="act">📋 Alle Buchungen</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.7rem;align-items:center;">
+          <input type="date" id="bkDate" style="background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.3rem .6rem;font-size:.8rem;">
+          <select id="bkStatus" style="background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.3rem .6rem;font-size:.8rem;">
+            <option value="">Alle</option><option value="paid">Bezahlt</option><option value="cancelled">Storniert</option>
           </select>
-          <button class="btn btn-g" onclick="loadAllBookings()" style="font-size:.65rem;">Suchen</button>
+          <button class="btn btn-g" onclick="loadAllBk()">Suchen</button>
         </div>
-        <div id="bookingsAll"></div>
+        <div id="bkAll"></div>
       </div>
-
-      <!-- SUPABASE SPIELE -->
-      <div class="admin-card">
-        <div class="ct">☁ Supabase – Spielverwaltung</div>
-        <div class="cs">Gespeicherte Spiele · Das aktive Spiel lädt die Spieler-App</div>
-        <div id="supabaseGames"><div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Lade…</div></div>
-        <div class="brow" style="margin-top:.75rem;">
+      <div class="acard">
+        <div class="act">☁ Supabase – Spielverwaltung</div>
+        <div class="acs">Gespeicherte Spiele · Aktives Spiel lädt die Spieler-App</div>
+        <div id="sbGames"><div style="color:var(--stonel);font-size:.8rem;font-style:italic;">Lade...</div></div>
+        <div class="brow" style="margin-top:.7rem;">
           <button class="btn btn-g" onclick="saveToSupabase()">☁ Aktuellen Stand speichern</button>
-          <button class="btn btn-o" onclick="loadSupabaseGames()">↻ Aktualisieren</button>
+          <button class="btn btn-o" onclick="loadSbGames()">↻ Aktualisieren</button>
         </div>
       </div>
-
     </div><!-- /tp-admin -->
 
   </div><!-- /inner -->
@@ -763,10 +760,14 @@ let qrImages={};
 // INIT
 // ============================================================
 window.addEventListener('DOMContentLoaded',()=>{
-  renderSidebar();renderOv();renderStory();renderSt(1);
-  renderRucksack();renderQR();renderGPS();drawCipher();
-  renderHintTab();renderPlayers();renderTimerTab();
-  renderChecklist();populateHSel();
+  try {
+    renderSidebar();renderOv();renderStory();renderSt(1);
+    renderRucksack();renderQR();renderGPS();drawCipher();
+    renderHintTab();renderPlayers();renderTimerTab();
+    renderChecklist();populateHSel();
+  } catch(err) {
+    console.error('Init error:', err);
+  }
 });
 
 // ============================================================
@@ -1367,289 +1368,276 @@ function exportText(){
 // ============================================================
 // HELPERS
 // ============================================================
-function tl(t){return{haptic:'Haptisch',chiffre:'Chiffre',digital:'Digital',gps:'GPS',qr:'QR-Code',text:'Text',puzzle:'Puzzle'}[t]||t;}
-
 // ============================================================
 // PASSWORT LOCK
 // ============================================================
-const EDITOR_PASSWORD = 'raubritter2026';
-
-function unlockEditor() {
-  const val = document.getElementById('lock-input').value;
-  if (val === EDITOR_PASSWORD) {
-    document.getElementById('editor-lock').classList.add('unlocked');
-    sessionStorage.setItem('editor-unlocked', '1');
+const PW = 'raubritter2026';
+function doUnlock() {
+  var v = document.getElementById('lk-i').value;
+  if (v === PW) {
+    document.getElementById('lk').style.display = 'none';
+    sessionStorage.setItem('rbe','1');
   } else {
-    const err = document.getElementById('lock-error');
-    err.textContent = 'Falsches Passwort';
-    document.getElementById('lock-input').value = '';
-    setTimeout(() => err.textContent = '', 2500);
+    var e = document.getElementById('lk-e');
+    e.textContent = 'Falsches Passwort';
+    document.getElementById('lk-i').value = '';
+    setTimeout(function(){ e.textContent = ''; }, 2000);
   }
 }
-document.addEventListener('DOMContentLoaded', () => {
-  if (sessionStorage.getItem('editor-unlocked') === '1') {
-    document.getElementById('editor-lock').classList.add('unlocked');
+window.addEventListener('load', function() {
+  if (sessionStorage.getItem('rbe') === '1') {
+    document.getElementById('lk').style.display = 'none';
   }
-  document.getElementById('lock-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') unlockEditor();
+  document.getElementById('lk-i').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doUnlock();
   });
 });
-
-// ============================================================
-// SUPABASE CONFIG
-// ============================================================
-const SUPABASE_URL = 'https://uulpxvyjevnvggvamhha.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1bHB4dnlqZXZudmdndmFtaGhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODA5MjIsImV4cCI6MjA5Mjk1NjkyMn0.XJWbivvaWU4WVD-48_-Pnlr5XfKkjSHuIvVqdpq-bH4';
-let currentGameId = null;
-
-// ============================================================
-// WOCHENCODE
-// ============================================================
-const WEEK_CODE_SALT = 'RB2026LICHTENBERG';
-
-function getWeekNumber(date) {
-  const d = new Date(date);
-  d.setHours(0,0,0,0);
-  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
-  const week1 = new Date(d.getFullYear(), 0, 4);
-  return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
-}
-
-function generateWeekCode(date) {
-  const kw = getWeekNumber(date);
-  const year = date.getFullYear();
-  const seed = `${WEEK_CODE_SALT}-${year}-${kw}`;
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) - hash) + seed.charCodeAt(i);
-    hash |= 0;
-  }
-  return String(Math.abs(hash) % 9000 + 1000);
-}
-
-function getWeekRange(date) {
-  const d = new Date(date);
-  const day = d.getDay() || 7;
-  const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-  const fmt = x => x.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
-  return `${fmt(mon)} – ${fmt(sun)}`;
-}
-
-function renderWeekCodes() {
-  const container = document.getElementById('weekCodes');
-  if (!container) return;
-  const today = new Date();
-  let html = '';
-  for (let i = 0; i < 4; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i * 7);
-    const code = generateWeekCode(date);
-    const kw = getWeekNumber(date);
-    const range = getWeekRange(date);
-    const isCurrent = i === 0;
-    html += `
-      <div class="week-code-box" style="${isCurrent ? 'border-color:rgba(201,146,42,.45);' : 'opacity:.55;'}">
-        ${isCurrent ? '<div style="font-family:\'Cinzel\',serif;font-size:.55rem;letter-spacing:.12em;color:var(--goldl);margin-bottom:.25rem;">DIESE WOCHE</div>' : ''}
-        <div style="font-family:\'Cinzel\',serif;font-size:.6rem;color:var(--stonel);margin-bottom:.15rem;">KW ${kw} · ${range}</div>
-        <div class="week-code-val">${code}</div>
-        ${isCurrent ? `<button onclick="navigator.clipboard.writeText('${code}').then(()=>toast('Code kopiert!'))" class="btn btn-o" style="margin-top:.5rem;font-size:.6rem;padding:.25rem .7rem;">Kopieren</button>` : ''}
-      </div>`;
-  }
-  container.innerHTML = html;
-}
-
-// ============================================================
-// ADMIN TAB
-// ============================================================
-function initAdminTab() {
-  renderWeekCodes();
-  loadTodayBookings();
-  loadSupabaseGames();
-}
-
-async function loadTodayBookings() {
-  const el = document.getElementById('bookingsToday');
-  if (!el) return;
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  el.innerHTML = '<div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Lade…</div>';
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/bookings?select=*&slot_date=eq.${todayStr}&status=eq.paid&order=slot_time.asc`,
-      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
-    );
-    const data = await res.json();
-    if (!data.length) { el.innerHTML = '<div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Keine Buchungen heute.</div>'; return; }
-    el.innerHTML = data.map(b => renderBookingRow(b, true)).join('');
-  } catch(e) { el.innerHTML = '<div style="color:var(--redl);font-size:.82rem;">Verbindungsfehler</div>'; }
-}
-
-async function loadAllBookings() {
-  const el = document.getElementById('bookingsAll');
-  if (!el) return;
-  const dateFilter = document.getElementById('filterDate').value;
-  const statusFilter = document.getElementById('filterStatus').value;
-  el.innerHTML = '<div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Lade…</div>';
-  let url = `${SUPABASE_URL}/rest/v1/bookings?select=*&order=slot_date.desc,slot_time.asc&limit=50`;
-  if (dateFilter) url += `&slot_date=eq.${dateFilter}`;
-  if (statusFilter) url += `&status=eq.${statusFilter}`;
-  try {
-    const res = await fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } });
-    const data = await res.json();
-    if (!data.length) { el.innerHTML = '<div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Keine Buchungen gefunden.</div>'; return; }
-    el.innerHTML = data.map(b => renderBookingRow(b, false)).join('');
-  } catch(e) { el.innerHTML = '<div style="color:var(--redl);font-size:.82rem;">Verbindungsfehler</div>'; }
-}
-
-function renderBookingRow(b, showCode) {
-  const date = new Date(b.slot_date).toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' });
-  const time = (b.slot_time || '').substring(0,5);
-  const statusCol = b.status === 'paid' ? '#4a9e63' : '#c04040';
-  const validFrom = b.valid_from ? new Date(b.valid_from).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : null;
-  const validUntil = b.valid_until ? new Date(b.valid_until).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : null;
-  return `
-    <div class="booking-row">
-      <div>
-        <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.25rem;">
-          <span style="font-family:'Cinzel',serif;font-size:.88rem;color:var(--parch);">${b.name}</span>
-          <span style="font-size:.62rem;color:${statusCol};border:1px solid ${statusCol}40;padding:0 .45rem;border-radius:8px;">${b.status === 'paid' ? 'Bezahlt' : 'Storniert'}</span>
-          <span style="color:var(--goldl);font-size:.82rem;">${b.total_price} €</span>
-        </div>
-        <div style="display:flex;gap:1rem;font-size:.78rem;color:var(--stonel);flex-wrap:wrap;">
-          <span>📅 ${date}</span>
-          <span>🕐 ${time} Uhr</span>
-          <span>👥 ${b.persons} Person${b.persons>1?'en':''}</span>
-          <span>✉ ${b.email}</span>
-          ${validFrom ? `<span style="color:rgba(201,146,42,.6);">⏱ ${validFrom}–${validUntil}</span>` : ''}
-        </div>
-      </div>
-      ${b.booking_code ? `
-      <div class="booking-code-badge">
-        <div style="font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.1em;color:rgba(201,146,42,.6);margin-bottom:.2rem;">APP-CODE</div>
-        <div style="font-family:'Cinzel',serif;font-size:1.35rem;font-weight:900;color:var(--goldl);letter-spacing:.2em;margin-bottom:.3rem;">${b.booking_code}</div>
-        <button onclick="navigator.clipboard.writeText('${b.booking_code}').then(()=>toast('Kopiert!'))" class="btn btn-o" style="font-size:.58rem;padding:.2rem .6rem;width:100%;">Kopieren</button>
-      </div>` : '<div></div>'}
-    </div>`;
-}
-
-// ============================================================
-// SUPABASE SPIELVERWALTUNG
-// ============================================================
-async function saveToSupabase() {
-  const btn = document.getElementById('btnSaveSupabase');
-  if (btn) { btn.textContent = '⏳ Speichern…'; btn.disabled = true; }
-  const payload = {
-    title: gd.title || 'Raubritter Escape',
-    location: 'lichtenberg',
-    game_data: gd,
-    updated_at: new Date().toISOString(),
-    active: true
-  };
-  try {
-    let res;
-    if (currentGameId) {
-      res = await fetch(`${SUPABASE_URL}/rest/v1/games?id=eq.${currentGameId}`, {
-        method: 'PATCH',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
-        body: JSON.stringify(payload)
-      });
-    } else {
-      res = await fetch(`${SUPABASE_URL}/rest/v1/games`, {
-        method: 'POST',
-        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
-        body: JSON.stringify(payload)
-      });
-    }
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data[0]) currentGameId = data[0].id;
-      toast('✅ In Supabase gespeichert!');
-      loadSupabaseGames();
-    } else { toast('❌ Fehler beim Speichern'); }
-  } catch(e) { toast('❌ Verbindungsfehler'); }
-  finally { if (btn) { btn.textContent = '☁ Supabase'; btn.disabled = false; } }
-}
-
-async function loadSupabaseGames() {
-  const el = document.getElementById('supabaseGames');
-  if (!el) return;
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/games?select=id,title,location,updated_at,active&order=updated_at.desc`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-    });
-    const games = await res.json();
-    if (!games.length) { el.innerHTML = '<div style="color:var(--stonel);font-size:.82rem;font-style:italic;">Noch keine Spiele gespeichert.</div>'; return; }
-    el.innerHTML = games.map(g => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem .75rem;background:rgba(0,0,0,.2);border:1px solid ${g.active ? 'rgba(201,146,42,.3)' : 'var(--border)'};border-radius:5px;margin-bottom:.35rem;">
-        <div>
-          <div style="font-family:'Cinzel',serif;font-size:.82rem;color:${g.active ? 'var(--goldl)' : 'var(--parch2)'};">
-            ${g.title} ${g.active ? '<span style="font-size:.58rem;color:#4a9e63;margin-left:.4rem;">● AKTIV</span>' : ''}
-          </div>
-          <div style="font-size:.7rem;color:var(--stonel);">${new Date(g.updated_at).toLocaleString('de-DE')}</div>
-        </div>
-        <div style="display:flex;gap:.4rem;">
-          <button onclick="loadGameFromSupabase('${g.id}')" class="btn btn-o" style="font-size:.6rem;padding:.25rem .65rem;">Laden</button>
-          <button onclick="setGameActive('${g.id}')" class="btn btn-b" style="font-size:.6rem;padding:.25rem .65rem;">Aktiv</button>
-        </div>
-      </div>`).join('');
-  } catch(e) { el.innerHTML = '<div style="color:var(--redl);font-size:.82rem;">Verbindungsfehler</div>'; }
-}
-
-async function loadGameFromSupabase(id) {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/games?id=eq.${id}&select=id,game_data`, {
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
-    });
-    const data = await res.json();
-    if (data && data[0] && data[0].game_data) {
-      gd = data[0].game_data;
-      currentGameId = data[0].id;
-      renderSidebar(); renderOv(); renderStory(); renderSt(1);
-      toast('✅ Spiel geladen: ' + (gd.title || 'Unbekannt'));
-    }
-  } catch(e) { toast('❌ Fehler beim Laden'); }
-}
-
-async function setGameActive(id) {
-  try {
-    await fetch(`${SUPABASE_URL}/rest/v1/games`, {
-      method: 'PATCH',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: false })
-    });
-    await fetch(`${SUPABASE_URL}/rest/v1/games?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: true })
-    });
-    toast('✅ Spiel als aktiv gesetzt');
-    loadSupabaseGames();
-  } catch(e) { toast('❌ Fehler'); }
-}
 
 // ============================================================
 // TOAST
 // ============================================================
 function toast(msg) {
-  const el = document.getElementById('toast');
+  var el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 3000);
+  setTimeout(function(){ el.classList.remove('show'); }, 3000);
 }
 
-// Tab-Switch für Admin
-function showTab(id, btn) {
-  document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
-  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
-  const panel = document.getElementById('tp-'+id);
-  if (panel) panel.classList.add('on');
-  if (btn) btn.classList.add('on');
-  if (id==='stations') renderSt(curSt);
-  if (id==='cipher') drawCipher();
-  if (id==='checklist') renderChecklist();
-  if (id==='admin') initAdminTab();
+// ============================================================
+// SUPABASE CONFIG
+// ============================================================
+var SB_URL = 'https://uulpxvyjevnvggvamhha.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1bHB4dnlqZXZudmdndmFtaGhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODA5MjIsImV4cCI6MjA5Mjk1NjkyMn0.XJWbivvaWU4WVD-48_-Pnlr5XfKkjSHuIvVqdpq-bH4';
+var sbGameId = null;
+
+async function saveToSupabase() {
+  var btn = document.getElementById('btnSB');
+  if (btn) { btn.textContent = '...'; btn.disabled = true; }
+  var payload = { title: gd.title || 'Raubritter Escape', location: 'lichtenberg', game_data: gd, updated_at: new Date().toISOString(), active: true };
+  try {
+    var res;
+    if (sbGameId) {
+      res = await fetch(SB_URL + '/rest/v1/games?id=eq.' + sbGameId, {
+        method: 'PATCH', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify(payload)
+      });
+    } else {
+      res = await fetch(SB_URL + '/rest/v1/games', {
+        method: 'POST', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+        body: JSON.stringify(payload)
+      });
+    }
+    if (res.ok) { var d = await res.json(); if (d && d[0]) sbGameId = d[0].id; toast('Gespeichert!'); }
+    else toast('Fehler: ' + res.status);
+  } catch(e) { toast('Verbindungsfehler'); }
+  finally { if (btn) { btn.textContent = '☁ Speichern'; btn.disabled = false; } }
 }
 
+// ============================================================
+// WOCHENCODE
+// ============================================================
+var WK_SALT = 'RB2026LICHTENBERG';
+function getKW(d) {
+  var t = new Date(d); t.setHours(0,0,0,0); t.setDate(t.getDate()+3-(t.getDay()+6)%7);
+  var w1 = new Date(t.getFullYear(),0,4);
+  return 1 + Math.round(((t-w1)/86400000-3+(w1.getDay()+6)%7)/7);
+}
+function genWkCode(d) {
+  var seed = WK_SALT + '-' + d.getFullYear() + '-' + getKW(d);
+  var h = 0; for (var i = 0; i < seed.length; i++) { h = ((h<<5)-h)+seed.charCodeAt(i); h|=0; }
+  return String(Math.abs(h)%9000+1000);
+}
+function getWkRange(d) {
+  var t = new Date(d), day = t.getDay()||7;
+  var mon = new Date(t); mon.setDate(t.getDate()-day+1);
+  var sun = new Date(mon); sun.setDate(mon.getDate()+6);
+  function f(x){ return x.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'}); }
+  return f(mon) + '-' + f(sun);
+}
+function renderWkCodes() {
+  var el = document.getElementById('wkGrid'); if (!el) return;
+  var now = new Date(); var html = '';
+  for (var i = 0; i < 4; i++) {
+    var d = new Date(now); d.setDate(now.getDate()+i*7);
+    var code = genWkCode(d), kw = getKW(d), range = getWkRange(d), cur = i===0;
+    html += '<div class="wkb' + (cur?' cur':'') + '">';
+    html += '<div class="wkl">KW' + kw + ' ' + range + '</div>';
+    html += '<div class="wkv">' + code + '</div>';
+    if (cur) {
+      html += '<button class="btn btn-o" id="wkCopyBtn" style="margin-top:.35rem;font-size:.58rem;padding:.2rem .5rem;">Kopieren</button>';
+      window._currentWkCode = code;
+    }
+    html += '</div>';
+  }
+  el.innerHTML = html;
+  var copyBtn = document.getElementById('wkCopyBtn');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function() {
+      navigator.clipboard.writeText(window._currentWkCode).then(function(){ toast('Code kopiert!'); });
+    });
+  }
+}
+
+// ============================================================
+// ADMIN INIT
+// ============================================================
+function initAdmin() {
+  renderWkCodes();
+  loadTodayBk();
+  loadSbGames();
+}
+
+// Event delegation
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('bk-copy-btn')) {
+    var code = e.target.getAttribute('data-code');
+    if (code) navigator.clipboard.writeText(code).then(function(){ toast('Kopiert!'); });
+  }
+  if (e.target.classList.contains('sb-load-btn')) {
+    loadSbGame(e.target.getAttribute('data-sbid'));
+  }
+  if (e.target.classList.contains('sb-active-btn')) {
+    setSbActive(e.target.getAttribute('data-sbid'));
+  }
+});
+
+// ============================================================
+// BUCHUNGEN
+// ============================================================
+async function loadTodayBk() {
+  var el = document.getElementById('bkToday'); if (!el) return;
+  var today = new Date().toISOString().split('T')[0];
+  el.innerHTML = '<div style="color:var(--stonel);font-size:.8rem;font-style:italic;">Lade...</div>';
+  try {
+    var r = await fetch(SB_URL + '/rest/v1/bookings?select=*&slot_date=eq.' + today + '&status=eq.paid&order=slot_time.asc',
+      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } });
+    var d = await r.json();
+    if (!d.length) { el.innerHTML = '<div style="color:var(--stonel);font-size:.8rem;font-style:italic;">Keine Buchungen heute.</div>'; return; }
+    el.innerHTML = d.map(function(b){ return renderBkRow(b); }).join('');
+  } catch(e) { el.innerHTML = '<div style="color:var(--redl);font-size:.8rem;">Verbindungsfehler</div>'; }
+}
+
+async function loadAllBk() {
+  var el = document.getElementById('bkAll'); if (!el) return;
+  var df = document.getElementById('bkDate').value;
+  var sf = document.getElementById('bkStatus').value;
+  el.innerHTML = '<div style="color:var(--stonel);font-size:.8rem;font-style:italic;">Lade...</div>';
+  var url = SB_URL + '/rest/v1/bookings?select=*&order=slot_date.desc,slot_time.asc&limit=50';
+  if (df) url += '&slot_date=eq.' + df;
+  if (sf) url += '&status=eq.' + sf;
+  try {
+    var r = await fetch(url, { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } });
+    var d = await r.json();
+    if (!d.length) { el.innerHTML = '<div style="color:var(--stonel);font-size:.8rem;font-style:italic;">Keine Buchungen.</div>'; return; }
+    el.innerHTML = d.map(function(b){ return renderBkRow(b); }).join('');
+  } catch(e) { el.innerHTML = '<div style="color:var(--redl);font-size:.8rem;">Verbindungsfehler</div>'; }
+}
+
+function renderBkRow(b) {
+  var dt = new Date(b.slot_date).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
+  var tm = (b.slot_time||'').substring(0,5);
+  var sc = b.status==='paid' ? '#4a9e63' : '#c04040';
+  var sl = b.status==='paid' ? 'Bezahlt' : 'Storniert';
+  var vf = b.valid_from ? new Date(b.valid_from).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : null;
+  var vu = b.valid_until ? new Date(b.valid_until).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) : null;
+
+  var html = '<div class="bkr">';
+  html += '<div>';
+  html += '<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.2rem;">';
+  html += '<span style="font-size:.85rem;color:var(--parch);">' + b.name + '</span>';
+  html += '<span style="font-size:.6rem;color:' + sc + ';border:1px solid;padding:0 .4rem;border-radius:8px;">' + sl + '</span>';
+  html += '<span style="color:var(--goldl);font-size:.8rem;">' + b.total_price + '</span>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:.75rem;font-size:.75rem;color:var(--stonel);flex-wrap:wrap;">';
+  html += '<span>' + dt + '</span>';
+  html += '<span>' + tm + ' Uhr</span>';
+  html += '<span>' + b.persons + ' Pers.</span>';
+  html += '<span>' + b.email + '</span>';
+  if (vf) html += '<span style="color:rgba(201,146,42,.6);">' + vf + '-' + vu + '</span>';
+  html += '</div></div>';
+
+  if (b.booking_code) {
+    html += '<div class="bkc" id="bkc-' + b.id + '">';
+    html += '<div style="font-size:.52rem;letter-spacing:.1em;color:rgba(201,146,42,.6);margin-bottom:.15rem;">APP-CODE</div>';
+    html += '<div class="bkcv">' + b.booking_code + '</div>';
+    html += '<button class="btn btn-o bk-copy-btn" data-code="' + b.booking_code + '" style="font-size:.55rem;padding:.2rem .5rem;width:100%;margin-top:.25rem;">Kopieren</button>';
+    html += '</div>';
+  } else {
+    html += '<div></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+// ============================================================
+// SUPABASE SPIELE
+// ============================================================
+async function loadSbGames() {
+  var el = document.getElementById('sbGames'); if (!el) return;
+  try {
+    var r = await fetch(SB_URL + '/rest/v1/games?select=id,title,updated_at,active&order=updated_at.desc',
+      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } });
+    var d = await r.json();
+    if (!d.length) {
+      el.innerHTML = '<div style="color:var(--stonel);font-size:.8rem;font-style:italic;">Noch keine Spiele gespeichert.</div>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < d.length; i++) {
+      var g = d[i];
+      var activeColor = g.active ? 'rgba(201,146,42,.35)' : 'var(--border)';
+      var titleColor = g.active ? 'var(--goldl)' : 'var(--parch2)';
+      var activeLabel = g.active ? ' <span style="font-size:.58rem;color:#4a9e63;"> AKTIV</span>' : '';
+      var updatedAt = new Date(g.updated_at).toLocaleString('de-DE');
+      html += '<div class="sbgr" style="border-color:' + activeColor + ';">';
+      html += '<div>';
+      html += '<div style="font-size:.82rem;color:' + titleColor + ';">' + g.title + activeLabel + '</div>';
+      html += '<div style="font-size:.68rem;color:var(--stonel);">' + updatedAt + '</div>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:.35rem;">';
+      html += '<button class="btn btn-o sb-load-btn" data-sbid="' + g.id + '" style="font-size:.6rem;">Laden</button>';
+      html += '<button class="btn btn-g sb-active-btn" data-sbid="' + g.id + '" style="font-size:.6rem;">Aktiv</button>';
+      html += '</div></div>';
+    }
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = '<div style="color:var(--redl);font-size:.8rem;">Verbindungsfehler</div>';
+  }
+}
+
+async function loadSbGame(id) {
+  try {
+    var r = await fetch(SB_URL + '/rest/v1/games?id=eq.' + id + '&select=id,game_data',
+      { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } });
+    var d = await r.json();
+    if (d && d[0] && d[0].game_data) {
+      gd = d[0].game_data; sbGameId = d[0].id;
+      renderSidebar(); renderOv(); renderStory(); renderSt(1);
+      toast('Spiel geladen: ' + (gd.title||''));
+    }
+  } catch(e) { toast('Fehler beim Laden'); }
+}
+
+async function setSbActive(id) {
+  try {
+    await fetch(SB_URL + '/rest/v1/games', { method:'PATCH',
+      headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({active:false}) });
+    await fetch(SB_URL + '/rest/v1/games?id=eq.' + id, { method:'PATCH',
+      headers:{apikey:SB_KEY,Authorization:'Bearer '+SB_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({active:true}) });
+    toast('Spiel aktiv gesetzt!'); loadSbGames();
+  } catch(e) { toast('Fehler'); }
+}
+
+// Admin Tab aufrufen
+var _origShowTab = showTab;
+showTab = function(id, btn) {
+  _origShowTab(id, btn);
+  if (id === 'admin') initAdmin();
+};
+
+function tl(t){return{haptic:'Haptisch',chiffre:'Chiffre',digital:'Digital',gps:'GPS',qr:'QR-Code',text:'Text',puzzle:'Puzzle'}[t]||t;}
+</script>
 </body>
 </html>
