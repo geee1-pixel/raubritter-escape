@@ -256,6 +256,8 @@ select option{background:#1a1108;}
       <button class="tb" style="border-color:rgba(139,26,26,.4);color:var(--redl);" onclick="tReset()">⟳</button>
     </div>
     <button class="btn btn-r" onclick="openReset()">⚠ RESET</button>
+    <button class="btn btn-ghost" onclick="importJSON()" style="font-size:.62rem;" title="JSON laden">📂 JSON laden</button>
+    <span id="saveInd" style="font-size:.58rem;color:rgba(245,234,208,.32);font-family:'Cinzel',serif;letter-spacing:.03em;padding:0 .3rem;">● Auto-Save</span>
     <button id="btnSB" class="btn btn-b" onclick="saveToSupabase()" style="font-size:.62rem;">☁ Speichern</button>
   </div>
 </div>
@@ -793,7 +795,17 @@ Euer Auftrag: Findet alle sieben Fragmente. Öffnet alle Schlösser. Lüftet das
   ]
 };
 
-let gd = JSON.parse(JSON.stringify(BASE));
+// ── PERSISTENZ: aus localStorage laden wenn vorhanden ──
+let gd = (function() {
+  try {
+    const saved = localStorage.getItem('rbe-editor-gd');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && Array.isArray(parsed.stations)) return parsed;
+    }
+  } catch(e) {}
+  return JSON.parse(JSON.stringify(BASE));
+})();
 let curSt = 1;
 let tSec=0,tRun=false,tInt=null;
 let laps=[];
@@ -807,6 +819,8 @@ let qrImages={};
 window.addEventListener('DOMContentLoaded',()=>{
   try {
     renderSidebar();renderOv();renderStory();renderSt(1);
+    // Auto-Save alle 30 Sekunden
+    setInterval(saveGD, 30000);
     renderRucksack();renderQR();renderGPS();drawCipher();
     renderHintTab();renderPlayers();renderTimerTab();
     renderChecklist();populateHSel();
@@ -908,6 +922,7 @@ function saveStory(){
   gd.storySecret=document.getElementById('secretTA').value;
   document.getElementById('storyPrev').innerHTML=gd.storyIntro.replace(/\n\n/g,'<br><br>');
   alert('Gespeichert.');
+  saveGD();
 }
 function resetStory(){gd.storyIntro=BASE.storyIntro;gd.storySecret=BASE.storySecret;renderStory();}
 
@@ -954,7 +969,7 @@ function renderSt(id){
       <div class="igrid" id="ig-${id}">
         ${(s.images||[]).map((img,i)=>`
           <div class="icard">
-            <img src="${img.data}" alt="${img.name}">
+            <img src="${img.url || img.data}" alt="${img.name}">
             <div class="imeta"><div class="iname">${img.name}</div><div class="icat">${iCatLbl(img.cat)}</div></div>
             <button class="idel" onclick="delImg(${id},${i})">✕</button>
           </div>`).join('')}
@@ -1006,14 +1021,66 @@ function toggleLock(lid){
 }
 
 // IMAGES
-function uploadImgs(sid,inp){
-  const s=gd.stations.find(x=>x.id===sid);
-  const cat=document.getElementById('icat-'+sid)?.value||'loc';
-  Array.from(inp.files).forEach(f=>{
-    const r=new FileReader();
-    r.onload=e=>{s.images.push({name:f.name,cat,data:e.target.result});renderSt(sid);};
-    r.readAsDataURL(f);
-  });
+async function uploadImgs(sid, inp) {
+  const s = gd.stations.find(x => x.id === sid);
+  const cat = document.getElementById('icat-' + sid)?.value || 'loc';
+  const files = Array.from(inp.files);
+  if (!files.length) return;
+
+  // Upload-Status anzeigen
+  const uploadBtn = inp.previousElementSibling;
+  const origText = uploadBtn ? uploadBtn.innerHTML : '';
+  if (uploadBtn) uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Wird hochgeladen…';
+
+  let uploaded = 0;
+  for (const f of files) {
+    try {
+      // Dateiname: station-{sid}-{timestamp}-{originalname}
+      const ext = f.name.split('.').pop().toLowerCase();
+      const safeName = f.name.replace(/[^a-z0-9.]/gi, '-').toLowerCase();
+      const path = `station-${sid}/${Date.now()}-${safeName}`;
+
+      // Upload zu Supabase Storage
+      const res = await fetch(
+        `${SB_URL}/storage/v1/object/station-images/${path}`,
+        {
+          method: 'POST',
+          headers: {
+            apikey: SB_KEY,
+            Authorization: `Bearer ${SB_KEY}`,
+            'Content-Type': f.type || 'image/jpeg',
+            'x-upsert': 'true'
+          },
+          body: f
+        }
+      );
+
+      if (res.ok) {
+        // Öffentliche URL zusammenbauen
+        const url = `${SB_URL}/storage/v1/object/public/station-images/${path}`;
+        s.images.push({ name: f.name, cat, url, data: url });
+        uploaded++;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error('Upload Fehler:', err);
+        // Fallback: Base64 lokal speichern
+        await new Promise(resolve => {
+          const r = new FileReader();
+          r.onload = e => { s.images.push({ name: f.name, cat, url: '', data: e.target.result }); resolve(); };
+          r.readAsDataURL(f);
+        });
+        toast('⚠ Supabase Storage nicht erreichbar – Bild lokal gespeichert');
+      }
+    } catch(e) {
+      console.error(e);
+      toast('Uploadfehler: ' + e.message);
+    }
+  }
+
+  if (uploadBtn) uploadBtn.innerHTML = origText;
+  if (uploaded > 0) toast(`${uploaded} Bild${uploaded > 1 ? 'er' : ''} hochgeladen ✓`);
+  renderSt(sid);
+  saveGD();
 }
 function delImg(sid,idx){const s=gd.stations.find(x=>x.id===sid);s.images.splice(idx,1);renderSt(sid);}
 function iCatLbl(c){return{loc:'📍 Standort',mat:'🪵 Material',sol:'🔓 Lösung',hint:'💡 Hinweis'}[c]||c;}
@@ -1068,6 +1135,8 @@ function saveQRMeta(){
   }
   renderQRList();
   alert('QR-Code Daten gespeichert!');
+  saveGD();
+  saveGD();
 }
 
 function renderQRList(){
@@ -1113,6 +1182,7 @@ function copyGPS(){
   gd.stations.forEach(s=>{t+=`Station ${s.id}: ${s.name}\n${s.gps||'(noch nicht eingemessen)'}\n\n`;});
   navigator.clipboard.writeText(t).then(()=>alert('Kopiert!')).catch(()=>{
     const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('Kopiert!');
+  saveGD();
   });
 }
 
@@ -1364,6 +1434,7 @@ function copyChecklist(){
   });
   navigator.clipboard.writeText(t).then(()=>alert('Checkliste kopiert!')).catch(()=>{
     const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);alert('Kopiert!');
+  saveGD();
   });
 }
 
@@ -1455,6 +1526,43 @@ var SB_URL = 'https://uulpxvyjevnvggvamhha.supabase.co';
 var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1bHB4dnlqZXZudmdndmFtaGhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODA5MjIsImV4cCI6MjA5Mjk1NjkyMn0.XJWbivvaWU4WVD-48_-Pnlr5XfKkjSHuIvVqdpq-bH4';
 var sbGameId = null;
 
+// ── AUTO-SAVE IN LOCALSTORAGE ──────────────────────────
+function saveGD() {
+  try {
+    localStorage.setItem('rbe-editor-gd', JSON.stringify(gd));
+    const ind = document.getElementById('saveInd');
+    if (ind) {
+      ind.textContent = '● Gespeichert';
+      ind.style.color = '#4ade80';
+      setTimeout(() => { ind.textContent = '● Auto-Save aktiv'; ind.style.color = 'rgba(245,234,208,.35)'; }, 2000);
+    }
+  } catch(e) { console.warn('localStorage voll?', e); }
+}
+
+function clearGD() {
+  if (!confirm('Alle lokalen Daten löschen und neu beginnen?')) return;
+  localStorage.removeItem('rbe-editor-gd');
+  location.reload();
+}
+
+function importJSON() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (!parsed || !Array.isArray(parsed.stations)) { alert('Ungültige JSON-Datei'); return; }
+        gd = parsed; saveGD(); location.reload();
+      } catch(err) { alert('Fehler beim Lesen: ' + err.message); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
 async function saveToSupabase() {
   var btn = document.getElementById('btnSB');
   if (btn) { btn.textContent = '...'; btn.disabled = true; }
@@ -1472,7 +1580,8 @@ async function saveToSupabase() {
         body: JSON.stringify(payload)
       });
     }
-    if (res.ok) { var d = await res.json(); if (d && d[0]) sbGameId = d[0].id; toast('Gespeichert!'); }
+    if (res.ok) { var d = await res.json(); if (d && d[0]) sbGameId = d[0].id; toast('Gespeichert!');
+    saveGD(); }
     else toast('Fehler: ' + res.status);
   } catch(e) { toast('Verbindungsfehler'); }
   finally { if (btn) { btn.textContent = '☁ Speichern'; btn.disabled = false; } }
