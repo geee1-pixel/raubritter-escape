@@ -25,7 +25,7 @@
         overlay.style.transition = 'opacity 0.3s ease';
         setTimeout(() => overlay.style.display = 'none', 300);
       }
-      sessionStorage.setItem('install-overlay-dismissed', '1');
+      localStorage.setItem('install-overlay-dismissed', '1');
     }
 
     // Overlay nur zeigen wenn NICHT bereits als PWA installiert
@@ -40,16 +40,6 @@
         if (overlay) overlay.style.display = 'none';
       }
     });
-
-    function closeInstallOverlay() {
-      const overlay = document.getElementById('install-overlay');
-      if (overlay) {
-        overlay.style.opacity = '0';
-        overlay.style.transition = 'opacity 0.3s ease';
-        setTimeout(() => overlay.style.display = 'none', 300);
-      }
-      localStorage.setItem('install-overlay-dismissed', '1');
-    }
 
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
@@ -99,7 +89,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
     html, body {
-      height: 100%; overflow: hidden;
+      height: 100%;
       font-family: 'Crimson Text', Georgia, serif;
       background: var(--ink); color: var(--parchment);
       user-select: none;
@@ -1069,7 +1059,13 @@
         </div>
       </div>
 
-      <a href="/" class="btn-outline" style="display:block; text-align:center; text-decoration:none; width:100%;">
+      <!-- Hinweise pro Station -->
+      <div id="finale-station-hints" style="width:100%; margin-top:0.25rem; display:none;">
+        <div style="font-family:'Cinzel',serif; font-size:0.6rem; letter-spacing:0.12em; color:rgba(201,168,76,0.6); text-align:center; margin-bottom:0.5rem;">HINWEISE PRO STATION</div>
+        <div id="finale-hints-table" style="display:flex; flex-direction:column; gap:0.25rem;"></div>
+      </div>
+
+      <a href="/" class="btn-outline" style="display:block; text-align:center; text-decoration:none; width:100%; margin-top:0.75rem;">
         <i class="fa-solid fa-home mr-2"></i> Zur Buchungsseite
       </a>
       <div style="margin-top:1rem; display:flex; gap:1.5rem; justify-content:center;">
@@ -1118,6 +1114,7 @@ let state = {
   solvedStations: [],
   totalScore: 0,
   hintsUsed: 0,
+  stationHints: {},     // { stationIndex: anzahl_hinweise }
   hintsLevel: 0,        // 0=kein, 1=H1, 2=H2, 3=H3
   attempts: 0,
   startTime: null,
@@ -1494,6 +1491,9 @@ function showHintLevel(level) {
 
   state.hintsUsed++;
   state.hintsLevel = level;
+  // Pro-Station Tracking
+  const si = state.currentStation;
+  state.stationHints[si] = (state.stationHints[si] || 0) + 1;
 
   const penalty = level === 1 ? 10 : level === 2 ? 25 : 50;
   toast(`Hinweis ${level} genutzt – ${penalty} Punkte Abzug`);
@@ -1523,6 +1523,7 @@ async function saveGameState() {
     solvedStations: state.solvedStations,
     totalScore: state.totalScore,
     hintsUsed: state.hintsUsed,
+    stationHints: state.stationHints,
     startTime: state.startTime,
     savedAt: Date.now()
   };
@@ -1611,6 +1612,7 @@ async function restoreGameState(savedState) {
     state.solvedStations = savedState.solvedStations || [];
     state.totalScore = savedState.totalScore || 0;
     state.hintsUsed = savedState.hintsUsed || 0;
+  state.stationHints = savedState.stationHints || {};
     state.hintsLevel = 0;
     state.attempts = 0;
     state.startTime = savedState.startTime || Date.now();
@@ -1636,6 +1638,7 @@ function startGame(g) {
   state.solvedStations = [];
   state.totalScore = 0;
   state.hintsUsed = 0;
+  state.stationHints = {};
   state.hintsLevel = 0;
   state.attempts = 0;
   state.startTime = Date.now();
@@ -2083,6 +2086,25 @@ function showFinale() {
   document.getElementById('finale-stations').textContent = game.stations.length;
   document.getElementById('finale-time').textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
   document.getElementById('finale-hints').textContent = state.hintsUsed;
+
+  // Hinweise pro Station anzeigen
+  const hintsTable = document.getElementById('finale-hints-table');
+  const hintsSection = document.getElementById('finale-station-hints');
+  if (hintsTable && Object.keys(state.stationHints).length > 0) {
+    hintsSection.style.display = 'block';
+    hintsTable.innerHTML = game.stations.map((s, i) => {
+      const h = state.stationHints[i] || 0;
+      const dots = h === 0
+        ? '<span style="color:rgba(74,222,128,0.7);">✓ ohne Hinweis</span>'
+        : Array.from({length: 3}, (_, j) =>
+            `<span style="font-size:0.7rem; ${j < h ? 'color:#c9a84c;' : 'color:rgba(255,255,255,0.12);'}">●</span>`
+          ).join(' ') + `<span style="font-size:0.7rem; color:rgba(245,234,208,0.45); margin-left:0.35rem;">${h} Hinweis${h !== 1 ? 'e' : ''}</span>`;
+      return `<div style="display:flex; justify-content:space-between; align-items:center; padding:0.3rem 0.5rem; background:rgba(255,255,255,0.03); border-radius:3px; font-size:0.78rem;">
+        <span style="opacity:0.6; font-size:0.72rem;">${i + 1}. ${s.name || 'Station ' + (i+1)}</span>
+        <span>${dots}</span>
+      </div>`;
+    }).join('');
+  }
 
   showScreen('finale');
 
