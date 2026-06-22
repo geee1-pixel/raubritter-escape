@@ -25,7 +25,7 @@
         overlay.style.transition = 'opacity 0.3s ease';
         setTimeout(() => overlay.style.display = 'none', 300);
       }
-      localStorage.setItem('install-overlay-dismissed', '1');
+      sessionStorage.setItem('install-overlay-dismissed', '1');
     }
 
     // Overlay nur zeigen wenn NICHT bereits als PWA installiert
@@ -40,6 +40,16 @@
         if (overlay) overlay.style.display = 'none';
       }
     });
+
+    function closeInstallOverlay() {
+      const overlay = document.getElementById('install-overlay');
+      if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => overlay.style.display = 'none', 300);
+      }
+      localStorage.setItem('install-overlay-dismissed', '1');
+    }
 
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault();
@@ -89,7 +99,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
     html, body {
-      height: 100%;
+      height: 100%; overflow: hidden;
       font-family: 'Crimson Text', Georgia, serif;
       background: var(--ink); color: var(--parchment);
       user-select: none;
@@ -798,6 +808,12 @@
         <input type="text" id="code-input" placeholder="RE-2026-XXXX"
           style="text-align:center; font-family:'Cinzel',serif; font-size:1.2rem; letter-spacing:0.2em; text-transform:uppercase; margin-bottom:0.75rem;"
           maxlength="16">
+        <div style="margin-bottom:0.75rem;">
+          <label style="display:block;font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.12em;color:rgba(201,168,76,0.6);margin-bottom:0.35rem;">GRUPPENNAME (optional)</label>
+          <input type="text" id="group-name-input" placeholder="z.B. Die Frankenräuber …"
+            autocomplete="off" autocorrect="off"
+            style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(201,168,76,0.2);color:var(--parchment);border-radius:4px;padding:0.7rem 0.9rem;font-family:'Crimson Text',serif;font-size:1rem;box-sizing:border-box;">
+        </div>
         <button class="btn-gold" onclick="loadGame()" id="code-btn">
           <i class="fa-solid fa-unlock mr-2"></i> Spiel starten
         </button>
@@ -817,49 +833,110 @@
        SCREEN 2: STATION (Hinweis + Story)
   ═══════════════════════════════════ -->
   <div class="screen" id="screen-station">
+    <!-- TOPBAR -->
     <div class="topbar safe-top">
       <div class="topbar-logo">
-        <i class="fa-solid fa-shield-halved"></i> Raubritter
+        <i class="fa-solid fa-shield-halved"></i>
+        <span id="topbar-group-name" style="font-size:0.72rem;color:rgba(245,234,208,0.55);margin-left:0.4rem;font-family:'Crimson Text',serif;font-style:italic;"></span>
       </div>
       <div class="topbar-progress" id="topbar-progress-station"></div>
     </div>
 
-    <div style="flex:1; overflow-y:auto;" id="station-scroll">
-      <!-- Foto -->
-      <div id="station-photo-wrap"></div>
+    <!-- TAB-INHALTE -->
+    <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
 
-      <div class="station-body">
-        <!-- Station Badge + Name -->
-        <div class="station-number-badge" id="station-badge">
-          <i class="fa-solid fa-location-dot" style="font-size:0.65rem;"></i>
-          <span id="station-badge-text">Station 1</span>
+      <!-- ══ TAB: HINWEIS ══ -->
+      <div id="tab-content-station" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;">
+        <!-- Foto -->
+        <div id="station-photo-wrap"></div>
+
+        <div class="station-body">
+          <!-- Badge + Name -->
+          <div class="station-number-badge" id="station-badge">
+            <i class="fa-solid fa-location-dot" style="font-size:0.65rem;"></i>
+            <span id="station-badge-text">Station 1</span>
+          </div>
+          <h2 class="station-name" id="station-name-display">–</h2>
+
+          <!-- Wegbeschreibung -->
+          <div id="station-directions-wrap"></div>
+
+          <!-- GPS-Link -->
+          <div id="station-gps-wrap"></div>
+
+          <!-- Schloss-Info -->
+          <div id="station-lock-wrap"></div>
+
+          <div class="divider"></div>
+
+          <!-- Scan-Button -->
+          <button class="btn-gold" id="btn-go-scan" onclick="goToScan()" style="width:100%;">
+            <i class="fa-solid fa-camera mr-2"></i> QR-Code scannen
+          </button>
+          <div style="height:1rem;"></div>
         </div>
-        <h2 class="station-name" id="station-name-display">–</h2>
-
-        <!-- Wegbeschreibung -->
-        <div id="station-directions-wrap"></div>
-
-        <div class="divider"></div>
-
-        <!-- Story -->
-        <div class="story-text" id="station-story-display">–</div>
-
-        <!-- Weiter-Button -->
-        <button class="btn-gold" id="btn-go-scan" onclick="goToScan()" style="margin-top:0.5rem;">
-          <i class="fa-solid fa-camera mr-2"></i> QR-Code scannen
-        </button>
-        <div style="height:0.5rem;"></div>
       </div>
+
+      <!-- ══ TAB: SCAN ══ -->
+      <div id="tab-content-scan" style="flex:1;overflow-y:auto;display:none;flex-direction:column;">
+        <!-- Kamera -->
+        <div style="position:relative;background:#000;flex-shrink:0;" id="scan-camera-wrap">
+          <video id="qr-video" style="width:100%;max-height:62vw;object-fit:cover;display:block;" playsinline muted></video>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+            <div style="width:55vw;height:55vw;max-width:240px;max-height:240px;border:2px solid rgba(201,168,76,0.7);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);"></div>
+          </div>
+          <canvas id="qr-canvas" style="display:none;"></canvas>
+        </div>
+        <div style="padding:1.25rem 1.5rem;">
+          <p style="font-size:0.85rem;opacity:0.55;text-align:center;margin-bottom:1rem;line-height:1.6;">
+            Haltet die Kamera auf den QR-Code an der Station.
+          </p>
+          <!-- Manuell eingeben -->
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(201,168,76,0.15);border-radius:6px;padding:1rem;">
+            <div class="label-xs" style="margin-bottom:0.5rem;">CODE MANUELL EINGEBEN</div>
+            <div style="display:flex;gap:0.5rem;">
+              <input type="text" id="manual-qr-input" placeholder="QR-Code-Wert …"
+                style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(201,168,76,0.2);color:var(--parchment);border-radius:4px;padding:0.6rem 0.75rem;font-family:'Crimson Text',serif;font-size:0.95rem;"
+                onkeydown="if(event.key==='Enter') manualQR()">
+              <button class="btn-outline" style="padding:0.6rem 0.9rem;white-space:nowrap;" onclick="manualQR()">
+                <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ TAB: STORY ══ -->
+      <div id="tab-content-story" style="flex:1;overflow-y:auto;display:none;padding:1.5rem 1.5rem 2rem;">
+        <!-- Story-Text -->
+        <div class="label-xs" style="margin-bottom:0.6rem;">GESCHICHTE</div>
+        <div id="station-story-display" class="story-text" style="margin-bottom:1.5rem;">–</div>
+
+        <!-- Rätsel-Vorschau -->
+        <div id="story-puzzle-preview" style="display:none;">
+          <div class="divider"></div>
+          <div class="label-xs" style="margin-bottom:0.5rem;">RÄTSEL DIESER STATION</div>
+          <div id="story-puzzle-text" style="font-size:0.95rem;line-height:1.7;color:rgba(245,234,208,0.8);margin-bottom:1rem;"></div>
+          <button class="btn-gold" onclick="goToScan()" style="width:100%;">
+            <i class="fa-solid fa-camera mr-2"></i> Zum QR-Code
+          </button>
+        </div>
+
+        <!-- Hinweise -->
+        <div id="story-hints-wrap" style="margin-top:1.25rem;"></div>
+      </div>
+
     </div>
 
+    <!-- BOTTOM NAV -->
     <div class="bottom-nav safe-bottom">
-      <button class="nav-item active" onclick="showTab('station')">
-        <i class="fa-solid fa-location-dot"></i>Hinweis
+      <button class="nav-item active" id="nav-btn-station" onclick="switchStationTab('station')">
+        <i class="fa-solid fa-map-pin"></i>Hinweis
       </button>
-      <button class="nav-item" onclick="showTab('scan')" id="nav-scan">
+      <button class="nav-item" id="nav-btn-scan" onclick="switchStationTab('scan')">
         <i class="fa-solid fa-camera"></i>Scan
       </button>
-      <button class="nav-item" onclick="showTab('story')" id="nav-story-btn">
+      <button class="nav-item" id="nav-btn-story" onclick="switchStationTab('story')">
         <i class="fa-solid fa-scroll"></i>Story
       </button>
     </div>
@@ -1059,13 +1136,7 @@
         </div>
       </div>
 
-      <!-- Hinweise pro Station -->
-      <div id="finale-station-hints" style="width:100%; margin-top:0.25rem; display:none;">
-        <div style="font-family:'Cinzel',serif; font-size:0.6rem; letter-spacing:0.12em; color:rgba(201,168,76,0.6); text-align:center; margin-bottom:0.5rem;">HINWEISE PRO STATION</div>
-        <div id="finale-hints-table" style="display:flex; flex-direction:column; gap:0.25rem;"></div>
-      </div>
-
-      <a href="/" class="btn-outline" style="display:block; text-align:center; text-decoration:none; width:100%; margin-top:0.75rem;">
+      <a href="/" class="btn-outline" style="display:block; text-align:center; text-decoration:none; width:100%;">
         <i class="fa-solid fa-home mr-2"></i> Zur Buchungsseite
       </a>
       <div style="margin-top:1rem; display:flex; gap:1.5rem; justify-content:center;">
@@ -1114,8 +1185,11 @@ let state = {
   solvedStations: [],
   totalScore: 0,
   hintsUsed: 0,
-  stationHints: {},     // { stationIndex: anzahl_hinweise }
-  hintsLevel: 0,        // 0=kein, 1=H1, 2=H2, 3=H3
+  stationHints: {},
+  hintsLevel: 0,
+  hintUnlocked: [false, false, false],
+  hintTimers: [null, null, null],
+  hintUnlockTime: [null, null, null],
   attempts: 0,
   startTime: null,
   timerInterval: null,
@@ -1124,7 +1198,8 @@ let state = {
   scanning: false,
   stream: null,
   scanInterval: null,
-  appUnlocked: false,   // App-Code Sperre
+  appUnlocked: false,
+  groupName: '',
 };
 
 // ─── DEMO-SPIEL ──────────────────────────────────────────
@@ -1433,10 +1508,29 @@ function scanApplockFrame() {
 }
 
 // ─── TIMER ───────────────────────────────────────────────
+// Globales Hint-Countdown-Intervall
+let hintCountdownInterval = null;
+function startHintCountdownInterval() {
+  if (hintCountdownInterval) clearInterval(hintCountdownInterval);
+  hintCountdownInterval = setInterval(() => {
+    if (state.activeScreen === 'station' && state.activeTab === 'story') {
+      startHintCountdowns();
+    }
+    // Automatisch freischalten wenn Zeit abgelaufen
+    for (let i = 0; i < 3; i++) {
+      if (!state.hintUnlocked[i] && state.hintUnlockTime[i] && Date.now() >= state.hintUnlockTime[i]) {
+        renderHintsInStory();
+        break;
+      }
+    }
+  }, 1000);
+}
+
 function startTimer() {
   const bar = document.getElementById('game-timer-bar');
   bar.style.display = 'flex';
   document.body.classList.add('timer-active');
+  startHintCountdownInterval();
 
   if (state.timerInterval) clearInterval(state.timerInterval);
   state.timerInterval = setInterval(() => {
@@ -1491,9 +1585,6 @@ function showHintLevel(level) {
 
   state.hintsUsed++;
   state.hintsLevel = level;
-  // Pro-Station Tracking
-  const si = state.currentStation;
-  state.stationHints[si] = (state.stationHints[si] || 0) + 1;
 
   const penalty = level === 1 ? 10 : level === 2 ? 25 : 50;
   toast(`Hinweis ${level} genutzt – ${penalty} Punkte Abzug`);
@@ -1524,6 +1615,9 @@ async function saveGameState() {
     totalScore: state.totalScore,
     hintsUsed: state.hintsUsed,
     stationHints: state.stationHints,
+    hintUnlocked: state.hintUnlocked,
+    hintUnlockTime: state.hintUnlockTime,
+    groupName: state.groupName,
     startTime: state.startTime,
     savedAt: Date.now()
   };
@@ -1612,7 +1706,10 @@ async function restoreGameState(savedState) {
     state.solvedStations = savedState.solvedStations || [];
     state.totalScore = savedState.totalScore || 0;
     state.hintsUsed = savedState.hintsUsed || 0;
-  state.stationHints = savedState.stationHints || {};
+    state.stationHints = savedState.stationHints || {};
+    state.hintUnlocked = savedState.hintUnlocked || [false, false, false];
+    state.hintUnlockTime = savedState.hintUnlockTime || [null, null, null];
+    state.groupName = savedState.groupName || '';
     state.hintsLevel = 0;
     state.attempts = 0;
     state.startTime = savedState.startTime || Date.now();
@@ -1638,7 +1735,6 @@ function startGame(g) {
   state.solvedStations = [];
   state.totalScore = 0;
   state.hintsUsed = 0;
-  state.stationHints = {};
   state.hintsLevel = 0;
   state.attempts = 0;
   state.startTime = Date.now();
@@ -1670,24 +1766,170 @@ function showScreen(name) {
   else stopCamera();
 }
 
-function showTab(tab) {
+
+// ── STATION TAB SWITCHER ─────────────────────────────────
+function switchStationTab(tab) {
+  // Tabs
+  ['station','scan','story'].forEach(t => {
+    const content = document.getElementById('tab-content-' + t);
+    const btn = document.getElementById('nav-btn-' + t);
+    if (content) content.style.display = 'none';
+    if (btn) btn.classList.remove('active');
+  });
+  const active = document.getElementById('tab-content-' + tab);
+  const activeBtn = document.getElementById('nav-btn-' + tab);
+  if (active) active.style.display = tab === 'station' ? 'flex' : 'block';
+  if (activeBtn) activeBtn.classList.add('active');
+
   state.activeTab = tab;
 
-  // Kamera stoppen wenn weg von scan
-  if (tab !== 'scan') stopCamera();
-
-  // Screens wechseln
-  if (tab === 'station') {
-    showScreen('station');
-  } else if (tab === 'scan') {
-    if (state.activeScreen === 'station' || state.activeScreen === 'scan' || state.activeScreen === 'story') {
-      showScreen('scan');
-      startCamera();
-    }
-  } else if (tab === 'story') {
-    renderStoryScreen();
-    showScreen('story');
+  if (tab === 'scan') {
+    startCamera();
+  } else {
+    stopCamera();
   }
+  if (tab === 'story') {
+    renderStoryTab();
+  }
+  saveGameState();
+}
+
+function renderStoryTab() {
+  if (!game) return;
+  const s = game.stations[state.currentStation];
+  const storyText = s._story || s.story || s.atm || s.lore || '';
+  const puzzleText = s._puzzle || s.puzzle || '';
+
+  // Story
+  const stEl = document.getElementById('station-story-display');
+  if (stEl) stEl.innerHTML = storyText
+    ? storyText.replace(/\n/g, '<br>')
+    : '<em style="opacity:0.4">Keine Geschichte für diese Station.</em>';
+
+  // Rätsel-Vorschau
+  const pvWrap = document.getElementById('story-puzzle-preview');
+  const pvText = document.getElementById('story-puzzle-text');
+  if (pvWrap && pvText && puzzleText) {
+    pvWrap.style.display = 'block';
+    pvText.textContent = puzzleText;
+  } else if (pvWrap) {
+    pvWrap.style.display = 'none';
+  }
+
+  // Hinweise
+  renderHintsInStory();
+}
+
+function renderHintsInStory() {
+  const wrap = document.getElementById('story-hints-wrap');
+  if (!wrap || !game) return;
+  const s = game.stations[state.currentStation];
+  const h1 = (s.hints && s.hints[0]) || s.hint  || s._hint1 || '';
+  const h2 = (s.hints && s.hints[1]) || s.hint2 || s._hint2 || '';
+  const h3 = (s.hints && s.hints[2]) || s.hint3 || s._hint3 || '';
+  const hints = [h1, h2, h3].filter(Boolean);
+  if (!hints.length) { wrap.innerHTML = ''; return; }
+
+  const hintDelay = game.hintDelayMinutes || 5; // Minuten zwischen Hinweisen
+
+  wrap.innerHTML = `<div class="label-xs" style="margin-bottom:0.65rem;">
+    <i class="fa-solid fa-lightbulb" style="color:var(--gold);margin-right:0.35rem;"></i>HINWEISE
+  </div>` + hints.map((h, i) => {
+    const unlocked = state.hintUnlocked[i];
+    const unlockAt = state.hintUnlockTime[i];
+    const now = Date.now();
+    let btnHtml = '';
+
+    if (unlocked) {
+      btnHtml = \`<div style="background:rgba(13,43,20,0.5);border:1px solid rgba(201,168,76,0.25);border-radius:6px;padding:0.85rem;margin-top:0.5rem;">
+        <div style="font-size:0.6rem;font-family:'Cinzel',serif;letter-spacing:0.1em;color:rgba(201,168,76,0.65);margin-bottom:0.35rem;">\${['💡 HINWEIS 1','🔍 HINWEIS 2','🔑 HINWEIS 3'][i]}</div>
+        <div style="font-size:0.95rem;line-height:1.7;color:rgba(245,234,208,0.88);">\${h}</div>
+      </div>\`;
+    } else if (unlockAt && unlockAt > now) {
+      const secsLeft = Math.ceil((unlockAt - now) / 1000);
+      const m = Math.floor(secsLeft / 60);
+      const s = secsLeft % 60;
+      btnHtml = \`<button disabled style="width:100%;background:rgba(0,0,0,0.2);border:1px solid rgba(201,168,76,0.12);border-radius:6px;padding:0.75rem;color:rgba(245,234,208,0.35);font-family:'Cinzel',serif;font-size:0.68rem;letter-spacing:0.06em;cursor:not-allowed;">
+        <i class="fa-solid fa-clock" style="margin-right:0.4rem;"></i>
+        HINWEIS \${i+1} — frei in <span id="hint-countdown-\${i}">\${m}:\${String(s).padStart(2,'0')}</span>
+      </button>\`;
+    } else {
+      const penalty = [10,25,50][i];
+      btnHtml = \`<button onclick="unlockHint(\${i})"
+        style="width:100%;background:rgba(0,0,0,0.25);border:1px solid rgba(201,168,76,0.3);border-radius:6px;padding:0.75rem;color:var(--gold);font-family:'Cinzel',serif;font-size:0.68rem;letter-spacing:0.06em;cursor:pointer;transition:all 0.2s;">
+        <i class="fa-solid fa-\${['lightbulb','magnifying-glass','key'][i]}" style="margin-right:0.4rem;"></i>
+        HINWEIS \${i+1} anzeigen <span style="opacity:0.5;font-size:0.6rem;">−\${penalty} Punkte</span>
+      </button>\`;
+    }
+    return btnHtml;
+  }).join('');
+
+  // Countdowns laufen lassen
+  startHintCountdowns();
+}
+
+function unlockHint(index) {
+  if (!game || state.hintUnlocked[index]) return;
+  const s = game.stations[state.currentStation];
+  const h1 = (s.hints && s.hints[0]) || s.hint  || '';
+  const h2 = (s.hints && s.hints[1]) || s.hint2 || '';
+  const h3 = (s.hints && s.hints[2]) || s.hint3 || '';
+  const hints = [h1, h2, h3];
+
+  // Prüfen ob vorheriger Hinweis schon genutzt (sequenziell)
+  if (index > 0 && !state.hintUnlocked[index-1]) {
+    toast('Bitte erst Hinweis ' + index + ' nutzen.');
+    return;
+  }
+
+  state.hintUnlocked[index] = true;
+  state.hintsUsed++;
+  state.stationHints[state.currentStation] = (state.stationHints[state.currentStation] || 0) + 1;
+
+  // Nächsten Hinweis-Timer starten (falls nicht letzter)
+  const hintDelay = (game.hintDelayMinutes || 5) * 60 * 1000;
+  if (index < 2 && hints[index+1]) {
+    state.hintUnlockTime[index+1] = Date.now() + hintDelay;
+  }
+
+  const penalty = [10, 25, 50][index];
+  state.totalScore = Math.max(0, state.totalScore - penalty);
+  toast(\`Hinweis \${index+1} genutzt — \${penalty} Punkte Abzug\`);
+  saveGameState();
+  renderHintsInStory();
+
+  // Timer-Score aktualisieren
+  const ts = document.getElementById('timer-score');
+  if (ts) ts.textContent = state.totalScore;
+}
+
+function startHintCountdowns() {
+  // Alle laufenden Countdowns aktualisieren
+  for (let i = 0; i < 3; i++) {
+    const unlockAt = state.hintUnlockTime[i];
+    if (!unlockAt || state.hintUnlocked[i]) continue;
+    const el = document.getElementById(\`hint-countdown-\${i}\`);
+    if (!el) continue;
+    const secsLeft = Math.max(0, Math.ceil((unlockAt - Date.now()) / 1000));
+    if (secsLeft <= 0) {
+      // Zeit abgelaufen → re-render
+      renderHintsInStory();
+      return;
+    }
+    const m = Math.floor(secsLeft / 60);
+    const s = secsLeft % 60;
+    el.textContent = m + ':' + String(s).padStart(2,'0');
+  }
+}
+
+function showTab(tab) {
+  // Weiterleiten an neuen Tab-Switcher wenn wir im station-screen sind
+  if (['station','scan','story'].includes(tab)) {
+    switchStationTab(tab);
+    return;
+  }
+  state.activeTab = tab;
+  if (tab !== 'scan') stopCamera();
 
   // Nav-Buttons updaten (alle screens die eine bottom-nav haben)
   ['screen-station','screen-scan','screen-story','screen-puzzle'].forEach(sid => {
@@ -1744,7 +1986,16 @@ function renderStation(i) {
   const dirWrap = document.getElementById('station-directions-wrap');
   if (directions) {
     const mapsLink = (lat && lng)
-      ? `<a class="maps-btn" href="https://maps.google.com/?q=${lat},${lng}" target="_blank"><i class="fa-solid fa-diamond-turn-right"></i> In Maps öffnen</a>`
+      ? `<div style="display:flex;gap:0.4rem;margin-top:0.5rem;">
+           <a href="https://maps.apple.com/?ll=${lat},${lng}&q=Station+${i+1}" target="_blank"
+              style="flex:1;text-align:center;padding:0.45rem;background:rgba(0,0,0,0.25);border:1px solid rgba(201,168,76,0.2);border-radius:4px;color:var(--gold);text-decoration:none;font-family:'Cinzel',serif;font-size:0.58rem;letter-spacing:0.06em;">
+             <i class="fa-solid fa-map-location-dot"></i> Apple Maps
+           </a>
+           <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank"
+              style="flex:1;text-align:center;padding:0.45rem;background:rgba(0,0,0,0.25);border:1px solid rgba(201,168,76,0.2);border-radius:4px;color:var(--gold);text-decoration:none;font-family:'Cinzel',serif;font-size:0.58rem;letter-spacing:0.06em;">
+             <i class="fa-brands fa-google"></i> Google Maps
+           </a>
+         </div>`
       : '';
     dirWrap.innerHTML = `
       <div class="directions-box">
@@ -1779,8 +2030,27 @@ function renderStation(i) {
   renderProgress('topbar-progress-scan', i);
   renderProgress('topbar-progress-story', i);
 
+  // Schloss-Info dieser Station
+  const lockEl = document.getElementById('station-lock-wrap');
+  if (lockEl) {
+    const stLock = game.locks ? game.locks.find(function(l){ return l.by === (i + 1); }) : null;
+    if (stLock) {
+      lockEl.innerHTML = '<div style="display:flex;align-items:center;gap:0.6rem;padding:0.6rem 0.75rem;background:rgba(13,43,20,0.4);border:1px solid rgba(201,168,76,0.2);border-radius:5px;margin:0.5rem 0;">' +
+        '<span style="font-size:1.2rem;">' + (stLock.sym || '🔒') + '</span>' +
+        '<div><div style="font-family:Cinzel,serif;font-size:0.6rem;letter-spacing:0.08em;color:rgba(201,168,76,0.65);">RUCKSACK-FACH ' + stLock.id + '</div>' +
+        '<div style="color:rgba(245,234,208,0.7);font-size:0.8rem;">Löst diese Station um Fach ' + stLock.id + ' zu öffnen</div></div></div>';
+    } else {
+      lockEl.innerHTML = '';
+    }
+  }
+
+  // Gruppenname in Topbar
+  const gnEl = document.getElementById('topbar-group-name');
+  if (gnEl && state.groupName) gnEl.textContent = state.groupName;
+
   // Story-Tab
-  document.getElementById('story-chapter-num').textContent = i + 1;
+  const storyChap = document.getElementById('story-chapter-num');
+  if (storyChap) storyChap.textContent = i + 1;
 
   // Scan-Status zurücksetzen
   document.getElementById('scan-status').textContent = 'Warte auf QR-Code …';
@@ -2086,25 +2356,6 @@ function showFinale() {
   document.getElementById('finale-stations').textContent = game.stations.length;
   document.getElementById('finale-time').textContent = `${mins}:${secs.toString().padStart(2,'0')}`;
   document.getElementById('finale-hints').textContent = state.hintsUsed;
-
-  // Hinweise pro Station anzeigen
-  const hintsTable = document.getElementById('finale-hints-table');
-  const hintsSection = document.getElementById('finale-station-hints');
-  if (hintsTable && Object.keys(state.stationHints).length > 0) {
-    hintsSection.style.display = 'block';
-    hintsTable.innerHTML = game.stations.map((s, i) => {
-      const h = state.stationHints[i] || 0;
-      const dots = h === 0
-        ? '<span style="color:rgba(74,222,128,0.7);">✓ ohne Hinweis</span>'
-        : Array.from({length: 3}, (_, j) =>
-            `<span style="font-size:0.7rem; ${j < h ? 'color:#c9a84c;' : 'color:rgba(255,255,255,0.12);'}">●</span>`
-          ).join(' ') + `<span style="font-size:0.7rem; color:rgba(245,234,208,0.45); margin-left:0.35rem;">${h} Hinweis${h !== 1 ? 'e' : ''}</span>`;
-      return `<div style="display:flex; justify-content:space-between; align-items:center; padding:0.3rem 0.5rem; background:rgba(255,255,255,0.03); border-radius:3px; font-size:0.78rem;">
-        <span style="opacity:0.6; font-size:0.72rem;">${i + 1}. ${s.name || 'Station ' + (i+1)}</span>
-        <span>${dots}</span>
-      </div>`;
-    }).join('');
-  }
 
   showScreen('finale');
 
