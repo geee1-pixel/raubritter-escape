@@ -1856,43 +1856,45 @@ function renderHintsInStory() {
   const hints = [h1, h2, h3].filter(Boolean);
   if (!hints.length) { wrap.innerHTML = ''; return; }
 
-  const hintDelay = game.hintDelayMinutes || 5; // Minuten zwischen Hinweisen
+  const hintDelay = (game.hintDelayMinutes || 5) * 60 * 1000;
+  const icons = ['fa-lightbulb', 'fa-magnifying-glass', 'fa-key'];
+  const labels = ['HINWEIS 1', 'HINWEIS 2', 'HINWEIS 3'];
+  const emojis = ['💡', '🔍', '🔑'];
+  const penalties = [10, 25, 50];
 
-  wrap.innerHTML = `<div class="label-xs" style="margin-bottom:0.65rem;">
-    <i class="fa-solid fa-lightbulb" style="color:var(--gold);margin-right:0.35rem;"></i>HINWEISE
-  </div>` + hints.map((h, i) => {
+  let html = '<div class="label-xs" style="margin-bottom:0.65rem;">'
+    + '<i class="fa-solid fa-lightbulb" style="color:var(--gold);margin-right:0.35rem;"></i>HINWEISE</div>';
+
+  hints.forEach(function(h, i) {
     const unlocked = state.hintUnlocked[i];
     const unlockAt = state.hintUnlockTime[i];
     const now = Date.now();
-    let btnHtml = '';
 
     if (unlocked) {
-      btnHtml = \`<div style="background:rgba(13,43,20,0.5);border:1px solid rgba(201,168,76,0.25);border-radius:6px;padding:0.85rem;margin-top:0.5rem;">
-        <div style="font-size:0.6rem;font-family:'Cinzel',serif;letter-spacing:0.1em;color:rgba(201,168,76,0.65);margin-bottom:0.35rem;">\${['💡 HINWEIS 1','🔍 HINWEIS 2','🔑 HINWEIS 3'][i]}</div>
-        <div style="font-size:0.95rem;line-height:1.7;color:rgba(245,234,208,0.88);">\${h}</div>
-      </div>\`;
+      html += '<div style="background:rgba(13,43,20,0.5);border:1px solid rgba(201,168,76,0.25);border-radius:6px;padding:0.85rem;margin-bottom:0.5rem;">'
+        + '<div style="font-size:0.6rem;font-family:Cinzel,serif;letter-spacing:0.1em;color:rgba(201,168,76,0.65);margin-bottom:0.35rem;">' + emojis[i] + ' ' + labels[i] + '</div>'
+        + '<div style="font-size:0.95rem;line-height:1.7;color:rgba(245,234,208,0.88);">' + h + '</div>'
+        + '</div>';
     } else if (unlockAt && unlockAt > now) {
       const secsLeft = Math.ceil((unlockAt - now) / 1000);
       const m = Math.floor(secsLeft / 60);
-      const s = secsLeft % 60;
-      btnHtml = \`<button disabled style="width:100%;background:rgba(0,0,0,0.2);border:1px solid rgba(201,168,76,0.12);border-radius:6px;padding:0.75rem;color:rgba(245,234,208,0.35);font-family:'Cinzel',serif;font-size:0.68rem;letter-spacing:0.06em;cursor:not-allowed;">
-        <i class="fa-solid fa-clock" style="margin-right:0.4rem;"></i>
-        HINWEIS \${i+1} — frei in <span id="hint-countdown-\${i}">\${m}:\${String(s).padStart(2,'0')}</span>
-      </button>\`;
+      const sc = secsLeft % 60;
+      html += '<button disabled style="width:100%;background:rgba(0,0,0,0.2);border:1px solid rgba(201,168,76,0.12);border-radius:6px;padding:0.75rem;color:rgba(245,234,208,0.35);font-family:Cinzel,serif;font-size:0.68rem;letter-spacing:0.06em;cursor:not-allowed;margin-bottom:0.5rem;display:block;">'
+        + '<i class="fa-solid fa-clock" style="margin-right:0.4rem;"></i>'
+        + labels[i] + ' \u2014 frei in <span id="hint-countdown-' + i + '">' + m + ':' + String(sc).padStart(2,'0') + '</span>'
+        + '</button>';
     } else {
-      const penalty = [10,25,50][i];
-      btnHtml = \`<button onclick="unlockHint(\${i})"
-        style="width:100%;background:rgba(0,0,0,0.25);border:1px solid rgba(201,168,76,0.3);border-radius:6px;padding:0.75rem;color:var(--gold);font-family:'Cinzel',serif;font-size:0.68rem;letter-spacing:0.06em;cursor:pointer;transition:all 0.2s;">
-        <i class="fa-solid fa-\${['lightbulb','magnifying-glass','key'][i]}" style="margin-right:0.4rem;"></i>
-        HINWEIS \${i+1} anzeigen <span style="opacity:0.5;font-size:0.6rem;">−\${penalty} Punkte</span>
-      </button>\`;
+      html += '<button onclick="unlockHint(' + i + ')" style="width:100%;background:rgba(0,0,0,0.25);border:1px solid rgba(201,168,76,0.3);border-radius:6px;padding:0.75rem;color:var(--gold);font-family:Cinzel,serif;font-size:0.68rem;letter-spacing:0.06em;cursor:pointer;margin-bottom:0.5rem;display:block;">'
+        + '<i class="fa-solid ' + icons[i] + '" style="margin-right:0.4rem;"></i>'
+        + labels[i] + ' anzeigen <span style="opacity:0.5;font-size:0.6rem;">\u2212' + penalties[i] + ' Punkte</span>'
+        + '</button>';
     }
-    return btnHtml;
-  }).join('');
+  });
 
-  // Countdowns laufen lassen
+  wrap.innerHTML = html;
   startHintCountdowns();
 }
+
 
 function unlockHint(index) {
   if (!game || state.hintUnlocked[index]) return;
@@ -1920,7 +1922,7 @@ function unlockHint(index) {
 
   const penalty = [10, 25, 50][index];
   state.totalScore = Math.max(0, state.totalScore - penalty);
-  toast(\`Hinweis \${index+1} genutzt — \${penalty} Punkte Abzug\`);
+  toast('Hinweis ' + (index+1) + ' genutzt — ' + penalty + ' Punkte Abzug');
   saveGameState();
   renderHintsInStory();
 
@@ -1934,7 +1936,7 @@ function startHintCountdowns() {
   for (let i = 0; i < 3; i++) {
     const unlockAt = state.hintUnlockTime[i];
     if (!unlockAt || state.hintUnlocked[i]) continue;
-    const el = document.getElementById(\`hint-countdown-\${i}\`);
+    const el = document.getElementById('hint-countdown-' + i);
     if (!el) continue;
     const secsLeft = Math.max(0, Math.ceil((unlockAt - Date.now()) / 1000));
     if (secsLeft <= 0) {
