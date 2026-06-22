@@ -573,6 +573,10 @@ select option{background:#1a1108;}
             <div style="font-size:.7rem;color:var(--stonel);margin-bottom:.25rem;">PUFFER (Min.)</div>
             <input type="number" id="testBuffer" value="30" min="0" max="120" style="width:100%;background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.4rem .6rem;font-size:.82rem;">
           </div>
+          <div style="grid-column:1/-1;">
+            <div style="font-size:.7rem;color:var(--stonel);margin-bottom:.25rem;">DEINE E-MAIL (für Test-E-Mails)</div>
+            <input type="email" id="testEmail" placeholder="deine@email.de" style="width:100%;background:rgba(0,0,0,.2);border:1px solid var(--border);color:var(--parch);border-radius:4px;padding:.4rem .6rem;font-size:.82rem;">
+          </div>
         </div>
 
         <!-- Ergebnis -->
@@ -1540,8 +1544,10 @@ async function createTestBooking() {
   var time = document.getElementById('testTime').value;
   var duration = parseInt(document.getElementById('testDuration').value) || 120;
   var buffer = parseInt(document.getElementById('testBuffer').value) || 30;
+  var email = (document.getElementById('testEmail').value || '').trim() || 'test@raubritter-escape.de';
 
   if (!date || !time) { toast('Bitte Datum und Zeit eingeben'); return; }
+  if (email === 'test@raubritter-escape.de') toast('⚠️ Keine E-Mail eingetragen – Test-E-Mails gehen an Platzhalter-Adresse');
 
   // App-Code generieren
   var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1566,7 +1572,7 @@ async function createTestBooking() {
         slot_date: date,
         slot_time: time,
         name: 'TEST',
-        email: 'test@raubritter-escape.de',
+        email: email,
         persons: 1,
         total_price: 0,
         payment_method: 'test',
