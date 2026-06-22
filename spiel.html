@@ -745,7 +745,13 @@
           font-size:1.6rem; letter-spacing:0.4em; text-align:center; outline:none; margin-bottom:0.6rem;">
       <div id="applock-error" style="color:#f87171; font-family:'Cinzel',serif; font-size:0.7rem;
         letter-spacing:0.06em; min-height:1.2rem; margin-bottom:0.6rem;"></div>
-      <button onclick="checkAppCode()" style="width:100%; padding:1rem;
+      <div style="width:100%; max-width:300px; margin-bottom:0.75rem; text-align:left;">
+        <label style="display:block;font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.12em;color:rgba(201,168,76,0.6);margin-bottom:0.35rem;">GRUPPENNAME (optional)</label>
+        <input type="text" id="group-name-input" placeholder="z.B. Die Frankenräuber …"
+          autocomplete="off" autocorrect="off"
+          style="width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(201,168,76,0.2);color:#f5ead0;border-radius:6px;padding:0.75rem 0.9rem;font-family:'Crimson Text',serif;font-size:1rem;box-sizing:border-box;">
+      </div>
+    <button onclick="checkAppCode()" style="width:100%; padding:1rem;
         background:linear-gradient(135deg,#8b6914,#c9a84c); border:none; border-radius:6px;
         cursor:pointer; font-family:'Cinzel',serif; font-size:0.85rem; font-weight:700;
         letter-spacing:0.06em; color:#1a120b; margin-bottom:0.75rem;">
@@ -1422,8 +1428,19 @@ function unlockApp() {
   stopApplockScan();
 
   const code = document.getElementById('applock-input').value.trim().toUpperCase();
-  currentBookingCode = code; // Global merken für Supabase-Speicherung
+  currentBookingCode = code;
   localStorage.setItem(APP_CODE_KEY, code);
+
+  // Gruppenname übernehmen
+  const gnInput = document.getElementById('group-name-input');
+  if (gnInput && gnInput.value.trim()) {
+    state.groupName = gnInput.value.trim();
+    localStorage.setItem('rb_group_name', state.groupName);
+  } else {
+    // Aus lokalem Speicher wiederherstellen falls vorhanden
+    const saved = localStorage.getItem('rb_group_name');
+    if (saved) state.groupName = saved;
+  }
 
   toast('App freigeschaltet! ✦ Lade Spielstand…');
 
@@ -1735,16 +1752,25 @@ function startGame(g) {
   state.solvedStations = [];
   state.totalScore = 0;
   state.hintsUsed = 0;
+  state.stationHints = {};
   state.hintsLevel = 0;
+  state.hintUnlocked = [false, false, false];
+  state.hintTimers = [null, null, null];
+  state.hintUnlockTime = [null, null, null];
   state.attempts = 0;
   state.startTime = Date.now();
+
+  // Gruppenname aus Eingabe übernehmen
+  const gnInput = document.getElementById('group-name-input');
+  if (gnInput && gnInput.value.trim()) state.groupName = gnInput.value.trim();
 
   saveGameState();
   startTimer();
   showScreen('station');
+  switchStationTab('station');
   renderStation(0);
   setTimeout(initSecretTexts, 500);
-  toast(game.title + ' gestartet!');
+  toast((state.groupName ? state.groupName + ' – ' : '') + (game.title || 'Spiel') + ' gestartet!');
 }
 
 function showCodeError(msg) {
@@ -2155,6 +2181,13 @@ function scanFrame() {
   } catch(e) {}
 
   if (state.scanning) requestAnimationFrame(scanFrame);
+}
+
+function manualQR() {
+  var inp = document.getElementById('manual-qr-input');
+  if (!inp || !inp.value.trim()) return;
+  handleQRScan(inp.value.trim());
+  inp.value = '';
 }
 
 function handleQRScan(rawValue) {
