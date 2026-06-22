@@ -990,6 +990,8 @@ function renderSt(id){
       </div>
       <label>Atmosphäre</label><textarea id="ea-${id}">${s.atm}</textarea>
       <label>Rätsel</label><textarea id="ep-${id}" style="min-height:100px;">${s.puzzle}</textarea>
+<label>Antwort <span style="font-size:.65rem;color:var(--stonel);font-weight:normal;text-transform:none;">(Spieler müssen das genau so eingeben)</span></label>
+<input type="text" id="er-${id}" value="${s.result||s.answer||''}" placeholder="z.B. 1337 oder WALDENFELS">
       ${lock?`<label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.8rem;text-transform:none;letter-spacing:0;color:var(--parch2);margin-bottom:.5rem;">
         <input type="checkbox" ${lock.open?'checked':''} onchange="toggleLock('${lock.id}')">
         ${lock.sym} Schloss ${lock.id} als geöffnet markieren</label>`:''}
@@ -1008,6 +1010,8 @@ function saveSt(id){
   s.sym=document.getElementById('es-'+id).value;
   s.atm=document.getElementById('ea-'+id).value;
   s.puzzle=document.getElementById('ep-'+id).value;
+  s.result=document.getElementById('er-'+id).value.trim();
+  s.answer=s.result; // Kompatibilität mit spiel.html
   s.gps=document.getElementById('eg-'+id).value;
   const lock=gd.locks.find(l=>l.by===id);
   if(lock) lock.code=document.getElementById('ec-'+id).value;
