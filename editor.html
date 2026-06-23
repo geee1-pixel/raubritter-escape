@@ -970,6 +970,12 @@ function renderSt(id){
       </div>
       <label>Atmosphäre</label><textarea id="ea-${id}">${s.atm}</textarea>
       <label>Rätsel</label><textarea id="ep-${id}" style="min-height:100px;">${s.puzzle}</textarea>
+        <label>Antwort <span style="font-size:.62rem;color:var(--stonel);font-weight:normal;text-transform:none;letter-spacing:0;">(genau das müssen Spieler eingeben)</span></label>
+        <input type="text" id="er-${id}" value="${s.result||s.answer||''}" placeholder="z.B. 1337 oder WALDENFELS">
+
+        <div style="background:rgba(201,168,76,.08);border:1px solid rgba(201,168,76,.2);border-radius:4px;padding:.5rem .7rem;margin-top:.5rem;font-size:.72rem;color:var(--stonel);line-height:1.5;">
+          ℹ️ Der <strong>Schloss-Code</strong> oben ist für das physische Schloss. Das <strong>Antwort</strong>-Feld hier ist was Spieler in der App eingeben.
+        </div>
 <label>Antwort <span style="font-size:.65rem;color:var(--stonel);font-weight:normal;text-transform:none;">(Spieler müssen das genau so eingeben)</span></label>
 <input type="text" id="er-${id}" value="${s.result||s.answer||''}" placeholder="z.B. 1337 oder WALDENFELS">
       ${lock?`<label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.8rem;text-transform:none;letter-spacing:0;color:var(--parch2);margin-bottom:.5rem;">
