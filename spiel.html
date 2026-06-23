@@ -911,15 +911,13 @@
 
           <!-- Antwort-Eingabe -->
           <div class="label-xs" style="margin-bottom:0.5rem;">EURE ANTWORT</div>
-          <div style="display:flex;gap:0.5rem;margin-bottom:0.4rem;">
-            <input type="text" id="answer-input" placeholder="Antwort eingeben …"
-              autocomplete="off" autocorrect="off" autocapitalize="off"
-              style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(201,168,76,0.25);color:var(--parchment);border-radius:6px;padding:0.75rem 0.9rem;font-family:'Crimson Text',serif;font-size:1.05rem;">
-            <button class="btn-gold" onclick="checkAnswer()" style="padding:0.75rem 1.1rem;white-space:nowrap;">
-              <i class="fa-solid fa-check"></i>
-            </button>
-          </div>
-          <div id="answer-feedback" style="font-size:0.85rem;min-height:1.2rem;margin-bottom:1rem;"></div>
+          <input type="text" id="answer-input" placeholder="Antwort eingeben …"
+            autocomplete="off" autocorrect="off" autocapitalize="off"
+            style="width:100%;background:rgba(0,0,0,0.35);border:2px solid rgba(201,168,76,0.35);color:var(--parchment);border-radius:8px;padding:1rem 1.1rem;font-family:'Crimson Text',serif;font-size:1.3rem;text-align:center;letter-spacing:0.04em;box-sizing:border-box;margin-bottom:0.6rem;">
+          <button class="btn-gold" onclick="checkAnswer()" style="width:100%;padding:0.95rem;font-size:0.8rem;">
+            <i class="fa-solid fa-check mr-2"></i> Antwort prüfen
+          </button>
+          <div id="answer-feedback" style="font-size:0.9rem;min-height:1.3rem;margin:0.6rem 0 1rem;text-align:center;"></div>
         </div>
 
         <!-- Hinweise -->
@@ -1872,6 +1870,10 @@ function renderStoryTab() {
     }
   }
   if (ansFeed && !solved) ansFeed.textContent = '';
+  // Enter-Taste sendet Antwort
+  if (ansInput) {
+    ansInput.onkeydown = function(e) { if (e.key === 'Enter') checkAnswer(); };
+  }
 
   // Story
   const stEl = document.getElementById('station-story-display');
@@ -2376,18 +2378,35 @@ function checkAnswer() {
   const s = game.stations[state.currentStation];
   const input = document.getElementById('answer-input');
   const given = input.value.trim().toLowerCase();
+  if (!given) return;
 
   // Normalisierte Antwort – v3 nutzt s.result, neues Format nutzt s.answer
   const answerRaw = s._answer || s.answer || s.result || '';
-  // Bei v3: result enthält oft "Code: XXXX" oder ähnliches – ersten Token extrahieren
-  const correct = answerRaw.replace(/^(code|lösung|antwort|loesung):\s*/i, '').split('\n')[0].trim().toLowerCase();
+  if (!answerRaw) {
+    document.getElementById('answer-feedback').textContent = 'Für diese Station ist keine Antwort hinterlegt.';
+    document.getElementById('answer-feedback').style.color = '#f87171';
+    return;
+  }
+  // "Code: XXXX" / "Lösung: XXXX" → nur den Wert
+  const correct = answerRaw.replace(/^(code|lösung|antwort|loesung)\s*:\s*/i, '').split('\n')[0].trim().toLowerCase();
 
-  // Zahl-Toleranz
+  // Vergleich: exakt, ODER beide als Zahl gleich, ODER Wortzahl
   const numberWords = ['null','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn'];
-  const isCorrect = given === correct
-    || (numberWords.indexOf(given) === parseInt(correct))
-    || (numberWords.indexOf(correct) === parseInt(given))
-    || (correct.includes(given) && given.length >= 3); // Teilmatch für längere Antworten
+  const givenNorm = given.replace(/\s+/g, '');
+  const correctNorm = correct.replace(/\s+/g, '');
+
+  let isCorrect = false;
+  if (givenNorm === correctNorm) {
+    isCorrect = true;                                  // exakter Treffer (deckt 1337 = 1337 ab)
+  } else if (/^\d+$/.test(givenNorm) && /^\d+$/.test(correctNorm)) {
+    isCorrect = parseInt(givenNorm) === parseInt(correctNorm); // 007 = 7
+  } else if (numberWords.indexOf(givenNorm) >= 0 && numberWords.indexOf(givenNorm) === parseInt(correctNorm)) {
+    isCorrect = true;                                  // "sieben" = 7
+  } else if (numberWords.indexOf(correctNorm) >= 0 && numberWords.indexOf(correctNorm) === parseInt(givenNorm)) {
+    isCorrect = true;                                  // 7 = "sieben"
+  } else if (correctNorm.length >= 5 && givenNorm.length >= 4 && correctNorm === givenNorm) {
+    isCorrect = true;                                  // lange Wörter exakt
+  }
 
   if (isCorrect) {
     const basePoints = s.points || 100;
