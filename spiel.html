@@ -17,17 +17,6 @@
   <script>
     let _pwaPrompt = null;
 
-    // Overlay schließen
-    function closeInstallOverlay() {
-      const overlay = document.getElementById('install-overlay');
-      if (overlay) {
-        overlay.style.opacity = '0';
-        overlay.style.transition = 'opacity 0.3s ease';
-        setTimeout(() => overlay.style.display = 'none', 300);
-      }
-      sessionStorage.setItem('install-overlay-dismissed', '1');
-    }
-
     // Overlay nur zeigen wenn NICHT bereits als PWA installiert
     window.addEventListener('DOMContentLoaded', () => {
       const isStandalone =
@@ -99,7 +88,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
     html, body {
-      height: 100%; overflow: hidden;
+      height: 100%; 
       font-family: 'Crimson Text', Georgia, serif;
       background: var(--ink); color: var(--parchment);
       user-select: none;
@@ -1349,14 +1338,9 @@ function checkAppCode() {
 
   // Code gegen Supabase/localStorage prüfen
   // Format: XXXX-YYYY oder 8-stellig numerisch
-  const savedCode = localStorage.getItem(APP_CODE_KEY);
-
-  if (savedCode && code === savedCode.toUpperCase()) {
-    unlockApp();
-  } else {
-    // Supabase prüfen
-    verifyAppCodeFromSupabase(code, err);
-  }
+  // Immer gegen Supabase prüfen (auch Zeit-Gültigkeit!)
+  // Der gespeicherte Code allein reicht NICHT mehr zum Einloggen.
+  verifyAppCodeFromSupabase(code, err);
 }
 
 async function verifyAppCodeFromSupabase(code, errEl) {

@@ -292,8 +292,7 @@ select option{background:#1a1108;}
     <button class="tbtn"     onclick="showTab('stations',this)">Stationen</button>
     <button class="tbtn"     onclick="showTab('rucksack',this)">Rucksack</button>
     <button class="tbtn"     onclick="showTab('qr',this)">QR & GPS</button>
-    <button class="tbtn"     onclick="showTab('cipher',this)">Chiffrenscheibe</button>
-    <button class="tbtn"     onclick="showTab('hints',this)">Hinweise</button>
+        <button class="tbtn"     onclick="showTab('hints',this)">Hinweise</button>
     <button class="tbtn"     onclick="showTab('players',this)">Spieler</button>
     <button class="tbtn"     onclick="showTab('timer',this)">Zeiten</button>
     <button class="tbtn"     onclick="showTab('checklist',this)">Checkliste</button>
@@ -430,27 +429,6 @@ select option{background:#1a1108;}
       </div>
     </div>
 
-    <!-- CHIFFRENSCHEIBE -->
-    <div class="tp" id="tp-cipher">
-      <div class="card">
-        <div class="ct">☯ Chiffrenscheibe</div>
-        <div class="cs">Reihenfolge: 4 – 3 – 6 – 8 – 2 – 7 – 1 – 5</div>
-        <div class="ib">Alle 8 Symbole in richtiger Reihenfolge → Lösungswort erscheint → Flasche öffnen.</div>
-        <div style="display:flex;gap:1.8rem;align-items:flex-start;flex-wrap:wrap;">
-          <div style="display:flex;justify-content:center;padding:.8rem 0;flex-shrink:0;">
-            <canvas id="cipherCanvas" width="280" height="280"></canvas>
-          </div>
-          <div style="flex:1;min-width:200px;">
-            <label>Lösungswort (8 Zeichen)</label>
-            <input type="text" id="solWord" value="WALDENFELS" maxlength="10">
-            <label>Symbol-Reihenfolge</label>
-            <input type="text" value="4 – 3 – 6 – 8 – 2 – 7 – 1 – 5" readonly style="color:var(--stonel);">
-            <div class="brow"><button class="btn btn-g" onclick="drawCipher()">Aktualisieren</button></div>
-            <div class="sect" style="margin-top:1rem;">Zuordnung</div>
-            <div id="cipherList"></div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- HINWEISE -->
@@ -821,7 +799,7 @@ window.addEventListener('DOMContentLoaded',()=>{
     renderSidebar();renderOv();renderStory();renderSt(1);
     // Auto-Save alle 30 Sekunden
     setInterval(saveGD, 30000);
-    renderRucksack();renderQR();renderGPS();drawCipher();
+    renderRucksack();renderQR();renderGPS();
     renderHintTab();renderPlayers();renderTimerTab();
     renderChecklist();populateHSel();
   } catch(err) {
@@ -838,7 +816,7 @@ function showTab(id,btn){
   document.getElementById('tp-'+id).classList.add('on');
   if(btn) btn.classList.add('on');
   if(id==='stations') renderSt(curSt);
-  if(id==='cipher') drawCipher();
+  
   if(id==='checklist') renderChecklist();
 }
 
@@ -1572,6 +1550,13 @@ async function saveToSupabase() {
   if (btn) { btn.textContent = '...'; btn.disabled = true; }
   var payload = { title: gd.title || 'Raubritter Escape', location: 'lichtenberg', game_data: gd, updated_at: new Date().toISOString(), active: true };
   try {
+    // Erst ALLE anderen Spiele deaktivieren (nur eines darf aktiv sein)
+    await fetch(SB_URL + '/rest/v1/games?active=eq.true', {
+      method: 'PATCH',
+      headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: false })
+    });
+
     var res;
     if (sbGameId) {
       res = await fetch(SB_URL + '/rest/v1/games?id=eq.' + sbGameId, {
@@ -1584,7 +1569,7 @@ async function saveToSupabase() {
         body: JSON.stringify(payload)
       });
     }
-    if (res.ok) { var d = await res.json(); if (d && d[0]) sbGameId = d[0].id; toast('Gespeichert!');
+    if (res.ok) { var d = await res.json(); if (d && d[0]) sbGameId = d[0].id; toast('Gespeichert! (nur dieses Spiel ist jetzt aktiv)');
     saveGD(); }
     else toast('Fehler: ' + res.status);
   } catch(e) { toast('Verbindungsfehler'); }
