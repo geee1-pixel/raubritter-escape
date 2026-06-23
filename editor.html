@@ -397,8 +397,10 @@ select option{background:#1a1108;}
             </select>
             <label>Beschreibung / Wo ist der QR platziert?</label>
             <input type="text" id="qrDesc" placeholder="z.B. Kirchenmauer rechts vom Eingang">
-            <label>Verlinkter Inhalt (URL oder Beschreibung)</label>
-            <input type="text" id="qrLink" placeholder="https://... oder 'Handschrift-Bild mit 5 roten Wörtern'">
+            <label>QR-Code-Wert <span style="font-size:.65rem;color:var(--stonel);font-weight:normal;text-transform:none;">(was der Scanner ausliest – z.B. die alte URL)</span></label>
+            <input type="text" id="qrValue" placeholder="z.B. https://alte-seite.de/xyz oder ein beliebiger Text">
+            <label>Angezeigter Inhalt beim Scannen <span style="font-size:.65rem;color:var(--stonel);font-weight:normal;text-transform:none;">(URL oder Text – erscheint in der App)</span></label>
+            <input type="text" id="qrLink" placeholder="https://... oder 'Der Schlüssel liegt unter dem dritten Stein'">
             <div class="brow">
               <button class="btn btn-g" onclick="saveQRMeta()">Speichern</button>
             </div>
@@ -654,7 +656,7 @@ Euer Auftrag: Findet alle sieben Fragmente. Öffnet alle Schlösser. Lüftet das
      lore:"Im Jahre 1337 teilte Gernot von Waldeck sein Wissen in sieben Teile auf.",
      puzzle:"Das Schließfach trägt vier Ziffern. Die Lösung ist das Gründungsjahr auf der Tafel am Marktplatz.\n\nCode: 1337\n\nRucksack-Inhalt: Chiffrenscheibe, Hinweiskarte, 3 Schriftstücke, Holzpuzzle (versiegelt), Schieferplatte, Lupe, Raubritter-Dunkel-Flasche (versiegelt), 7 verschlossene Fächer.",
      result:"Rucksack erhalten. Spiel beginnt.",lockOpens:"Start",
-     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     gps:"",qrImg:null,qrValue:'',qrDesc:"",qrLink:"",images:[],
      hints:["Schaut am Marktplatz nach einer Jahreszahl – in Stein gemeißelt.","Die Jahreszahl steht auf der Informationstafel am Marktbrunnen.","Code: 1337 – das Gründungsjahr Lichtenbergs."],
      hintsUsed:[false,false,false]},
     {id:2,name:"Die drei Schriftrollen",loc:"Zunfttafel / Rathaus",sym:"📜",types:["haptic","text"],
@@ -662,7 +664,7 @@ Euer Auftrag: Findet alle sieben Fragmente. Öffnet alle Schlösser. Lüftet das
      lore:"Drei Zeugen, jeder mit einem Teil der Wahrheit. Erst wer alle drei kombiniert, versteht.",
      puzzle:"Im Rucksack: 3 Schriftstücke. Wort für Wort abwechselnd lesen (A1→B1→C1→A2→...).\nBotschaft: 'DER STEIN AN DER NORDMAUER TRÄGT DAS ZEICHEN'\nAkrostichon in Text B: Anfangsbuchstaben = BURG",
      result:"Code: BURG. Schloss A öffnet sich.",lockOpens:"Fach A – Holzpuzzle-Teil 1",
-     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     gps:"",qrImg:null,qrValue:'',qrDesc:"",qrLink:"",images:[],
      hints:["Lest die drei Texte nicht nacheinander – abwechselnd, Wort für Wort.","Text A Wort 1 → Text B Wort 1 → Text C Wort 1 → weiter...","Schaut auf die Anfangsbuchstaben jeder Zeile in Text B."],
      hintsUsed:[false,false,false]},
     {id:3,name:"Das Nordtor-Rätsel",loc:"Nordmauer / Stadtbefestigung",sym:"🏰",types:["haptic","puzzle"],
@@ -670,7 +672,7 @@ Euer Auftrag: Findet alle sieben Fragmente. Öffnet alle Schlösser. Lüftet das
      lore:"1430 hielt Lichtenberg den Hussiten stand. Caspar von Waldenfels gravierte ein Geheimzeichen ein.",
      puzzle:"Holzpuzzle zeigt mittelalterlichen Stadtplan mit 8 Punkten.\nPunkte von Nord nach Süd: Ziffern 4-7-2 → Code 472\nSymbol an der Mauer = Symbol auf Schloss B.",
      result:"Code 472. Schloss B öffnet sich.",lockOpens:"Fach B – Schieferplatte + Lupe",
-     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     gps:"",qrImg:null,qrValue:'',qrDesc:"",qrLink:"",images:[],
      hints:["Puzzle zeigt einen Stadtplan. Welche Punkte sind von Nord nach Süd nummeriert?","Lest die Zahlen an den Punkten von oben nach unten.","Code: 472"],
      hintsUsed:[false,false,false]},
     {id:4,name:"Der Galgenberg",loc:"Weg zum Freizeitsee",sym:"⚖",types:["haptic","gps"],
@@ -678,7 +680,7 @@ Euer Auftrag: Findet alle sieben Fragmente. Öffnet alle Schlösser. Lüftet das
      lore:"Hans von Waldenfels ließ 1441 drei Kaufleute hängen. Sie hatten verbotene Dokumente gesehen.",
      puzzle:"GPS zu verstecktem Behälter (Magnetbox, heute einmessen!).\nHolzplättchen + Rätselkarte: Schulden-Summe aus Schriftstück C = Code.",
      result:"Code 1441. Schloss C öffnet sich.",lockOpens:"Fach C – Holzmedaillon",
-     gps:"N 50°18.XXX / E 011°28.XXX",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     gps:"N 50°18.XXX / E 011°28.XXX",qrImg:null,qrValue:'',qrDesc:"",qrLink:"",images:[],
      hints:["Folgt den GPS-Koordinaten genau. Das Versteck liegt etwas abseits des Weges.","Sucht an Bäumen oder Steinen nahe der Koordinaten nach einem kleinen Behälter.","Code: 1441 – das Jahr der Hinrichtungen."],
      hintsUsed:[false,false,false]},
     {id:5,name:"Die falschen Koordinaten",loc:"Burgruine / Schlossberg",sym:"🧭",types:["chiffre","haptic"],
@@ -686,7 +688,7 @@ Euer Auftrag: Findet alle sieben Fragmente. Öffnet alle Schlösser. Lüftet das
      lore:"Caspar von Waldenfels entwickelte eine Schrift, die wie Koordinaten aussah – aber keine war.",
      puzzle:"Schieferplatte (Fach B):\nN 50°18.472 / E 011°28.163\nN 50°18.115 / E 011°28.944\nN 50°18.338 / E 011°28.227\n→ KEINE echten GPS-Daten!\nNachkommastellen N: 472, 115, 338 → mit Scheibe: W-A-L-D-E-N\nMit Lupe: Mikrotext = Code 382",
      result:"Code 382. Schloss D öffnet sich.",lockOpens:"Fach D – Rollenkarte",
-     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     gps:"",qrImg:null,qrValue:'',qrDesc:"",qrLink:"",images:[],
      hints:["Die Zahlen auf der Schieferplatte sind KEINE echten Koordinaten. Was haben die Stellen nach dem Komma gemeinsam?","Nehmt die Lupe und sucht nach sehr kleinem eingravierten Text auf der Schieferplatte.","Die Lupe zeigt eine 3-stellige Zahl. Das ist der Code."],
      hintsUsed:[false,false,false]},
     {id:6,name:"Der QR-Code des Mönchs",loc:"Kirche / historisches Gebäude",sym:"✝",types:["qr","digital","haptic"],
@@ -694,7 +696,7 @@ Euer Auftrag: Findet alle sieben Fragmente. Öffnet alle Schlösser. Lüftet das
      lore:"Bruder Konrad hinterließ 1337 eine verschlüsselte Botschaft für die Zukunft.",
      puzzle:"QR-Code an/bei der Kirche (heute platzieren!)\nScannen → Webseite mit Handschrift-Bild\n5 rote Wörter → Hinweis auf Station 7\nNach 30 Sek erscheint Zahl am Rand: 1634",
      result:"Code 1634. Schloss E öffnet sich.",lockOpens:"Fach E – Holzwürfel",
-     gps:"",qrImg:null,qrDesc:"An der Kirchenmauer, Südseite",qrLink:"https://raubritter-escape.de/station6",images:[],
+     gps:"",qrImg:null,qrValue:'',qrDesc:"An der Kirchenmauer, Südseite",qrLink:"https://raubritter-escape.de/station6",images:[],
      hints:["Scannt den QR-Code und schaut die Webseite genau an – auch die Ränder.","Auf der Webseite erscheint nach einer Weile eine Zahl. Wartet mindestens 30 Sekunden.","Code: 1634 – Jahr des Burgbrands im Dreißigjährigen Krieg."],
      hintsUsed:[false,false,false]},
     {id:7,name:"Der Sonnenbräu-Keller",loc:"Brauerei Sonnenbräu / Nailaer Str.",sym:"🍺",types:["haptic","chiffre"],
@@ -702,7 +704,7 @@ Euer Auftrag: Findet alle sieben Fragmente. Öffnet alle Schlösser. Lüftet das
      lore:"Die Brauer wussten immer mehr als sie sagten.",
      puzzle:"Holzmedaillon (Fach C) in Aussparung am Gebäude.\nCaesar-Chiffre +7: 'WLK ZRSK NHLSK' → 'DER ALTE MEISTER'\nUnter markiertem Stein: Zahl 1904",
      result:"Code 1904. Schloss F öffnet sich.",lockOpens:"Fach F – Gernots Geständnis (Brief 1+2)",
-     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     gps:"",qrImg:null,qrValue:'',qrDesc:"",qrLink:"",images:[],
      hints:["Das Medaillon aus Fach C passt irgendwo am Gebäude. Sucht nach einer passenden Aussparung.","Die Inschrift ist Caesar-verschlüsselt. Verschiebt jeden Buchstaben um 7 Stellen zurück.","Sucht nach einem Stein oder Gegenstand in der Nähe des Gebäudes. Darunter liegt die Zahl."],
      hintsUsed:[false,false,false]},
     {id:8,name:"Das letzte Siegel",loc:"Schlossbergturm / Burgruine",sym:"👁",types:["haptic","chiffre"],
@@ -710,7 +712,7 @@ Euer Auftrag: Findet alle sieben Fragmente. Öffnet alle Schlösser. Lüftet das
      lore:"Im Fundament liegt der Stein, den Gernot von Waldeck persönlich setzte.",
      puzzle:"Rollenkarte (Fach D) zeigt markierten Stein am Turm.\nHolzwürfel (Fach E) ausrichten → Auge 👁 oben.\nChiffrenscheibe: 4-3-6-8-2-7-1-5 einstellen.\nLösungswort: WALDENFELS → Flasche öffnen!",
      result:"WALDENFELS → Raubritter-Dunkel-Flasche geöffnet. SPIEL GELÖST!",lockOpens:"Raubritter-Dunkel-Flasche",
-     gps:"",qrImg:null,qrDesc:"",qrLink:"",images:[],
+     gps:"",qrImg:null,qrValue:'',qrDesc:"",qrLink:"",images:[],
      hints:["Schaut auf die Rollenkarte: welcher Stein am Turm ist markiert?","Stellt den Holzwürfel so auf, dass das Auge nach oben zeigt.","Chiffrenscheibe: 4. Symbol, dann 3., dann 6., 8., 2., 7., 1., 5. Was lest ihr?"],
      hintsUsed:[false,false,false]}
   ],
@@ -1112,12 +1114,12 @@ function saveQRMeta(){
   const s=gd.stations.find(x=>x.id===sid);
   if(s){
     s.qrDesc=document.getElementById('qrDesc').value;
+    s.qrValue=document.getElementById('qrValue').value.trim();
     s.qrLink=document.getElementById('qrLink').value;
     if(qrImages[sid]) s.qrImg=qrImages[sid];
   }
   renderQRList();
   alert('QR-Code Daten gespeichert!');
-  saveGD();
   saveGD();
 }
 
@@ -1132,7 +1134,7 @@ function renderQRList(){
       <div style="flex:1;">
         <div style="font-family:'Cinzel',serif;font-size:.78rem;color:var(--gold);">Station ${s.id}: ${s.name}</div>
         <div style="font-size:.75rem;color:var(--parch2);margin-top:.2rem;">${s.qrDesc||'–'}</div>
-        <div style="font-size:.7rem;color:var(--bluel);word-break:break-all;">${s.qrLink||'–'}</div>
+        <div style="font-size:.68rem;color:var(--stonel);word-break:break-all;">Scan-Wert: ${s.qrValue||'–'}</div><div style="font-size:.7rem;color:var(--bluel);word-break:break-all;">Zeigt: ${s.qrLink||'–'}</div>
       </div>
       <button class="btn btn-r" style="padding:.25rem .6rem;font-size:.6rem;" onclick="clearQR(${s.id})">✕</button>
     </div>`).join('');

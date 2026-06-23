@@ -862,12 +862,6 @@
           <!-- Schloss-Info -->
           <div id="station-lock-wrap"></div>
 
-          <div class="divider"></div>
-
-          <!-- Scan-Button -->
-          <button class="btn-gold" id="btn-go-scan" onclick="goToScan()" style="width:100%;">
-            <i class="fa-solid fa-camera mr-2"></i> QR-Code scannen
-          </button>
           <div style="height:1rem;"></div>
         </div>
       </div>
@@ -884,8 +878,10 @@
         </div>
         <div style="padding:1.25rem 1.5rem;">
           <p style="font-size:0.85rem;opacity:0.55;text-align:center;margin-bottom:1rem;line-height:1.6;">
-            Haltet die Kamera auf den QR-Code an der Station.
+            Manche Funde tragen ein Zeichen. Haltet die Kamera darauf.
           </p>
+          <!-- Gescannter Inhalt -->
+          <div id="scan-result-content" style="display:none;margin-bottom:1rem;"></div>
           <!-- Manuell eingeben -->
           <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(201,168,76,0.15);border-radius:6px;padding:1rem;">
             <div class="label-xs" style="margin-bottom:0.5rem;">CODE MANUELL EINGEBEN</div>
@@ -907,14 +903,23 @@
         <div class="label-xs" style="margin-bottom:0.6rem;">GESCHICHTE</div>
         <div id="station-story-display" class="story-text" style="margin-bottom:1.5rem;">–</div>
 
-        <!-- Rätsel-Vorschau -->
+        <!-- Rätsel + Antwort -->
         <div id="story-puzzle-preview" style="display:none;">
           <div class="divider"></div>
           <div class="label-xs" style="margin-bottom:0.5rem;">RÄTSEL DIESER STATION</div>
           <div id="story-puzzle-text" style="font-size:0.95rem;line-height:1.7;color:rgba(245,234,208,0.8);margin-bottom:1rem;"></div>
-          <button class="btn-gold" onclick="goToScan()" style="width:100%;">
-            <i class="fa-solid fa-camera mr-2"></i> Zum QR-Code
-          </button>
+
+          <!-- Antwort-Eingabe -->
+          <div class="label-xs" style="margin-bottom:0.5rem;">EURE ANTWORT</div>
+          <div style="display:flex;gap:0.5rem;margin-bottom:0.4rem;">
+            <input type="text" id="answer-input" placeholder="Antwort eingeben …"
+              autocomplete="off" autocorrect="off" autocapitalize="off"
+              style="flex:1;background:rgba(0,0,0,0.3);border:1px solid rgba(201,168,76,0.25);color:var(--parchment);border-radius:6px;padding:0.75rem 0.9rem;font-family:'Crimson Text',serif;font-size:1.05rem;">
+            <button class="btn-gold" onclick="checkAnswer()" style="padding:0.75rem 1.1rem;white-space:nowrap;">
+              <i class="fa-solid fa-check"></i>
+            </button>
+          </div>
+          <div id="answer-feedback" style="font-size:0.85rem;min-height:1.2rem;margin-bottom:1rem;"></div>
         </div>
 
         <!-- Hinweise -->
@@ -926,13 +931,13 @@
     <!-- BOTTOM NAV -->
     <div class="bottom-nav safe-bottom">
       <button class="nav-item active" id="nav-btn-station" onclick="switchStationTab('station')">
-        <i class="fa-solid fa-map-pin"></i>Hinweis
+        <i class="fa-solid fa-map-pin"></i>Station
       </button>
       <button class="nav-item" id="nav-btn-scan" onclick="switchStationTab('scan')">
-        <i class="fa-solid fa-camera"></i>Scan
+        <i class="fa-solid fa-magnifying-glass"></i>Suchen
       </button>
       <button class="nav-item" id="nav-btn-story" onclick="switchStationTab('story')">
-        <i class="fa-solid fa-scroll"></i>Story
+        <i class="fa-solid fa-scroll"></i>Rätsel
       </button>
     </div>
   </div>
@@ -1810,6 +1815,22 @@ function renderStoryTab() {
   const storyText = s._story || s.story || s.atm || s.lore || '';
   const puzzleText = s._puzzle || s.puzzle || '';
 
+  // Antwort-Feld zurücksetzen wenn Station noch nicht gelöst
+  const ansInput = document.getElementById('answer-input');
+  const ansFeed = document.getElementById('answer-feedback');
+  const solved = state.solvedStations.indexOf(state.currentStation) !== -1;
+  if (ansInput) {
+    if (solved) {
+      ansInput.value = '';
+      ansInput.disabled = true;
+      ansInput.placeholder = '✓ Bereits gelöst';
+    } else {
+      ansInput.disabled = false;
+      ansInput.placeholder = 'Antwort eingeben …';
+    }
+  }
+  if (ansFeed && !solved) ansFeed.textContent = '';
+
   // Story
   const stEl = document.getElementById('station-story-display');
   if (stEl) stEl.innerHTML = storyText
@@ -2181,36 +2202,65 @@ function handleQRScan(rawValue) {
 
   // Flash-Effekt
   const flash = document.getElementById('scan-result-flash');
-  flash.classList.add('flash');
-  setTimeout(() => flash.classList.remove('flash'), 200);
+  if (flash) {
+    flash.classList.add('flash');
+    setTimeout(() => flash.classList.remove('flash'), 200);
+  }
 
-  // ── KERN-LOGIK: Inhalt ignorieren, nur als Station-ID nutzen ──
-  // Wir suchen den rawValue in game.qrMappings
-  const stationIndex = game.qrMappings[rawValue];
+  // ── NEUE LOGIK: QR-Wert → angezeigter Inhalt (qrLink) ──
+  // Suche die Station deren qrValue dem gescannten Wert entspricht
+  const trimmed = (rawValue || '').trim();
+  let matchStation = null;
 
-  if (stationIndex === undefined) {
-    // Code existiert nicht im Spiel
-    setScanStatus('Dieser Code gehört nicht zum Spiel', '#f87171');
+  for (let i = 0; i < game.stations.length; i++) {
+    const st = game.stations[i];
+    const stVal = (st.qrValue || '').trim();
+    if (stVal && stVal === trimmed) { matchStation = st; break; }
+  }
+
+  // Fallback: altes qrMappings-System (für Abwärtskompatibilität)
+  if (!matchStation && game.qrMappings && game.qrMappings[trimmed] !== undefined) {
+    matchStation = game.stations[game.qrMappings[trimmed]];
+  }
+
+  const resultBox = document.getElementById('scan-result-content');
+
+  if (!matchStation) {
+    // Kein Treffer – evtl. echte URL? Dann anzeigen
+    if (resultBox) {
+      resultBox.style.display = 'block';
+      resultBox.innerHTML = '<div style="padding:1rem;text-align:center;color:rgba(245,234,208,0.6);">' +
+        '<i class="fa-solid fa-circle-question" style="font-size:1.5rem;color:var(--gold);margin-bottom:0.5rem;display:block;"></i>' +
+        'Dieser Code gehört nicht zum Spiel.</div>';
+    }
+    setScanStatus('Unbekannter Code', '#f87171');
     return;
   }
 
-  const expectedStation = state.currentStation;
-
-  if (stationIndex < expectedStation && game.order === 'linear') {
-    setScanStatus('Station ' + (stationIndex+1) + ' bereits gelöst ✓', 'var(--gold)');
+  // Inhalt anzeigen
+  const content = (matchStation.qrLink || '').trim();
+  if (!content) {
+    setScanStatus('Kein Inhalt hinterlegt', '#f87171');
     return;
   }
 
-  if (stationIndex > expectedStation && game.order === 'linear') {
-    setScanStatus('Erst Station ' + (expectedStation+1) + ' lösen!', '#f87171');
-    return;
+  setScanStatus('Code erkannt ✦', 'var(--gold-light)');
+
+  if (resultBox) {
+    resultBox.style.display = 'block';
+    const isUrl = /^https?:\/\//i.test(content);
+    if (isUrl) {
+      resultBox.innerHTML = '<div style="padding:1.1rem;background:rgba(13,43,20,0.5);border:1px solid rgba(201,168,76,0.3);border-radius:8px;">' +
+        '<div style="font-family:Cinzel,serif;font-size:0.6rem;letter-spacing:0.1em;color:rgba(201,168,76,0.7);margin-bottom:0.5rem;">GEFUNDENER HINWEIS</div>' +
+        '<a href="' + content + '" target="_blank" style="color:var(--gold);text-decoration:underline;word-break:break-all;font-size:0.95rem;">' + content + '</a>' +
+        '</div>';
+    } else {
+      resultBox.innerHTML = '<div style="padding:1.1rem;background:rgba(13,43,20,0.5);border:1px solid rgba(201,168,76,0.3);border-radius:8px;">' +
+        '<div style="font-family:Cinzel,serif;font-size:0.6rem;letter-spacing:0.1em;color:rgba(201,168,76,0.7);margin-bottom:0.5rem;">GEFUNDENER HINWEIS</div>' +
+        '<div style="color:rgba(245,234,208,0.9);font-size:1rem;line-height:1.7;">' + content + '</div>' +
+        '</div>';
+    }
   }
-
-  if (stationIndex !== expectedStation && game.order === 'linear') return;
-
-  // Richtige Station gefunden! → Rätsel anzeigen
-  setScanStatus('Station ' + (stationIndex+1) + ' gefunden! ✦', 'var(--gold-light)');
-  setTimeout(() => openPuzzle(stationIndex), 600);
 }
 
 function setScanStatus(msg, color) {
@@ -2357,9 +2407,12 @@ function nextStation() {
 
   state.currentStation = next;
   state.attempts = 0;
-  saveGameState(); // Nach jedem Stationswechsel speichern
+  state.hintUnlocked = [false, false, false];
+  state.hintUnlockTime = [null, null, null];
+  saveGameState();
   renderStation(next);
   showScreen('station');
+  switchStationTab('station');
   renderProgress('topbar-progress-station', next);
 }
 
