@@ -827,6 +827,34 @@
   <!-- ═══════════════════════════════════
        SCREEN 2: STATION (Hinweis + Story)
   ═══════════════════════════════════ -->
+  <!-- ══════════ EINSTIEGSRÄTSEL ══════════ -->
+  <div class="screen" id="screen-intro">
+    <div style="flex:1;overflow-y:auto;padding:2rem 1.5rem;display:flex;flex-direction:column;justify-content:center;max-width:480px;margin:0 auto;width:100%;">
+      <div style="text-align:center;margin-bottom:1.5rem;">
+        <i class="fa-solid fa-scroll" style="font-size:2.2rem;color:var(--gold);margin-bottom:0.75rem;"></i>
+        <div style="font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.2em;color:var(--gold);margin-bottom:0.4rem;">DER ERSTE SCHRITT</div>
+        <h1 style="font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;line-height:1.2;">Das versiegelte Schließfach</h1>
+      </div>
+
+      <div style="background:rgba(13,43,20,0.4);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:1.25rem;margin-bottom:1.25rem;">
+        <p style="font-size:0.95rem;line-height:1.8;color:rgba(245,234,208,0.85);font-style:italic;margin-bottom:1rem;">
+          Bevor ihr den Rucksack des Raubritters in Händen haltet, müsst ihr das Schließfach öffnen. Der Code ist keine Zahl die irgendwo steht – ihr müsst ihn berechnen.
+        </p>
+        <div style="font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.12em;color:var(--gold);margin-bottom:0.6rem;">EURE RECHNUNG</div>
+        <div id="intro-formula" style="font-size:1rem;line-height:2;color:var(--parchment);"></div>
+      </div>
+
+      <div class="label-xs" style="margin-bottom:0.5rem;">SCHRANK-CODE EINGEBEN</div>
+      <input type="text" id="intro-input" inputmode="numeric" placeholder="4-stellige Zahl …"
+        autocomplete="off"
+        style="width:100%;background:rgba(0,0,0,0.35);border:2px solid rgba(201,168,76,0.35);color:var(--parchment);border-radius:8px;padding:1rem;font-family:'Cinzel',serif;font-size:1.6rem;text-align:center;letter-spacing:0.3em;box-sizing:border-box;margin-bottom:0.6rem;">
+      <button class="btn-gold" onclick="checkIntroPuzzle()" style="width:100%;padding:0.95rem;">
+        <i class="fa-solid fa-unlock mr-2"></i> Schließfach öffnen
+      </button>
+      <div id="intro-feedback" style="font-size:0.9rem;min-height:1.3rem;margin-top:0.6rem;text-align:center;"></div>
+    </div>
+  </div>
+
   <div class="screen" id="screen-station">
     <!-- TOPBAR -->
     <div class="topbar safe-top">
@@ -1349,7 +1377,7 @@ function checkAppCode() {
 async function verifyAppCodeFromSupabase(code, errEl) {
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/bookings?select=booking_code,slot_date,slot_time,valid_from,valid_until,game_started_at,name&booking_code=eq.${code}&status=eq.paid`,
+      `${SUPABASE_URL}/rest/v1/bookings?select=booking_code,slot_date,slot_time,valid_from,valid_until,game_started_at,name,persons,total_price&booking_code=eq.${code}&status=eq.paid`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const data = await res.json();
@@ -1363,6 +1391,11 @@ async function verifyAppCodeFromSupabase(code, errEl) {
 
     const booking = data[0];
     const now = new Date();
+
+    // Buchungsdaten fürs Einstiegsrätsel merken
+    bookingData.persons = booking.persons || null;
+    bookingData.totalPrice = booking.total_price || null;
+    bookingData.slotTime = booking.slot_time || null;
 
     // ── GETEILTE SPIELZEIT ──
     // Wenn schon ein Spieler gestartet hat (game_started_at gesetzt),
@@ -1470,8 +1503,13 @@ function unlockApp() {
         if (cached) { try { gameData = JSON.parse(cached); } catch(e) {} }
       }
 
-      if (!gameData) {
-        startGame(DEMO_GAME);
+      if (!gameData) gameData = DEMO_GAME;
+
+      // Einstiegsrätsel zeigen (wenn noch nicht gelöst)
+      if (!introSolved) {
+        window._pendingGameData = gameData;
+        showIntroPuzzle();
+        showScreen('intro');
         return;
       }
 
@@ -1622,6 +1660,28 @@ function showHintLevel(level) {
 
 let currentBookingCode = null; // wird beim App-Code-Login gesetzt
 let gameStartedAt = null; // Zeitpunkt des ersten Logins – für geteilte Zeit über alle Geräte
+let bookingData = { persons: null, totalPrice: null, slotTime: null }; // für Einstiegsrätsel
+let introSolved = false; // Einstiegsrätsel gelöst?
+
+// ── WOCHENCODE (identisch zu Editor + Edge Function) ──
+const WEEK_CODE_SALT = 'RB2026LICHTENBERG';
+function getWeekNumber(date) {
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
+function generateWeekCode(date) {
+  const kw = getWeekNumber(date);
+  const seed = WEEK_CODE_SALT + '-' + date.getFullYear() + '-' + kw;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  return String(Math.abs(hash) % 9000 + 1000);
+}
 
 async function saveGameState() {
   if (!game || !currentBookingCode) return;
@@ -1636,6 +1696,7 @@ async function saveGameState() {
     hintUnlockTime: state.hintUnlockTime,
     groupName: state.groupName,
     attempts: state.attempts,
+    introSolved: introSolved,
     startTime: state.startTime,
     savedAt: Date.now()
   };
@@ -1729,6 +1790,7 @@ async function restoreGameState(savedState) {
     state.hintUnlocked = savedState.hintUnlocked || [false, false, false];
     state.hintUnlockTime = savedState.hintUnlockTime || [null, null, null];
     state.groupName = savedState.groupName || '';
+    introSolved = savedState.introSolved || true; // bei Wiedereinstieg übersprungen
     state.hintsLevel = 0;
     state.attempts = savedState.attempts || 0;
     state.startTime = gameStartedAt || savedState.startTime || Date.now();
@@ -1765,6 +1827,64 @@ async function persistGameStart(ts) {
       }
     );
   } catch(e) { console.warn('game_started_at konnte nicht gespeichert werden', e); }
+}
+
+// ══════════ EINSTIEGSRÄTSEL ══════════
+function showIntroPuzzle() {
+  // Wochencode für heute berechnen (= Schrank-Code)
+  const today = bookingData.slotTime
+    ? new Date()
+    : new Date();
+  const weekCode = parseInt(generateWeekCode(new Date()));
+
+  // Buchungsdaten (mit sinnvollen Fallbacks)
+  const persons = bookingData.persons || 2;
+  const price = Math.round(bookingData.totalPrice || 0);
+  const startHour = bookingData.slotTime
+    ? parseInt(String(bookingData.slotTime).substring(0,2))
+    : 12;
+
+  // Basis = Personen × Betrag + Startstunde
+  const base = persons * price + startHour;
+  // Schlüsselzahl X so dass base + X = weekCode
+  const keyNumber = weekCode - base;
+
+  // Rechnung anzeigen
+  const formula = document.getElementById('intro-formula');
+  if (formula) {
+    formula.innerHTML =
+      '<div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.12);padding:0.3rem 0;"><span style="opacity:0.7;">Personen in eurer Gruppe</span><strong style="color:var(--gold);">' + persons + '</strong></div>' +
+      '<div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.12);padding:0.3rem 0;"><span style="opacity:0.7;">× bezahlter Betrag (€)</span><strong style="color:var(--gold);">' + price + '</strong></div>' +
+      '<div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.12);padding:0.3rem 0;"><span style="opacity:0.7;">+ Startstunde</span><strong style="color:var(--gold);">' + startHour + '</strong></div>' +
+      '<div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(201,168,76,0.12);padding:0.3rem 0;"><span style="opacity:0.7;">+ Schlüsselzahl (auf eurer Karte)</span><strong style="color:var(--gold);">' + keyNumber + '</strong></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:0.5rem 0 0;font-size:1.05rem;"><span>= Schrank-Code</span><strong style="color:var(--gold-light);">?</strong></div>';
+  }
+
+  // Lösung merken (für Prüfung)
+  window._introSolution = weekCode;
+}
+
+function checkIntroPuzzle() {
+  const input = document.getElementById('intro-input');
+  const feedback = document.getElementById('intro-feedback');
+  if (!input) return;
+  const given = parseInt(input.value.trim());
+
+  if (given === window._introSolution) {
+    introSolved = true;
+    saveGameState();
+    feedback.textContent = '✓ Das Schließfach öffnet sich!';
+    feedback.style.color = 'var(--gold-light)';
+    setTimeout(() => {
+      // Weiter zum eigentlichen Spiel
+      if (window._pendingGameData) {
+        startGame(window._pendingGameData);
+      }
+    }, 900);
+  } else {
+    feedback.textContent = 'Das Schloss bleibt verschlossen. Rechnet nochmal nach.';
+    feedback.style.color = '#f87171';
+  }
 }
 
 function startGame(g) {
