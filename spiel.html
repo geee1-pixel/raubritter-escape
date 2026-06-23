@@ -1351,7 +1351,7 @@ function checkAppCode() {
 async function verifyAppCodeFromSupabase(code, errEl) {
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/bookings?select=booking_code,slot_date,slot_time,valid_from,valid_until,name&booking_code=eq.${code}&status=eq.paid`,
+      `${SUPABASE_URL}/rest/v1/bookings?select=booking_code,slot_date,slot_time,valid_from,valid_until,game_started_at,name&booking_code=eq.${code}&status=eq.paid`,
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` } }
     );
     const data = await res.json();
@@ -1365,6 +1365,16 @@ async function verifyAppCodeFromSupabase(code, errEl) {
 
     const booking = data[0];
     const now = new Date();
+
+    // ── GETEILTE SPIELZEIT ──
+    // Wenn schon ein Spieler gestartet hat (game_started_at gesetzt),
+    // übernehmen alle weiteren Geräte diesen Zeitpunkt.
+    // Sonst: dieser Spieler ist der erste → Startzeit jetzt setzen.
+    if (booking.game_started_at) {
+      gameStartedAt = new Date(booking.game_started_at).getTime();
+    } else {
+      gameStartedAt = null; // wird beim Spielstart gesetzt
+    }
 
     // valid_from und valid_until prüfen
     if (booking.valid_from && booking.valid_until) {
@@ -1420,14 +1430,16 @@ function unlockApp() {
   currentBookingCode = code;
   localStorage.setItem(APP_CODE_KEY, code);
 
-  // Gruppenname übernehmen
+  // Gruppenname übernehmen / wiederherstellen (pro Code)
   const gnInput = document.getElementById('group-name-input');
+  const gnKey = 'rb_group_' + code;
   if (gnInput && gnInput.value.trim()) {
+    // Neuer Name eingegeben
     state.groupName = gnInput.value.trim();
-    localStorage.setItem('rb_group_name', state.groupName);
+    localStorage.setItem(gnKey, state.groupName);
   } else {
-    // Aus lokalem Speicher wiederherstellen falls vorhanden
-    const saved = localStorage.getItem('rb_group_name');
+    // Kein Name eingegeben → aus Speicher für diesen Code holen
+    const saved = localStorage.getItem(gnKey);
     if (saved) state.groupName = saved;
   }
 
@@ -1611,6 +1623,7 @@ function showHintLevel(level) {
 // Verknüpft mit booking_code → mehrere Geräte teilen denselben Stand
 
 let currentBookingCode = null; // wird beim App-Code-Login gesetzt
+let gameStartedAt = null; // Zeitpunkt des ersten Logins – für geteilte Zeit über alle Geräte
 
 async function saveGameState() {
   if (!game || !currentBookingCode) return;
@@ -1684,7 +1697,8 @@ async function checkForSavedGame(bookingCode) {
     if (data && data[0] && data[0].game_state) {
       const s = data[0].game_state;
       const age = (Date.now() - s.savedAt) / (1000 * 60 * 60);
-      if (age < 4 && s.currentStation > 0) return s; // Gültiger Spielstand
+      // Auch auf Station 1 wiederherstellen (damit Timer weiterläuft)
+      if (age < 8 && s.startTime) return s;
     }
   } catch(e) {}
 
@@ -1694,7 +1708,7 @@ async function checkForSavedGame(bookingCode) {
     try {
       const s = JSON.parse(local);
       const age = (Date.now() - s.savedAt) / (1000 * 60 * 60);
-      if (age < 4 && s.currentStation > 0) return s;
+      if (age < 8 && s.startTime) return s;
     } catch(e) {}
   }
   return null;
@@ -1718,7 +1732,7 @@ async function restoreGameState(savedState) {
     state.groupName = savedState.groupName || '';
     state.hintsLevel = 0;
     state.attempts = 0;
-    state.startTime = savedState.startTime || Date.now();
+    state.startTime = gameStartedAt || savedState.startTime || Date.now();
 
     startTimer();
     showScreen('station');
@@ -1735,6 +1749,25 @@ async function restoreGameState(savedState) {
   }
 }
 
+// Schreibt den Spielstart-Zeitpunkt in Supabase (nur beim ersten Spieler)
+async function persistGameStart(ts) {
+  if (!currentBookingCode) return;
+  try {
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/bookings?booking_code=eq.${currentBookingCode}&game_started_at=is.null`,
+      {
+        method: 'PATCH',
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ game_started_at: new Date(ts).toISOString() })
+      }
+    );
+  } catch(e) { console.warn('game_started_at konnte nicht gespeichert werden', e); }
+}
+
 function startGame(g) {
   game = g;
   state.currentStation = 0;
@@ -1747,7 +1780,16 @@ function startGame(g) {
   state.hintTimers = [null, null, null];
   state.hintUnlockTime = [null, null, null];
   state.attempts = 0;
-  state.startTime = Date.now();
+  // ── GETEILTE ZEIT ──
+  // Erster Spieler: Startzeit = jetzt, und in Supabase festschreiben.
+  // Weitere Spieler: übernehmen gameStartedAt (beim Login gesetzt).
+  if (gameStartedAt) {
+    state.startTime = gameStartedAt;
+  } else {
+    state.startTime = Date.now();
+    gameStartedAt = state.startTime;
+    persistGameStart(state.startTime); // in bookings.game_started_at schreiben
+  }
 
   // Gruppenname aus Eingabe übernehmen
   const gnInput = document.getElementById('group-name-input');
@@ -2498,6 +2540,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedCode) {
       // Automatisch versuchen mit gespeichertem Code einzuloggen
       document.getElementById('applock-input').value = savedCode;
+      // Gruppenname für diesen Code vorausfüllen
+      const savedGroup = localStorage.getItem('rb_group_' + savedCode);
+      const gnField = document.getElementById('group-name-input');
+      if (savedGroup && gnField) gnField.value = savedGroup;
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById('screen-applock').classList.add('active');
       // Kurz warten dann auto-unlock versuchen
