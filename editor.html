@@ -846,7 +846,7 @@ function renderSidebar(){
   const donePct=allChk.length?Math.round((allChk.filter(i=>i.done).length/allChk.length)*100):0;
   document.getElementById('chkDone').textContent='Checkliste: '+donePct+'%';
 }
-function goSt(id){curSt=id;renderSidebar();showTab('stations',document.querySelectorAll('.tbtn')[2]);}
+function goSt(id){commitCurrentStation();saveGD();curSt=id;renderSidebar();showTab('stations',document.querySelectorAll('.tbtn')[2]);}
 
 // ============================================================
 // OVERVIEW
@@ -987,7 +987,7 @@ function renderSt(id){
     </div>`;
 }
 
-function navSt(id){curSt=id;renderSidebar();renderSt(id);}
+function navSt(id){commitCurrentStation();saveGD();curSt=id;renderSidebar();renderSt(id);}
 
 function saveSt(id){
   const s=gd.stations.find(x=>x.id===id);
@@ -1002,7 +1002,25 @@ function saveSt(id){
   const lock=gd.locks.find(l=>l.by===id);
   if(lock) lock.code=document.getElementById('ec-'+id).value;
   renderSidebar();renderOv();renderGPS();
-  alert('Station '+id+' gespeichert!');
+  saveGD();
+  toast('Station '+id+' gespeichert');
+}
+
+// Übernimmt die aktuell offene Station ins gd-Objekt OHNE alert/toast
+// (für automatisches Speichern beim Stationswechsel)
+function commitCurrentStation(){
+  if(!curSt) return;
+  const s=gd.stations.find(x=>x.id===curSt);
+  if(!s) return;
+  const g=function(p){const e=document.getElementById(p+curSt);return e?e.value:undefined;};
+  const vn=g('en-'); if(vn!==undefined) s.name=vn;
+  const vl=g('el-'); if(vl!==undefined) s.loc=vl;
+  const vs=g('es-'); if(vs!==undefined) s.sym=vs;
+  const va=g('ea-'); if(va!==undefined) s.atm=va;
+  const vp=g('ep-'); if(vp!==undefined) s.puzzle=vp;
+  const vr=g('er-'); if(vr!==undefined){ s.result=vr.trim(); s.answer=s.result; }
+  const vg=g('eg-'); if(vg!==undefined) s.gps=vg;
+  const vc=g('ec-'); if(vc!==undefined){ const lock=gd.locks.find(l=>l.by===curSt); if(lock) lock.code=vc; }
 }
 
 function toggleLock(lid){
@@ -1514,7 +1532,7 @@ function toast(msg) {
 // ============================================================
 var SB_URL = 'https://uulpxvyjevnvggvamhha.supabase.co';
 var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1bHB4dnlqZXZudmdndmFtaGhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODA5MjIsImV4cCI6MjA5Mjk1NjkyMn0.XJWbivvaWU4WVD-48_-Pnlr5XfKkjSHuIvVqdpq-bH4';
-var sbGameId = null;
+var sbGameId = localStorage.getItem('rbe-sb-game-id') || null;
 
 // ── AUTO-SAVE IN LOCALSTORAGE ──────────────────────────
 function saveGD() {
@@ -1554,6 +1572,7 @@ function importJSON() {
 }
 
 async function saveToSupabase() {
+  commitCurrentStation(); // offene Station ins gd übernehmen
   var btn = document.getElementById('btnSB');
   if (btn) { btn.textContent = '...'; btn.disabled = true; }
   var payload = { title: gd.title || 'Raubritter Escape', location: 'lichtenberg', game_data: gd, updated_at: new Date().toISOString(), active: true };
@@ -1565,19 +1584,27 @@ async function saveToSupabase() {
       body: JSON.stringify({ active: false })
     });
 
-    var res;
+    var res, d;
     if (sbGameId) {
       res = await fetch(SB_URL + '/rest/v1/games?id=eq.' + sbGameId, {
         method: 'PATCH', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=representation' },
         body: JSON.stringify(payload)
       });
-    } else {
+      d = res.ok ? await res.json() : [];
+      // Falls die ID nicht mehr existiert (Spiel gelöscht) → neu anlegen
+      if (res.ok && (!d || d.length === 0)) {
+        sbGameId = null;
+        localStorage.removeItem('rbe-sb-game-id');
+      }
+    }
+    if (!sbGameId) {
       res = await fetch(SB_URL + '/rest/v1/games', {
         method: 'POST', headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', Prefer: 'return=representation' },
         body: JSON.stringify(payload)
       });
+      d = res.ok ? await res.json() : [];
     }
-    if (res.ok) { var d = await res.json(); if (d && d[0]) sbGameId = d[0].id; toast('Gespeichert! (nur dieses Spiel ist jetzt aktiv)');
+    if (res.ok) { if (d && d[0]) { sbGameId = d[0].id; localStorage.setItem('rbe-sb-game-id', sbGameId); } toast('Gespeichert! (nur dieses Spiel ist jetzt aktiv)');
     saveGD(); }
     else toast('Fehler: ' + res.status);
   } catch(e) { toast('Verbindungsfehler'); }
@@ -1851,7 +1878,7 @@ async function loadSbGame(id) {
       { headers: { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY } });
     var d = await r.json();
     if (d && d[0] && d[0].game_data) {
-      gd = d[0].game_data; sbGameId = d[0].id;
+      gd = d[0].game_data; sbGameId = d[0].id; localStorage.setItem('rbe-sb-game-id', sbGameId);
       renderSidebar(); renderOv(); renderStory(); renderSt(1);
       toast('Spiel geladen: ' + (gd.title||''));
     }
