@@ -1635,6 +1635,7 @@ async function saveGameState() {
     hintUnlocked: state.hintUnlocked,
     hintUnlockTime: state.hintUnlockTime,
     groupName: state.groupName,
+    attempts: state.attempts,
     startTime: state.startTime,
     savedAt: Date.now()
   };
@@ -1729,7 +1730,7 @@ async function restoreGameState(savedState) {
     state.hintUnlockTime = savedState.hintUnlockTime || [null, null, null];
     state.groupName = savedState.groupName || '';
     state.hintsLevel = 0;
-    state.attempts = 0;
+    state.attempts = savedState.attempts || 0;
     state.startTime = gameStartedAt || savedState.startTime || Date.now();
 
     startTimer();
@@ -1869,7 +1870,17 @@ function renderStoryTab() {
       ansInput.placeholder = 'Antwort eingeben …';
     }
   }
-  if (ansFeed && !solved) ansFeed.textContent = '';
+  if (ansFeed && !solved) {
+    // Wenn schon Fehlversuche gemacht wurden, diese anzeigen
+    if (state.attempts > 0) {
+      const maxA = game.maxattempts || 5;
+      const remaining = maxA - state.attempts;
+      ansFeed.textContent = remaining === 1 ? 'Noch 1 Versuch!' : 'Noch ' + remaining + ' Versuche';
+      ansFeed.style.color = '#f87171';
+    } else {
+      ansFeed.textContent = '';
+    }
+  }
   // Enter-Taste sendet Antwort
   if (ansInput) {
     ansInput.onkeydown = function(e) { if (e.key === 'Enter') checkAnswer(); };
@@ -2380,8 +2391,12 @@ function checkAnswer() {
   const given = input.value.trim().toLowerCase();
   if (!given) return;
 
-  // Normalisierte Antwort – v3 nutzt s.result, neues Format nutzt s.answer
-  const answerRaw = s._answer || s.answer || s.result || '';
+  // Antwort ermitteln. Reihenfolge: answer/result → sonst Schloss-Code dieser Station
+  let answerRaw = s._answer || s.answer || s.result || '';
+  if (!answerRaw && game.locks) {
+    const lk = game.locks.find(function(l){ return l.by === (state.currentStation + 1); });
+    if (lk && lk.code && lk.code !== '–') answerRaw = lk.code;
+  }
   if (!answerRaw) {
     document.getElementById('answer-feedback').textContent = 'Für diese Station ist keine Antwort hinterlegt.';
     document.getElementById('answer-feedback').style.color = '#f87171';
@@ -2418,6 +2433,7 @@ function checkAnswer() {
   } else {
     state.attempts++;
     renderAttemptDots();
+    saveGameState(); // Fehlversuch sofort speichern
 
     const maxA = game.maxattempts || 5;
     const remaining = maxA - state.attempts;
