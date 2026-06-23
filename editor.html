@@ -1536,15 +1536,35 @@ var sbGameId = localStorage.getItem('rbe-sb-game-id') || null;
 
 // ── AUTO-SAVE IN LOCALSTORAGE ──────────────────────────
 function saveGD() {
+  const ind = document.getElementById('saveInd');
   try {
-    localStorage.setItem('rbe-editor-gd', JSON.stringify(gd));
-    const ind = document.getElementById('saveInd');
+    // Base64-Bilder NICHT in localStorage (sprengt 5MB-Limit) – nur URLs behalten.
+    // Tiefe Kopie erstellen, Base64-data entfernen.
+    const slim = JSON.parse(JSON.stringify(gd));
+    if (slim.stations) {
+      slim.stations.forEach(st => {
+        if (Array.isArray(st.images)) {
+          st.images.forEach(img => {
+            // Wenn eine URL existiert, das fette Base64-data verwerfen
+            if (img.url && img.data && img.data.startsWith('data:')) img.data = img.url;
+          });
+        }
+      });
+    }
+    localStorage.setItem('rbe-editor-gd', JSON.stringify(slim));
     if (ind) {
       ind.textContent = '● Gespeichert';
       ind.style.color = '#4ade80';
       setTimeout(() => { ind.textContent = '● Auto-Save aktiv'; ind.style.color = 'rgba(245,234,208,.35)'; }, 2000);
     }
-  } catch(e) { console.warn('localStorage voll?', e); }
+  } catch(e) {
+    console.error('localStorage Fehler:', e);
+    // EHRLICHE Anzeige: Speichern fehlgeschlagen
+    if (ind) {
+      ind.textContent = '⚠ Lokal nicht gespeichert';
+      ind.style.color = '#f87171';
+    }
+  }
 }
 
 function clearGD() {
